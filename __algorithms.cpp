@@ -87,6 +87,8 @@ Category
 			156485479_2_6_4
 	2.7. Binary Search
 		156485479_2_7
+	2.8. BigInteger
+		156485479_2_8
 
 
 3. Data Structure
@@ -240,12 +242,12 @@ ll euclid(ll x, ll y, ll &a, ll &b){
 void linearsieve(int n, vi &lpf, vi &prime){
 	lpf.resize(n + 1);
 	prime.reserve(n + 1);
-	for(int i = 2; i <= n; i ++){
+	for(int i = 2; i <= n; ++ i){
 		if(!lpf[i]){
 			lpf[i] = i;
 			prime.push_back(i);
 		}
-		for(int j = 0; j < prime.size() && prime[j] <= lpf[i] && i * prime[j] <= n; j ++){
+		for(int j = 0; j < prime.size() && prime[j] <= lpf[i] && i * prime[j] <= n; ++ j){
 			lpf[i * prime[j]] = prime[j];
 		}
 	}
@@ -457,12 +459,12 @@ ll primefactor(ll x){
 void linearsieve(int n, vi &lpf, vi &prime){
 	lpf.resize(n + 1);
 	prime.reserve(n + 1);
-	for(int i = 2; i <= n; i ++){
+	for(int i = 2; i <= n; ++ i){
 		if(!lpf[i]){
 			lpf[i] = i;
 			prime.push_back(i);
 		}
-		for(int j = 0; j < prime.size() && prime[j] <= lpf[i] && i * prime[j] <= n; j ++){
+		for(int j = 0; j < prime.size() && prime[j] <= lpf[i] && i * prime[j] <= n; ++ j){
 			lpf[i * prime[j]] = prime[j];
 		}
 	}
@@ -480,73 +482,58 @@ void process_mobius(int n, vi &mu){
 // 156485479_2_1
 // Linear Recurrence Relation Solver / Berlekamp - Massey Algorithm
 // O(N^2 log n) / O(N^2)
+ll modexp(ll b, ll e, const ll &mod){
+	ll res = 1;
+	for(; e; b = b * b % mod, e >>= 1) if(e & 1) res = res * b % mod;
+	return res;
+}
+ll modinv(ll b, const ll &mod){
+	return modexp(b, mod - 2, mod);
+}
 struct recurrence{
 	int N;
 	vl init, coef;
-	ll mod;
-	recurrence(vl init, vl coef, ll mod):
-		N(coef.size()), init(init), coef(coef), mod(mod){
-	}
+	const ll mod;
+	recurrence(const vl &init, const vl &coef, ll mod): N(sz(coef)), init(init), coef(coef), mod(mod){ }
 	// Berlekamp Massey Algorithm
-	recurrence(vl s, ll mod): mod(mod){
-		int n = s.size();
+	recurrence(const vl &s, ll mod): mod(mod){
+		int n = sz(s);
 		N = 0;
 		vl B(n), T;
 		coef.resize(n);
 		coef[0] = B[0] = 1;
 		ll b = 1;
-		for(int i = 0, m = 0; i < n; i ++){
+		for(int i = 0, m = 0; i < n; ++ i){
 			m ++;
 			ll d = s[i] % mod;
-			for(int j = 1; j <= N; j ++){
-				d = (d + coef[j] * s[i - j]) % mod;
-			}
+			for(int j = 1; j <= N; ++ j) d = (d + coef[j] * s[i - j]) % mod;
 			if(!d) continue;
 			T = coef;
 			ll c = d * modexp(b, mod - 2, mod) % mod;
-			for(int j = m; j < n; j ++){
-				coef[j] = (coef[j] - c * B[j - m]) % mod;
-			}
+			for(int j = m; j < n; ++ j) coef[j] = (coef[j] - c * B[j - m]) % mod;
 			if(2 * N > i) continue;
 			N = i + 1 - N, B = T, b = d, m = 0;
 		}
 		coef.resize(N + 1), coef.erase(coef.begin());
-		for(auto &x: coef){
-			x = (mod - x) % mod;
-		}
+		for(auto &x: coef) x = (mod - x) % mod;
 		reverse(all(coef));
 		init.resize(N);
-		for(int i = 0; i < N; i ++){
-			init[i] = s[i] % mod;
-		}
+		for(int i = 0; i < N; ++ i) init[i] = s[i] % mod;
 	}
 	// O(N^2 log n)
 	ll operator[](ll n) const{
 		auto combine = [&](vl a, vl b){
 			vl res(2 * N + 1);
-			for(int i = 0; i <= N; i ++){
-				for(int j = 0; j <= N; j ++){
-					res[i + j] = (res[i + j] + a[i] * b[j]) % mod;
-				}
-			}
-			for(int i = 2 * N; i > N; i --){
-				for(int j = 0; j < N; j ++){
-					res[i - 1 - j] = (res[i - 1 - j] + res[i] * coef[N - 1 - j]) % mod;
-				}
-			}
+			for(int i = 0; i <= N; ++ i) for(int j = 0; j <= N; ++ j) res[i + j] = (res[i + j] + a[i] * b[j]) % mod;
+			for(int i = 2 * N; i > N; -- i) for(int j = 0; j < N; ++ j) res[i - 1 - j] = (res[i - 1 - j] + res[i] * coef[N - 1 - j]) % mod;
 			res.resize(N + 1);
 			return res;
 		};
 		vl pol(N + 1), e(pol);
 		pol[0] = e[1] = 1;
-		for(n ++; n; n /= 2){
-			if(n % 2) pol = combine(pol, e);
-			e = combine(e, e);
-		}
+		for(n ++; n; n /= 2, e = combine(e, e)) if(n % 2) pol = combine(pol, e);
 		ll res = 0;
-		for(int i = 0; i < N; i ++){
-			res = (res + pol[i + 1] * init[i]) % mod;
-		}
+		for(int i = 0; i < N; ++ i) res = (res + pol[i + 1] * init[i]) % mod;
 		return res;
 	}
 };
@@ -697,54 +684,52 @@ int solve_linear_equations(const vector<bs> &AA, bs& x, const vi &bb, int m){
 struct matrix: vector<vl>{
 	int N, M;
 	const ll mod;
-	matrix(int N, int M, ll mod, int flag = 0): N(N), M(M), mod(mod){
+	matrix(int N, int M, ll mod, bool is_id = false): N(N), M(M), mod(mod){
 		resize(N, vl(M));
-		if(flag){
-			int temp = min(N, M);
-			for(int i = 0; i < temp; ++ i) (*this)[i][i] = 1;
-		}
+		if(is_id) for(int i = 0; i < min(N, M); ++ i) (*this)[i][i] = 1;
 	}
 	matrix(const vector<vl> &arr, ll mod): N(sz(arr)), M(sz(arr[0])), mod(mod){
 		resize(N);
 		for(int i = 0; i < N; ++ i) (*this)[i] = arr[i];
 	}
-	matrix operator=(const matrix &other){
-		N = other.N, M = other.M;
+	bool operator==(const matrix &otr) const{
+		if(N != otr.N || M != otr.M) return false;
+		for(int i = 0; i < N; ++ i) for(int j = 0; j < M; ++ j) if((*this)[i][j] != otr[i][j]) return false;
+		return true;
+	}
+	matrix operator=(const matrix &otr){
+		N = otr.N, M = otr.M;
 		resize(N);
-		for(int i = 0; i < N; ++ i) (*this)[i] = other[i];
+		for(int i = 0; i < N; ++ i) (*this)[i] = otr[i];
 		return *this;
 	}
-	matrix operator+(const matrix &other) const{
+	matrix operator+(const matrix &otr) const{
 		matrix res(N, M, mod);
-		for(int i = 0; i < N; ++ i) for(int j = 0; j < M; ++ j) res[i][j] = ((*this)[i][j] + other[i][j]) % mod;
+		for(int i = 0; i < N; ++ i) for(int j = 0; j < M; ++ j) res[i][j] = ((*this)[i][j] + otr[i][j]) % mod;
 		return res;
 	}
-	matrix operator+=(const matrix &other){
-		*this = *this + other;
+	matrix operator+=(const matrix &otr){
+		*this = *this + otr;
 		return *this;
 	}
-	matrix operator*(const matrix &other) const{
-		assert(M == other.N);
-		int L = other.M;
+	matrix operator*(const matrix &otr) const{
+		assert(M == otr.N);
+		int L = otr.M;
 		matrix res(N, M, mod);
-		for(int i = 0; i < N; ++ i) for(int j = 0; j < L; ++ j) for(int k = 0; k < M; ++ k) (res[i][j] += (*this)[i][k] * other[k][j]) %= mod;
+		for(int i = 0; i < N; ++ i) for(int j = 0; j < L; ++ j) for(int k = 0; k < M; ++ k) (res[i][j] += (*this)[i][k] * otr[k][j]) %= mod;
 		return res;
 	}
-	matrix operator*=(const matrix &other){
-		*this = *this * other;
+	matrix operator*=(const matrix &otr){
+		*this = *this * otr;
 		return *this;
 	}
 	matrix operator^(ll e) const{
 		assert(N == M);
 		matrix res(N, N, mod, 1), b(*this);
-		while(e){
-			if(e & 1) res *= b;
-			b *= b;
-			e >>= 1;
-		}
+		for(; e; b *= b, e >>= 1) if(e & 1) res *= b;
 		return res;
 	}
-	ll det(){
+	ll det() const{
 		assert(N == M);
 		vector<vl> temp = *this;
 		ll res = 1;
@@ -757,62 +742,63 @@ struct matrix: vector<vl>{
 					res *= -1;
 				}
 			}
-			res = res * temp[i][i] % mod;
+			res = (res + mod) * temp[i][i] % mod;
 			if(!res) return 0;
 		}
-		return (res + mod) % mod;
+		return res;
 	}
 };
 
 // 156485479_2_3_2
 // Matrix for general ring
+// T must support +, *, !=, <<, >>
 template<class T>
 struct matrix: vector<vector<T>>{
 	int N, M;
-	T aid, mid; // multiplicative identity
-	matrix(int N, int M, const T &aid, const T &mid, int flag):
-		N(N), M(M), aid(aid), mid(mid){
-		this->resize(N, vector<T>(M, aid));
-		if(flag) for(int i = 0; i < min(N, M); ++ i) (*this)[i][i] = mid;
+	const T add_id, mul_id; // multiplicative identity
+	matrix(int N, int M, const T &add_id, const T &mul_id, bool is_id = false): N(N), M(M), add_id(add_id), mul_id(mul_id){
+		this->resize(N, vector<T>(M, add_id));
+		if(is_id) for(int i = 0; i < min(N, M); ++ i) (*this)[i][i] = mul_id;
 	}
-	matrix(const vector<vector<T>> &arr, const T &aid, const T &mid): N(sz(arr)), M(sz(arr[0])), aid(aid), mid(mid){
-		this->resize(N, vector<T>(M, aid));
+	matrix(const vector<vector<T>> &arr, const T &add_id, const T &mul_id): N(sz(arr)), M(sz(arr[0])), add_id(add_id), mul_id(mul_id){
+		this->resize(N, vector<T>(M, add_id));
 		for(int i = 0; i < N; ++ i) for(int j = 0; j < M; ++ j) (*this)[i][j] = arr[i][j];
 	}
-	matrix operator=(const matrix &other){
-		N = other.N, M = other.M;
+	bool operator==(const matrix &otr) const{
+		if(N != otr.N || M != otr.M) return false;
+		for(int i = 0; i < N; ++ i) for(int j = 0; j < M; ++ j) if((*this)[i][j] != otr[i][j]) return false;
+		return true;
+	}
+	matrix operator=(const matrix &otr){
+		N = otr.N, M = otr.M;
 		this->resize(N);
-		for(int i = 0; i < N; ++ i) (*this)[i] = other[i];
+		for(int i = 0; i < N; ++ i) (*this)[i] = otr[i];
 		return *this;
 	}
-	matrix operator+(const matrix &other) const{
-		matrix res(N, M, aid, mid, 0);
-		for(int i = 0; i < N; ++ i) for(int j = 0; j < M; ++ j) res[i][j] = (*this)[i][j] + other[i][j];
+	matrix operator+(const matrix &otr) const{
+		matrix res(N, M, add_id, mul_id);
+		for(int i = 0; i < N; ++ i) for(int j = 0; j < M; ++ j) res[i][j] = (*this)[i][j] + otr[i][j];
 		return res;
 	}
-	matrix operator+=(const matrix &other){
-		*this = *this + other;
+	matrix operator+=(const matrix &otr){
+		*this = *this + otr;
 		return *this;
 	}
-	matrix operator*(const matrix &other) const{
-		assert(M == other.N);
-		int L = other.M;
-		matrix res(N, M, aid, mid, 0);
-		for(int i = 0; i < N; ++ i) for(int j = 0; j < L; ++ j) for(int k = 0; k < M; ++ k) res[i][j] = res[i][j] + (*this)[i][k] * other[k][j];
+	matrix operator*(const matrix &otr) const{
+		assert(M == otr.N);
+		int L = otr.M;
+		matrix res(N, M, add_id, mul_id);
+		for(int i = 0; i < N; ++ i) for(int j = 0; j < L; ++ j) for(int k = 0; k < M; ++ k) res[i][j] = res[i][j] + (*this)[i][k] * otr[k][j];
 		return res;
 	}
-	matrix operator*=(const matrix &other){
-		*this = *this * other;
+	matrix operator*=(const matrix &otr){
+		*this = *this * otr;
 		return *this;
 	}
 	matrix operator^(ll e) const{
 		assert(N == M);
-		matrix res(N, N, aid, mid, 1), b(*this);
-		while(e){
-			if(e & 1) res *= b;
-			b *= b;
-			e >>= 1;
-		}
+		matrix res(N, N, add_id, mul_id, true), b(*this);
+		for(; e; b *= b, e >>= 1) if(e & 1) res *= b;
 		return res;
 	}
 };
@@ -1270,6 +1256,280 @@ ll custom_binary_search(ll low, ll high, Pred p, bool is_left = true){
 		return high;
 	}
 }
+
+// 156485479_2_8
+// Big Integer
+const int base = 1e9;
+const int base_digits = 9; 
+struct bigint{
+	vi a;
+	int sign;
+	int size(){
+		if(a.empty()) return 0;
+		int res = (sz(a) - 1) * base_digits, ca = a.back();
+		while(ca) ++ res, ca /= 10;
+		return res;
+	}
+	bigint operator^(const bigint &v){
+		bigint res = 1, a = *this, b = v;
+		for(; !b.isZero(); a *= a, b /= 2) if(b % 2) res *= a;
+		return res;
+	}
+	string to_string(){
+		stringstream ss;
+		ss << *this;
+		string s;
+		ss >> s;
+		return s;
+	}
+	int sumof(){
+		string s = to_string();
+		int res = 0;
+		for(auto c: s) res += c - '0';
+		return res;
+	}
+	bigint(): sign(1){ }
+	bigint(ll v){ *this = v; }
+	bigint(const string &s){ read(s); }
+	void operator=(const bigint &v){
+		sign = v.sign;
+		a = v.a;
+	}
+	void operator=(ll v){
+		sign = 1;
+		a.clear();
+		if(v < 0) sign = -1, v = -v;
+		for (; v > 0; v = v / base) a.push_back(v % base);
+	}
+	bigint operator+(const bigint &v) const{
+		if(sign == v.sign){
+			bigint res = v;
+			for(int i = 0, carry = 0; i < max(sz(a), sz(v.a)) || carry; ++ i){
+				if(i == sz(res.a)) res.a.push_back(0);
+				res.a[i] += carry + (i < sz(a) ? a[i] : 0);
+				carry = res.a[i] >= base;
+				if(carry) res.a[i] -= base;
+			}
+			return res;
+		}
+		return *this - (-v);
+	}
+	bigint operator-(const bigint &v) const{
+		if(sign == v.sign){
+			if(abs() >= v.abs()){
+				bigint res = *this;
+				for(int i = 0, carry = 0; i < sz(v.a) || carry; ++ i){
+					res.a[i] -= carry + (i < sz(v.a) ? v.a[i] : 0);
+					carry = res.a[i] < 0;
+					if(carry) res.a[i] += base;
+				}
+				res.trim();
+				return res;
+			}
+			return -(v - *this);
+		}
+		return *this + (-v);
+	}
+	void operator*=(int v){
+		if(v < 0) sign = -sign, v = -v;
+		for(int i = 0, carry = 0; i < sz(a) || carry; ++ i){
+			if(i == sz(a)) a.push_back(0);
+			ll cur = a[i] * (ll)v + carry;
+			carry = (int)(cur / base);
+			a[i] = (int)(cur % base);
+			//asm("divl %%ecx" : "=a"(carry), "=d"(a[i]) : "A"(cur), "c"(base));
+		}
+		trim();
+	}
+	bigint operator*(int v) const{
+		bigint res = *this;
+		res *= v;
+		return res;
+	}
+	void operator*=(ll v){
+		if(v < 0) sign = -sign, v = -v;
+		if(v > base){
+			*this = *this * (v / base) * base + *this * (v % base);
+			return ;
+		}
+		for(int i = 0, carry = 0; i < sz(a) || carry; ++ i){
+			if (i == sz(a)) a.push_back(0);
+			ll cur = a[i] * (ll)v + carry;
+			carry = (int)(cur / base);
+			a[i] = (int)(cur % base);
+			//asm("divl %%ecx" : "=a"(carry), "=d"(a[i]) : "A"(cur), "c"(base));
+		}
+		trim();
+	}
+	bigint operator*(ll v) const{
+		bigint res = *this;
+		res *= v;
+		return res;
+	}
+	friend pair<bigint, bigint> divmod(const bigint &a1, const bigint &b1) {
+		int norm = base / (b1.a.back() + 1);
+		bigint a = a1.abs() * norm, b = b1.abs() * norm, q, r;
+		q.a.resize(sz(a.a));
+		for(int i = sz(a.a) - 1; i >= 0; -- i){
+			r *= base;
+			r += a.a[i];
+			int s1 = sz(r.a) <= sz(b.a) ? 0 : r.a[sz(b.a)];
+			int s2 = sz(r.a) <= sz(b.a) - 1 ? 0 : r.a[sz(b.a) - 1];
+			int d = ((ll)base * s1 + s2) / b.a.back();
+			r -= b * d;
+			while(r < 0) r += b, -- d;
+			q.a[i] = d;
+		}
+		q.sign = a1.sign * b1.sign, r.sign = a1.sign;
+		q.trim(), r.trim();
+		return {q, r / norm};
+	}
+	bigint operator/(const bigint &v) const{ return divmod(*this, v).first; }
+	bigint operator%(const bigint &v) const{ return divmod(*this, v).second; }
+	void operator/=(int v){
+		if(v < 0) sign = -sign, v = -v;
+		for(int i = sz(a) - 1, rem = 0; i >= 0; -- i){
+			ll cur = a[i] + rem * (ll)base;
+			a[i] = (int)(cur / v);
+			rem = (int)(cur % v);
+		}
+		trim();
+	}
+	bigint operator/(int v) const{
+		bigint res = *this;
+		res /= v;
+		return res;
+	}
+	int operator%(int v) const{
+		if(v < 0) v = -v;
+		int m = 0;
+		for(int i = sz(a) - 1; i >= 0; -- i) m = (a[i] + m * (ll)base) % v;
+		return m * sign;
+	}
+	void operator+=(const bigint &v){ *this = *this + v; }
+	void operator-=(const bigint &v){ *this = *this - v; }
+	void operator*=(const bigint &v){ *this = *this * v; }
+	void operator/=(const bigint &v){ *this = *this / v; }
+	bool operator<(const bigint &v) const{
+		if(sign != v.sign) return sign < v.sign;
+		if(sz(a) != sz(v.a)) return sz(a) * sign < sz(v.a) * v.sign;
+		for(int i = sz(a) - 1; i >= 0; -- i) if(a[i] != v.a[i]) return a[i] * sign < v.a[i] * sign;
+		return false;
+	}
+	bool operator>(const bigint &v) const{ return v < *this; }
+	bool operator<=(const bigint &v) const{ return !(v < *this); }
+	bool operator>=(const bigint &v) const{ return !(*this < v); }
+	bool operator==(const bigint &v) const{ return !(*this < v) && !(v < *this); }
+	bool operator!=(const bigint &v) const{ return *this < v || v < *this; }
+	void trim(){
+		while (!a.empty() && !a.back()) a.pop_back();
+		if(a.empty()) sign = 1;
+	}
+	bool isZero() const{ return a.empty() || (sz(a) == 1 && !a[0]); }
+	bigint operator-() const{
+		bigint res = *this;
+		res.sign = -sign;
+		return res;
+	}
+	bigint abs() const{
+		bigint res = *this;
+		res.sign *= res.sign;
+		return res;
+	}
+	ll longValue() const{
+		ll res = 0;
+		for(int i = sz(a) - 1; i >= 0; -- i) res = res * base + a[i];
+		return res * sign;
+	}
+	friend bigint gcd(const bigint &a, const bigint &b){ return b.isZero() ? a : gcd(b, a % b); }
+	friend bigint lcm(const bigint &a, const bigint &b){ return a / gcd(a, b) * b; }
+	void read(const string &s){
+		sign = 1;
+		a.clear();
+		int pos = 0;
+		while(pos < (int) s.size() && (s[pos] == '-' || s[pos] == '+')){
+			if(s[pos] == '-') sign = -sign;
+			++ pos;
+		}
+		for(int i = sz(s) - 1; i >= pos; i -= base_digits){
+			int x = 0;
+			for(int j = max(pos, i - base_digits + 1); j <= i; ++ j) x = x * 10 + s[j] - '0';
+			a.push_back(x);
+		}
+		trim();
+	}
+	friend istream& operator>>(istream &stream, bigint &v){
+		string s;
+		stream >> s;
+		v.read(s);
+		return stream;
+	}
+	friend ostream& operator<<(ostream &stream, const bigint &v){
+		if(v.sign == -1) stream << '-';
+		stream << (v.a.empty() ? 0 : v.a.back());
+		for(int i = (int) v.a.size() - 2; i >= 0; -- i) stream << setw(base_digits) << setfill('0') << v.a[i];
+		return stream;
+	}
+	static vi convert_base(const vi &a, int old_digits, int new_digits){
+		vl p(max(old_digits, new_digits) + 1);
+		p[0] = 1;
+		for(int i = 1; i < sz(p); ++ i) p[i] = p[i - 1] * 10;
+		vi res;
+		ll cur = 0;
+		int cur_digits = 0;
+		for(int i = 0; i < sz(a); i++){
+			cur += a[i] * p[cur_digits];
+			cur_digits += old_digits;
+			while(cur_digits >= new_digits){
+				res.push_back(int(cur % p[new_digits]));
+				cur /= p[new_digits];
+				cur_digits -= new_digits;
+			}
+		}
+		res.push_back((int)cur);
+		while(!res.empty() && !res.back()) res.pop_back();
+		return res;
+	}
+	static vl karatsubaMultiply(const vl &a, const vl &b){
+		int n = sz(a);
+		vl res(n << 1);
+		if(n <= 32){
+			for(int i = 0; i < n; ++ i) for(int j = 0; j < n; ++ j) res[i + j] += a[i] * b[j];
+			return res;
+		}
+		int k = n >> 1;
+		vl a1(a.begin(), a.begin() + k), a2(a.begin() + k, a.end());
+		vl b1(b.begin(), b.begin() + k), b2(b.begin() + k, b.end());
+		vl a1b1 = karatsubaMultiply(a1, b1), a2b2 = karatsubaMultiply(a2, b2);
+		for(int i = 0; i < k; ++ i) a2[i] += a1[i];
+		for(int i = 0; i < k; ++ i) b2[i] += b1[i];
+		vl r = karatsubaMultiply(a2, b2);
+		for(int i = 0; i < sz(a1b1); ++ i) r[i] -= a1b1[i];
+		for(int i = 0; i < sz(a2b2); ++ i) r[i] -= a2b2[i];
+		for(int i = 0; i < sz(r); ++ i) res[i + k] += r[i];
+		for(int i = 0; i < sz(a1b1); ++ i) res[i] += a1b1[i];
+		for (int i = 0; i < sz(a2b2); ++ i) res[i + n] += a2b2[i];
+		return res;
+	}
+	bigint operator*(const bigint &v) const{
+		vi a6 = convert_base(this->a, base_digits, 6), b6 = convert_base(v.a, base_digits, 6);
+		vl a(a6.begin(), a6.end()), b(b6.begin(), b6.end());
+		while(sz(a) < sz(b)) a.push_back(0);
+		while(sz(b) < sz(a)) b.push_back(0);
+		while(sz(a) & (sz(a) - 1)) a.push_back(0), b.push_back(0);
+		vl c = karatsubaMultiply(a, b);
+		bigint res;
+		res.sign = sign * v.sign;
+		for(int i = 0, carry = 0; i < sz(c); ++ i){
+			ll cur = c[i] + carry;
+			res.a.push_back((int)(cur % 1000000));
+			carry = (int)(cur / 1000000);
+		}
+		res.a = convert_base(res.a, 6, base_digits);
+		res.trim();
+		return res;
+	}
+};
 
 // Binary search for numbers with the same remainder mod step
 template<class Pred>
