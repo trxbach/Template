@@ -2324,19 +2324,19 @@ struct recursive_segment{
 // 156485479_3_2_6
 // Lazy Dynamic Segment Tree
 // O(1) or O(N) preprocessing, O(log L) or O(log N) per query
-template<typename T, typename BO1, typename BO2, typename BO3>
+template<typename T, typename LOP, typename QOP, typename AOP>
 struct lazy_segment{
 	lazy_segment *l = 0, *r = 0;
 	int low, high;
-	BO1 lop;           // Lazy op(L, L -> L)
-	BO2 qop;           // Query op(Q, Q -> Q)
-	BO3 aop;           // Apply op(Q, L, len -> Q)
+	LOP lop;                // Lazy op(L, L -> L)
+	QOP qop;                // Query op(Q, Q -> Q)
+	AOP aop;                // Apply op(Q, L, leftend, rightend -> Q)
 	const vector<T> id;     // Lazy id(L), Query id(Q), Disable constant(Q)
 	T lset, lazy, val;
-	lazy_segment(int low, int high, BO1 lop, BO2 qop, BO3 aop, const vector<T> &id): low(low), high(high), lop(lop), qop(qop), aop(aop), id(id){
+	lazy_segment(int low, int high, LOP lop, QOP qop, AOP aop, const vector<T> &id): low(low), high(high), lop(lop), qop(qop), aop(aop), id(id){
 		lazy = id[0], val = id[1], lset = id[2];
 	}
-	lazy_segment(const vector<T> &arr, int low, int high, BO1 lop, BO2 qop, BO3 aop, const vector<T> &id): low(low), high(high), lop(lop), qop(qop), aop(aop), id(id){
+	lazy_segment(const vector<T> &arr, int low, int high, LOP lop, QOP qop, AOP aop, const vector<T> &id): low(low), high(high), lop(lop), qop(qop), aop(aop), id(id){
 		lazy = id[0], lset = id[2];
 		if(high - low > 1){
 			int mid = low + (high - low) / 2;
@@ -2380,7 +2380,7 @@ struct lazy_segment{
 	void update(int ql, int qr, T x){
 		if(qr <= low || high <= ql) return;
 		if(ql <= low && high <= qr){
-			if(lset != 	id[2]) lset = lop(lset, x);
+			if(lset != id[2]) lset = lop(lset, x);
 			else lazy = lop(lazy, x);
 			val = aop(val, x, low, high);
 		}
@@ -3365,19 +3365,19 @@ struct binary_lift: vector<vector<pair<int, T>>>{
 // 156485479_4_4_3
 // Heavy Light Decomposition
 // O(N + M) processing, O(log^2 N) per query
-template<typename T, typename BO1, typename BO2, typename BO3>
+template<typename T, typename LOP, typename QOP, typename AOP>
 struct lazy_segment{
 	lazy_segment *l = 0, *r = 0;
 	int low, high;
-	BO1 lop;           // Lazy op(L, L -> L)
-	BO2 qop;           // Query op(Q, Q -> Q)
-	BO3 aop;           // Apply op(Q, L, len -> Q)
+	LOP lop;                // Lazy op(L, L -> L)
+	QOP qop;                // Query op(Q, Q -> Q)
+	AOP aop;                // Apply op(Q, L, leftend, rightend -> Q)
 	const vector<T> id;     // Lazy id(L), Query id(Q), Disable constant(Q)
 	T lset, lazy, val;
-	lazy_segment(int low, int high, BO1 lop, BO2 qop, BO3 aop, const vector<T> &id): low(low), high(high), lop(lop), qop(qop), aop(aop), id(id){
+	lazy_segment(int low, int high, LOP lop, QOP qop, AOP aop, const vector<T> &id): low(low), high(high), lop(lop), qop(qop), aop(aop), id(id){
 		lazy = id[0], val = id[1], lset = id[2];
 	}
-	lazy_segment(const vector<T> &arr, int low, int high, BO1 lop, BO2 qop, BO3 aop, const vector<T> &id): low(low), high(high), lop(lop), qop(qop), aop(aop), id(id){
+	lazy_segment(const vector<T> &arr, int low, int high, LOP lop, QOP qop, AOP aop, const vector<T> &id): low(low), high(high), lop(lop), qop(qop), aop(aop), id(id){
 		lazy = id[0], lset = id[2];
 		if(high - low > 1){
 			int mid = low + (high - low) / 2;
@@ -3421,7 +3421,7 @@ struct lazy_segment{
 	void update(int ql, int qr, T x){
 		if(qr <= low || high <= ql) return;
 		if(ql <= low && high <= qr){
-			if(lset != 	id[2]) lset = lop(lset, x);
+			if(lset != id[2]) lset = lop(lset, x);
 			else lazy = lop(lazy, x);
 			val = aop(val, x, low, high);
 		}
