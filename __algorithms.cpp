@@ -160,6 +160,12 @@ Category
 			156485479_4_4_4
 		4.4.5. AHU Algorithm ( Rooted Tree Isomorphism ) / Tree Isomorphism
 			156485479_4_4_5
+	4.5. Shortest Path Tree
+		4.5.1. On Sparse Graph ( Dijkstra, Bellman Ford, SPFA )
+			156485479_4_5_1
+		4.5.2. On Dense Graph ( Dijkstra, Floyd Warshall )
+			156485479_4_5_2
+	4.6. Minimum Spanning Tree ( INCOMPLETE )
 
 
 5. String
@@ -3679,10 +3685,201 @@ vector<int> centroid(const vector<vector<int>> &adj){
 }
 bool isomorphic(const vector<vector<vector<int>>> &adj){
 	vector<vector<int>> cent{centroid(adj[0]), centroid(adj[1])};
-	if(sz(cent[0]) != sz(cent[1])) return false;
+	if(cent[0].size() != cent[1].size()) return false;
 	for(auto u: cent[0]) for(auto v: cent[1]) if(isomorphic(adj, vector<int>{u, v})) return true;
 	return false;
 }
+
+// 156485479_4_6_1
+// Shortest Path Tree On Sparse Graph ( Dijkstra, Bellman Ford, SPFA )
+template<typename T = long long, typename BO = plus<T>, typename Compare = less<T>>
+struct shortest_path_tree_sparse{
+	struct edge{
+		int from, to;
+		T cost;
+	};
+	const T inf;
+	int N;
+	BO bin_op;
+	Compare cmp;
+	const T id;
+	vector<vector<int>> adj;
+	vector<edge> edge;
+	vector<T> dist;
+	vector<int> parent;
+	shortest_path_tree_sparse(int N, const T inf = numeric_limits<T>::max() / 3, BO bin_op = plus<T>(), T id = 0, Compare cmp = less<T>()): N(N), inf(inf), bin_op(bin_op), id(id), cmp(cmp), adj(N), dist(N, inf), parent(N, -1){ }
+	void insert(int u, int v, T w){
+		adj[u].push_back(edge.size());
+		edge.push_back({u, v, w});
+	}
+	void init(){
+		fill(dist.begin(), dist.end(), inf);
+		fill(parent.begin(), parent.end(), -1);
+	}
+	void init_dijkstra(int s = 0){
+		init();
+		dist[s] = id;
+		auto qcmp = [&](const pair<T, int> &lhs, const pair<T, int> &rhs){
+			return lhs.first == rhs.first ? lhs.second < rhs.second : cmp(rhs.first, lhs.first);
+		};
+		priority_queue<pair<T, int>, vector<pair<T, int>>, decltype(qcmp)> q(qcmp);
+		q.push({id, s});
+		while(!q.empty()){
+			auto [d, u] = q.top();
+			q.pop();
+			if(d != dist[u]) continue;
+			for(int i: adj[u]){
+				auto [u, v, w] = edge[i];
+				if(cmp(bin_op(dist[u], w), dist[v])){
+					dist[v] = bin_op(dist[u], w);
+					parent[v] = i;
+					q.push({dist[v], v});
+				}
+			}
+		}
+	}
+	pair<vector<int>, vector<int>> init_bellman_ford(int s = 0, bool find_any_cycle = false){
+		if(find_any_cycle){
+			fill(dist.begin(), dist.end(), id);
+			fill(parent.begin(), parent.end(), -1);
+		}
+		else{
+			init();
+			dist[s] = id;
+		}
+		int x;
+		for(int i = 0; i < N; ++ i){
+			x = -1;
+			for(int j = 0; j < edge.size(); ++ j){
+				auto [u, v, w] = edge[j];
+				if(cmp(dist[u], inf) && cmp(bin_op(dist[u], w), dist[v])){
+					dist[v] = cmp(-inf, bin_op(dist[u], w)) ? bin_op(dist[u], w) : -inf;
+					parent[v] = j;
+					x = v;
+				}
+			}
+		}
+		if(x == -1) return {};
+		else{
+			int y = x;
+			for(int i = 0; i < N; ++ i) y = parent[y];
+			vector<int> vertices, edges;
+			for(int c = y; ; c = edge[parent[c]].from){
+				vertices.push_back(c), edges.push_back(parent[c]);
+				if(c == y && vertices.size() > 1) break;
+			}
+			reverse(vertices.begin(), vertices.end()), reverse(edges.begin(), edges.end());
+			return {vertices, edges};
+		}
+	}
+	bool init_spfa(int s = 0){
+		init();
+		vector<int> cnt(N);
+		vector<bool> inq(N);
+		deque<int> q;
+		dist[s] = id;
+		q.push_back(s);
+		inq[s] = true;
+		while(!q.empty()){
+			int u = q.front();
+			q.pop_front();
+			inq[u] = false;
+			for(int i: adj[u]){
+				auto [u, v, w] = edge[i];
+				if(cmp(bin_op(dist[u], w), dist[v])){
+					dist[v] = bin_op(dist[u], w);
+					parent[v] = i;
+					if(!inq[v]){
+						q.push_back(v);
+						inq[v] = true;
+						++ cnt[v];
+						if(cnt[v] > N) return false;
+					}
+				}
+			}
+		}
+		return true;
+	}
+	pair<vector<int>, vector<int>> path_from_root(int u){
+		vector<int> vertices, edges;
+		for(; parent[u] != -1; u = edge[parent[u]].from){
+			vertices.push_back(u);
+			edges.push_back(parent[u]);
+		}
+		vertices.push_back(u);
+		reverse(vertices.begin(), vertices.end()), reverse(edges.begin(), edges.end());
+		return {vertices, edges};
+	}
+};
+
+// 156485479_4_6_2
+// Shortest Path Tree On Dense Graph ( Dijkstra, Floyd Warshall )
+template<typename T = long long, typename BO = plus<T>, typename Compare = less<T>>
+struct shortest_path_tree_dense{
+	const T inf;
+	int N;
+	BO bin_op;
+	Compare cmp;
+	const T id;
+	vector<vector<T>> adj, dist;
+	vector<vector<int>> parent, pass;
+	shortest_path_tree_dense(int N, const T inf = numeric_limits<T>::max() / 3, BO bin_op = plus<T>(), T id = 0, Compare cmp = less<T>()): N(N), inf(inf), bin_op(bin_op), id(id), cmp(cmp), adj(N, vector<T>(N, inf)), dist(N, vector<T>(N, inf)), parent(N, vector<int>(N, -1)), pass(N, vector<int>(N, -1)){ }
+	void insert(int u, int v, T w){ if(cmp(w, adj[u][v])) adj[u][v] = w; }
+	void init(int s){
+		fill(dist[s].begin(), dist[s].end(), inf);
+		fill(parent[s].begin(), parent[s].end(), -1);
+	}
+	void init_dijkstra(int s){
+		init(s);
+		vector<bool> visited(N);
+		dist[s][s] = id;
+		for(int i = 0; i < N; ++ i){
+			int u = -1;
+			for(int v = 0; v < N; ++ v) if(!visited[v] && (u == -1 || cmp(dist[s][v], dist[s][u]))) u = v;
+			if(dist[s][u] == inf) break;
+			visited[u] = true;
+			for(int v = 0; v < N; ++ v) if(cmp(bin_op(dist[s][u], adj[u][v]), dist[s][v])){
+				dist[s][v] = bin_op(dist[s][u], adj[u][v]);
+				parent[s][v] = u;
+			}
+		}
+	}
+	vector<int> path_from_root(int s, int u){
+		vector<int> vertices;
+		for(; u != s && u != -1; u = parent[s][u]) vertices.push_back(u);
+		if(u == -1) return { };
+		vertices.push_back(s);
+		reverse(vertices.begin(), vertices.end());
+		return vertices;
+	}
+	bool init_floyd_warshall(){
+		dist = adj;
+		fill(pass.begin(), pass.end(), vector<int>(N, -1));
+		for(int u = 0; u < N; ++ u) dist[u][u] = id;
+		for(int k = 0; k < N; ++ k) for(int i = 0; i < N; ++ i) for(int j = 0; j < N; ++ j){
+			if(cmp(dist[i][k], inf) && cmp(dist[k][j], inf) && cmp(bin_op(dist[i][k], dist[k][j]), dist[i][j])){
+				dist[i][j] = bin_op(dist[i][k], dist[k][j]);
+				pass[i][j] = k;
+			}
+		}
+		for(int u = 0; u < N; ++ u) if(dist[u][u] != id) return false;
+		return true;
+	}
+	vector<int> path_between(int u, int v){
+		if(dist[u][v] == inf) return { };
+		vector<int> path;
+		function<void(int, int)> solve = [&](int u, int v){
+			if(pass[u][v] == -1){
+				path.push_back(u);
+				return;
+			}
+			solve(u, pass[u][v]), solve(pass[u][v], v);
+		};
+		solve(u, v);
+		path.push_back(v);
+		return path;
+	}
+};
 
 // 156485479_5_1
 // Returns the starting position of the lexicographically minimal rotation
