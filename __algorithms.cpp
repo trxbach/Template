@@ -209,32 +209,32 @@ Category
 // 156485479_1_1
 // Modular Exponentiation, Modular Inverse and Geometric Sum
 // O(log e)
-ll modexp(ll b, ll e, const ll &mod){
-	ll res = 1;
+long long modexp(long long b, long long e, const long long &mod){
+	long long res = 1;
 	for(; e; b = b * b % mod, e >>= 1) if(e & 1) res = res * b % mod;
 	return res;
 }
-ll modinv(ll a, ll m){
-	ll u = 0, v = 1;
+long long modinv(long long a, long long m){
+	long long u = 0, v = 1;
 	while(a){
-		ll t = m / a;
+		long long t = m / a;
 		m -= t * a; swap(a, m);
 		u -= t * v; swap(u, v);
 	}
 	assert(m == 1);
 	return u;
 }
-ll modgeo(ll b, ll e, const ll &mod){
+long long modgeo(long long b, long long e, const long long &mod){
 	if(e < 2) return e;
-	ll res = 1;
-	for(ll bit = 1 << 30 - __builtin_clz(e), p = 1; bit; bit >>= 1){
+	long long res = 1;
+	for(long long bit = 1 << 30 - __builtin_clz(e), p = 1; bit; bit >>= 1){
 		res = res * (1 + p * b % mod) % mod, p = p * p % mod * b % mod;
 		if(bit & e) res = (res + (p = p * b % mod)) % mod;
 	}
 	return res;
 }
 template<typename T>
-T binexp(T b, ll e, const T &id){
+T binexp(T b, long long e, const T &id){
 	T res = id;
 	for(; e; b = b * b, e /= 2) if(e & 1) res = res * b;
 	return res;
@@ -251,10 +251,10 @@ T modinv(T a, T m){
 	return u;
 }
 template<typename T>
-T bingeo(const T &b, ll e, const T &add_id, const T &mul_id){
+T bingeo(const T &b, long long e, const T &add_id, const T &mul_id){
 	if(e < 2) return e ? mul_id : add_id;
 	T res = mul_id, p = mul_id;
-	for(ll bit = 1 << 30 - __builtin_clz(e); bit; bit >>= 1){
+	for(long long bit = 1 << 30 - __builtin_clz(e); bit; bit >>= 1){
 		res = res * (mul_id + p * b), p = p * p * b;
 		if(bit & e) res = (res + (p = p * b));
 	}
@@ -264,9 +264,9 @@ T bingeo(const T &b, ll e, const T &add_id, const T &mul_id){
 // 156485479_1_2
 // Extended Euclidean Algorithm
 // O(max(log x, log y))
-ll euclid(ll x, ll y, ll &a, ll &b){
+long long euclid(long long x, long long y, long long &a, long long &b){
 	if(y){
-		ll d = euclid(y, x % y, b, a);
+		long long d = euclid(y, x % y, b, a);
 		return b -= x / y * a, d;
 	}
 	return a = 1, b = 0, x;
@@ -275,45 +275,43 @@ ll euclid(ll x, ll y, ll &a, ll &b){
 // 156485479_1_3
 // Run linear sieve up to n
 // O(n)
-void linearsieve(int n, vector<int> &lpf, vector<int> &prime){
-	lpf.resize(n + 1);
+pair<vector<int>, vector<int>> linearsieve(int n){
+	vector<int> lpf(n + 1), prime;
 	prime.reserve(n + 1);
 	for(int i = 2; i <= n; ++ i){
-		if(!lpf[i]){
-			lpf[i] = i;
-			prime.push_back(i);
-		}
+		if(!lpf[i]) lpf[i] = i, prime.push_back(i);
 		for(int j = 0; j < prime.size() && prime[j] <= lpf[i] && i * prime[j] <= n; ++ j){
 			lpf[i * prime[j]] = prime[j];
 		}
 	}
+	return {lpf, prime};
 }
 
 // 156485479_1_4
 // Combinatorics
 // O(N) preprocessing, O(1) per query
 struct combinatorics{
-	const ll N, mod;
-	vl inv, fact, invfact;
-	combinatorics(ll N, ll mod):
+	const long long N, mod;
+	vector<long long> inv, fact, invfact;
+	combinatorics(long long N, long long mod):
 		N(N), mod(mod), inv(N + 1), fact(N + 1), invfact(N + 1){
 		inv[1] = 1, fact[0] = fact[1] = invfact[0] = invfact[1] = 1;
-		for(ll i = 2; i <= N; i ++){
+		for(long long i = 2; i <= N; i ++){
 			inv[i] = (mod - mod / i * inv[mod % i] % mod) % mod;
 			fact[i] = fact[i - 1] * i % mod;
 			invfact[i] = invfact[i - 1] * inv[i] % mod;
 		}
 	}
-	ll C(int n, int r){
+	long long C(int n, int r){
 		return n < r ? 0 : fact[n] * invfact[r] % mod * invfact[n - r] % mod;
 	}
-	ll P(int n, int r){
+	long long P(int n, int r){
 		return n < r ? 0 : fact[n] * invfact[n - r] % mod;
 	}
-	ll H(int n, int r){
+	long long H(int n, int r){
 		return c(n + r - 1, r);
 	}
-	ll Cat(int n, int k, int m){
+	long long Cat(int n, int k, int m){
 		if(m <= 0) return 0;
 		else if(k >= 0 && k < m) return c(n + k, k);
 		else if(k < n + m) return (c(n + k, k) - c(n + k, k - m) + mod) % mod;
@@ -324,9 +322,9 @@ struct combinatorics{
 // 156485479_1_5
 // Euler Totient Function
 // O(sqrt(x))
-ll phi(ll x){
-	ll res = x;
-	for(ll i = 2; i * i <= x; ++ i) if(x % i == 0){
+long long phi(long long x){
+	long long res = x;
+	for(long long i = 2; i * i <= x; ++ i) if(x % i == 0){
 		while(x % i == 0) x /= i;
 		res -= res / i;
 	}
@@ -335,10 +333,11 @@ ll phi(ll x){
 }
 // Calculate phi(x) for all 1 <= x <= n
 // O(n log n)
-void process_phi(int n, vector<int> &phi){
-	phi.resize(n + 1);
+vector<int> process_phi(int n){
+	vector<int> phi(n + 1);
 	for(int i = 0; i <= n; ++ i) phi[i] = i & 1 ? i : i / 2;
 	for(int i = 3; i <= n; i += 2) if(phi[i] == i) for(int j = i; j <= n; j += i) phi[j] -= phi[j] / i;
+	return phi;
 }
 
 // 156485479_1_6
@@ -347,8 +346,8 @@ void process_phi(int n, vector<int> &phi){
 typedef unsigned long long ull;
 typedef long double ld;
 ull mod_mul(ull a, ull b, ull M) {
-	ll res = a * b - M * ull(ld(a) * ld(b) / ld(M));
-	return res + M * (res < 0) - M * (res >= (ll)M);
+	long long res = a * b - M * ull(ld(a) * ld(b) / ld(M));
+	return res + M * (res < 0) - M * (res >= (long long)M);
 }
 ull mod_pow(ull b, ull e, ull mod) {
 	ull res = 1;
@@ -384,37 +383,37 @@ vector<ull> factorize(ull n){
 	if(isprime(n)) return {n};
 	ull x = pfactor(n);
 	auto l = factorize(x), r = factorize(n / x);
-	l.insert(l.end(), all(r));
+	l.insert(l.end(), r.begin(), r.end());
 	return l;
 }
 
 // 156485479_1_8
 // Tonelli Shanks Algorithm ( Solution to x^2 = a mod p )
 // O(log^2 p)
-ll modexp(ll b, ll e, const ll &mod){
-	ll res = 1;
+long long modexp(long long b, long long e, const long long &mod){
+	long long res = 1;
 	for(; e; b = b * b % mod, e >>= 1) if(e & 1) res = res * b % mod;
 	return res;
 }
-ll sqrt(ll a, ll p){
+long long sqrt(long long a, long long p){
 	a %= p;
 	if(a < 0) a += p;
 	if(a == 0) return 0;
 	assert(modexp(a, (p - 1)/2, p) == 1);
 	if(p % 4 == 3) return modexp(a, (p+1)/4, p);
 	// a^(n+3)/8 or 2^(n+3)/8 * 2^(n-1)/4 works if p % 8 == 5
-	ll s = p - 1, n = 2;
+	long long s = p - 1, n = 2;
 	int r = 0, m;
 	while(s % 2 == 0) ++ r, s /= 2;
 	/// find a non-square mod p
 	while(modexp(n, (p - 1) / 2, p) != p - 1) ++ n;
-	ll x = modexp(a, (s + 1) / 2, p);
-	ll b = modexp(a, s, p), g = modexp(n, s, p);
+	long long x = modexp(a, (s + 1) / 2, p);
+	long long b = modexp(a, s, p), g = modexp(n, s, p);
 	for(;; r = m){
-		ll t = b;
+		long long t = b;
 		for(m = 0; m < r && t != 1; ++ m) t = t * t % p;
 		if(m == 0) return x;
-		ll gs = modexp(g, 1LL << (r - m - 1), p);
+		long long gs = modexp(g, 1LL << (r - m - 1), p);
 		g = gs * gs % p;
 		x = x * gs % p;
 		b = b * g % p;
@@ -425,21 +424,21 @@ ll sqrt(ll a, ll p){
 // Chinese Remainder Theorem (Return a number x which satisfies x = a mod m & x = b mod n)
 // All the values has to be less than 2^30
 // O(log(m + n))
-ll euclid(ll x, ll y, ll &a, ll &b){
+long long euclid(long long x, long long y, long long &a, long long &b){
 	if(y){
-		ll d = euclid(y, x % y, b, a);
+		long long d = euclid(y, x % y, b, a);
 		return b -= x / y * a, d;
 	}
 	return a = 1, b = 0, x;
 }
-ll crt_coprime(ll a, ll m, ll b, ll n){
-	ll x, y; euclid(m, n, x, y);
-	ll res = a * (y + m) % m * n + b * (x + n) % n * m;
+long long crt_coprime(long long a, long long m, long long b, long long n){
+	long long x, y; euclid(m, n, x, y);
+	long long res = a * (y + m) % m * n + b * (x + n) % n * m;
 	if(res >= m * n) res -= m * n;
 	return res;
 }
-ll crt(ll a, ll m, ll b, ll n){
-	ll d = gcd(m, n);
+long long crt(long long a, long long m, long long b, long long n){
+	long long d = gcd(m, n);
 	if(((b -= a) %= n) < 0) b += n;
 	if(b % d) return -1; // No solution
 	return d * crt_coprime(0LL, m/d, b/d, n/d) + a;
@@ -449,17 +448,17 @@ ll crt(ll a, ll m, ll b, ll n){
 // Lehman Factorization / return a prime divisor of x
 // x has to be equal or less than 10^14
 // O(N^1/3)
-ll primefactor(ll x){
+long long primefactor(long long x){
 	assert(x > 1);
 	if(x <= 21){
-		for(ll p = 2; p <= sqrt(x); ++ p) if(x % p == 0) return p;
+		for(long long p = 2; p <= sqrt(x); ++ p) if(x % p == 0) return p;
 		return x;
 	}
-	for(ll p = 2; p <= cbrt(x); ++ p) if(x % p == 0) return p;
-	for(ll k = 1; k <= cbrt(x); ++ k){
+	for(long long p = 2; p <= cbrt(x); ++ p) if(x % p == 0) return p;
+	for(long long k = 1; k <= cbrt(x); ++ k){
 		double t = 2 * sqrt(k * x);
-		for(ll a = ceil(t); a <= floor(t + cbrt(sqrt(x)) / 4 / sqrt(k)); ++ a){
-			ll b = a * a - 4 * k * x, s = sqrt(b);
+		for(long long a = ceil(t); a <= floor(t + cbrt(sqrt(x)) / 4 / sqrt(k)); ++ a){
+			long long b = a * a - 4 * k * x, s = sqrt(b);
 			if(b == s * s) return gcd(a + s, x);
 		}
 	}
@@ -469,25 +468,22 @@ ll primefactor(ll x){
 // 156485479_1_11
 // Mobius Function
 // O(n)
-void linearsieve(int n, vector<int> &lpf, vector<int> &prime){
-	lpf.resize(n + 1);
+pair<vector<int>, vector<int>> linearsieve(int n){
+	vector<int> lpf(n + 1), prime;
 	prime.reserve(n + 1);
 	for(int i = 2; i <= n; ++ i){
-		if(!lpf[i]){
-			lpf[i] = i;
-			prime.push_back(i);
-		}
+		if(!lpf[i]) lpf[i] = i, prime.push_back(i);
 		for(int j = 0; j < prime.size() && prime[j] <= lpf[i] && i * prime[j] <= n; ++ j){
 			lpf[i * prime[j]] = prime[j];
 		}
 	}
+	return {lpf, prime};
 }
-void process_mobius(int n, vector<int> &mobius){
-	vector<int> lpf, prime;
-	linearsieve(n, lpf, prime);
-	mobius.resize(n + 1);
-	mobius[1] = 1;
+tuple<vector<int>, vector<int>, vector<int>> process_mobius(int n){
+	auto [lpf, prime] = linearsieve(n);
+	vector<int> mobius(n + 1, 1);
 	for(int i = 2; i <= n; ++ i) mobius[i] = (i / lpf[i] % lpf[i] ? -mobius[i / lpf[i]] : 0);
+	return {lpf, prime, mobius}
 }
 
 // 156485479_1_12
@@ -1001,8 +997,8 @@ mod = 1e9 + 7;
 // 156485479_2_1
 // Linear Recurrence Relation Solver / Berlekamp - Massey Algorithm
 // O(N^2 log n) / O(N^2)
-ll modexp(ll b, ll e, const ll &mod){
-	ll res = 1;
+long long modexp(long long b, long long e, const long long &mod){
+	long long res = 1;
 	for(; e; b = b * b % mod, e >>= 1) if(e & 1) res = res * b % mod;
 	return res;
 }
@@ -1010,7 +1006,7 @@ struct recurrence{
 	int N;
 	vector<long long> init, coef;
 	const long long mod;
-	recurrence(const vector<long long> &init, const vector<long long> &coef, long long mod): N(sz(coef)), init(init), coef(coef), mod(mod){ }
+	recurrence(const vector<long long> &init, const vector<long long> &coef, long long mod): N(coef.size()), init(init), coef(coef), mod(mod){ }
 	// Berlekamp Massey Algorithm
 	recurrence(const vector<long long> &s, long long mod): mod(mod){
 		int n = s.size();
@@ -1061,7 +1057,7 @@ const double eps = 1e-12;
 int solve_linear_equations(const vector<vector<double>> &AA, vector<double> &x, const vector<double> &bb){
 	auto A = AA;
 	auto b = bb;
-	int n = sz(A), m = sz(A[0]), rank = 0, br, bc;
+	int n = A.size(), m = A[0].size(), rank = 0, br, bc;
 	vector<int> col(m);
 	iota(col.begin(), col.end(), 0);
 	for(int i = 0; i < n; ++ i){
@@ -1103,10 +1099,10 @@ long long modinv(long long a, long long m){
 	assert(m == 1);
 	return u;
 }
-int solve_linear_equations(const vector<vector<long long>> &AA, vector<long long> &x, const vector<long long> &bb, ll mod){
+int solve_linear_equations(const vector<vector<long long>> &AA, vector<long long> &x, const vector<long long> &bb, long long mod){
 	auto A = AA;
 	auto b = bb;
-	int n = sz(A), m = sz(A[0]), rank = 0, br, bc;
+	int n = A.size(), m = A[0].size(), rank = 0, br, bc;
 	vector<int> col(m);
 	iota(col.begin(), col.end(), 0);
 	for(auto &x: A) for(auto &y: x) y %= mod;
@@ -1140,12 +1136,12 @@ int solve_linear_equations(const vector<vector<long long>> &AA, vector<long long
 // Find a solution of the system of linear equations. Return -1 if no sol, rank otherwise.
 // O(n^2 m)
 typedef bitset<1000> bs;
-int solve_linear_equations(const vector<bs> &AA, bs& x, const vi &bb, int m){
+int solve_linear_equations(const vector<bs> &AA, bs& x, const vector<int> &bb, int m){
 	vector<bs> A(AA);
-	vi b(bb);
-	int n = sz(A), rank = 0, br;
-	vi col(m);
-	iota(all(col), 0);
+	vector<int> b(bb);
+	int n = A.size(), rank = 0, br;
+	vector<int> col(m);
+	iota(col.begin(), col.end(), 0);
 	for(int i = 0; i < n; ++ i){
 		for(br = i; br < n; ++ br) if(A[br].any()) break;
 		if (br == n){
@@ -1171,14 +1167,14 @@ int solve_linear_equations(const vector<bs> &AA, bs& x, const vi &bb, int m){
 
 // 156485479_2_3_1
 // Matrix for Z_p
-struct matrix: vector<vl>{
+struct matrix: vector<vector<long long>>{
 	int N, M;
-	const ll mod;
-	matrix(int N, int M, ll mod, bool is_id = false): N(N), M(M), mod(mod){
-		resize(N, vl(M));
+	const long long mod;
+	matrix(int N, int M, long long mod, bool is_id = false): N(N), M(M), mod(mod){
+		resize(N, vector<long long>(M));
 		if(is_id) for(int i = 0; i < min(N, M); ++ i) (*this)[i][i] = 1;
 	}
-	matrix(const vector<vl> &arr, ll mod): N(sz(arr)), M(sz(arr[0])), mod(mod){
+	matrix(const vector<vector<long long>> &arr, long long mod): N(arr.size()), M(arr[0].size()), mod(mod){
 		resize(N);
 		for(int i = 0; i < N; ++ i) (*this)[i] = arr[i];
 	}
@@ -1213,20 +1209,20 @@ struct matrix: vector<vl>{
 		*this = *this * otr;
 		return *this;
 	}
-	matrix operator^(ll e) const{
+	matrix operator^(long long e) const{
 		assert(N == M);
 		matrix res(N, N, mod, 1), b(*this);
 		for(; e; b *= b, e >>= 1) if(e & 1) res *= b;
 		return res;
 	}
-	ll det() const{
+	long long det() const{
 		assert(N == M);
-		vector<vl> temp = *this;
-		ll res = 1;
+		vector<vector<long long>> temp = *this;
+		long long res = 1;
 		for(int i = 0; i < N; ++ i){
 			for(int j = i + 1; j < N; ++ j){
 				while(temp[j][i]){
-					ll t = temp[i][i] / temp[j][i];
+					long long t = temp[i][i] / temp[j][i];
 					if(t) for(int k = i; i < N; ++ k) temp[i][k] = (temp[i][k] - temp[j][k] * t) % mod;
 					std::swap(temp[i], temp[j]);
 					res *= -1;
@@ -1250,7 +1246,7 @@ struct matrix: vector<vector<T>>{
 		this->resize(N, vector<T>(M, add_id));
 		if(is_id) for(int i = 0; i < min(N, M); ++ i) (*this)[i][i] = mul_id;
 	}
-	matrix(const vector<vector<T>> &arr, const T &add_id, const T &mul_id): N(sz(arr)), M(sz(arr[0])), add_id(add_id), mul_id(mul_id){
+	matrix(const vector<vector<T>> &arr, const T &add_id, const T &mul_id): N(arr.size()), M(arr[0].size()), add_id(add_id), mul_id(mul_id){
 		this->resize(N, vector<T>(M, add_id));
 		for(int i = 0; i < N; ++ i) for(int j = 0; j < M; ++ j) (*this)[i][j] = arr[i][j];
 	}
@@ -1285,7 +1281,7 @@ struct matrix: vector<vector<T>>{
 		*this = *this * otr;
 		return *this;
 	}
-	matrix operator^(ll e) const{
+	matrix operator^(long long e) const{
 		assert(N == M);
 		matrix res(N, N, add_id, mul_id, true), b(*this);
 		for(; e; b *= b, e >>= 1) if(e & 1) res *= b;
@@ -1321,7 +1317,7 @@ void fft(vector<cd> &f, bool invert){
 	if(invert) for(auto &c: f) c /= n;
 }
 vector<long long> polymul(const vector<long long> &a, const vector<long long> &b){
-	vector<cd> f(all(a)), g(all(b));
+	vector<cd> f(a.begin(), a.end()), g(b.begin(), b.end());
 	int n = 1;
 	while(n < a.size() + b.size()) n <<= 1;
 	f.resize(n), g.resize(n);
@@ -1387,7 +1383,7 @@ vector<long long> ntt(const vector<long long> &arr, bool invert){
 template<typename T>
 vector<T> xort(const vector<T> &P, bool inverse){
 	vector<T> p(P);
-	int n = sz(p);
+	int n = p.size();
 	for(int len = 1; 2 * len <= n; len <<= 1){
 		for(int i = 0; i < n; i += 2 * len){
 			for(int j = 0; j < len; ++ j){
@@ -1447,9 +1443,9 @@ vector<T> ort(const vector<T> &P, bool inverse){
 // 156485479_2_4_2_1_1
 // Polynomial Interpolation
 // O(n ^ 2)
-vd interpolate(vd x, vd y){
+vector<double> interpolate(vector<double> x, vector<double> y){
 	int n = x.size();
-	vd res(n), temp(n);
+	vector<double> res(n), temp(n);
 	for(int k = 0; k < n; ++ k) for(int i = k + 1; i < n; ++ i){
 		y[i] = (y[i] - y[k]) / (x[i] - x[k]);
 	}
@@ -1465,25 +1461,25 @@ vd interpolate(vd x, vd y){
 // 156485479_2_4_2_1_2
 // Polynomial Interpolation
 // O(n ^ 2)
-ll modinv(ll a, ll m){
-	ll u = 0, v = 1;
+long long modinv(long long a, long long m){
+	long long u = 0, v = 1;
 	while(a){
-		ll t = m / a;
+		long long t = m / a;
 		m -= t * a; swap(a, m);
 		u -= t * v; swap(u, v);
 	}
 	assert(m == 1);
 	return u;
 }
-vl interpolate(vl x, vl y, ll mod){
-	int n = sz(x);
-	vl res(n), temp(n);
+vector<long long> interpolate(vector<long long> x, vector<long long> y, long long mod){
+	int n = x.size();
+	vector<long long> res(n), temp(n);
 	for(int k = 0; k < n; ++ k){
 		for(int i = k + 1; i < n; ++ i){
 			y[i] = (y[i] - y[k]) * modinv(x[i] - x[k], mod) % mod;
 		}
 	}
-	ll last = 0; temp[0] = 1;
+	long long last = 0; temp[0] = 1;
 	for(int k = 0; k < n; ++ k){
 		for(int i = 0; i < n; ++ i) {
 			res[i] = (res[i] + y[k] * temp[i]) % mod;
@@ -1517,15 +1513,15 @@ T kadane(const vector<T> &arr){
 // Sorted Line Container
 // O(log N) per query, amortized O(1) for everything else
 struct line{
-	ll d, k, p;
+	long long d, k, p;
 	int ind;
-	ll eval(ll x){ return d * x + k; }
+	long long eval(long long x){ return d * x + k; }
 };
 template<bool GET_MAX = true>
 struct sorted_line_container: deque<line>{
 	// (for doubles, use inf = 1/.0, div(a,b) = a/b)
-	const ll inf = LLONG_MAX;
-	ll div(ll a, ll b){ return a / b - ((a ^ b) < 0 && a % b); }
+	const long long inf = long longONG_MAX;
+	long long div(long long a, long long b){ return a / b - ((a ^ b) < 0 && a % b); }
 	bool isect_front(iterator x, iterator y){
 		if(y == this->end()){ x->p = inf; return false; }
 		else{ x->p = div(y->k - x->k, x->d - y->d); return x->p >= y->p; }
@@ -1546,15 +1542,15 @@ struct sorted_line_container: deque<line>{
 		}
 		else assert(false);
 	}
-	ll dec_query(ll x){
+	long long dec_query(long long x){
 		while(size() >= 2 && rbegin()->eval(x) <= (++ rbegin())->eval(x)) pop_back(); rbegin()->p = inf;
 		return rbegin()->eval(x) * (GET_MAX ? 1 : -1);
 	}
-	ll inc_query(ll x){
+	long long inc_query(long long x){
 		while(size() >= 2 && begin()->eval(x) <= (++ begin())->eval(x)) pop_front();
 		return begin()->eval(x) * (GET_MAX ? 1 : -1);
 	}
-	ll query(ll x){
+	long long query(long long x){
 		if(size() == 1) return begin()->eval(x) * (GET_MAX ? 1 : -1);
 		int low = 0, high = int(size()) - 1;
 		if(begin()->eval(x) >= (++ begin())->eval(x)) return begin()->eval(x) * (GET_MAX ? 1 : -1);
@@ -1570,15 +1566,15 @@ struct sorted_line_container: deque<line>{
 // Line Container / Add lines of form d*x + k and query max at pos x
 // O(log N) per query
 struct line{
-	mutable ll d, k, p;
+	mutable long long d, k, p;
 	bool operator<(const line &otr) const{ return d < otr.d; }
-	bool operator<(ll x) const{ return p < x;}
+	bool operator<(long long x) const{ return p < x;}
 };
 template<bool GET_MAX = true>
 struct line_container: multiset<line, less<>>{
 	// (for doubles, use inf = 1/.0, div(a,b) = a/b)
-	const ll inf = LLONG_MAX;
-	ll div(ll a, ll b){ return a / b - ((a ^ b) < 0 && a % b); }
+	const long long inf = long longONG_MAX;
+	long long div(long long a, long long b){ return a / b - ((a ^ b) < 0 && a % b); }
 	bool isect(iterator x, iterator y){
 		if(y == this->end()){ x->p = inf; return false; }
 		if(x->d == y->d) x->p = x->k > y->k ? inf : -inf;
@@ -1593,7 +1589,7 @@ struct line_container: multiset<line, less<>>{
 		if(x != this->begin() && isect(-- x, y)) isect(x, y = this->erase(y));
 		while((y = x) != this->begin() && (-- x)->p >= y->p) isect(x, this->erase(y));
 	}
-	ll query(ll x){
+	long long query(long long x){
 		assert(!this->empty());
 		auto l = *this->lower_bound(x);
 		return (l.d * x + l.k) * (GET_MAX ? 1 : -1);
@@ -1763,7 +1759,7 @@ long long custom_binary_search(long long low, long long high, const long long &s
 	const long long rem = (low % step + step) % step;
 	if(is_left){
 		while(high - low > step){
-			ll mid = low + (high - low >> 1);
+			long long mid = low + (high - low >> 1);
 			mid = mid / step * step + rem;
 			p(mid) ? low = mid : high = mid;
 		}
@@ -1771,7 +1767,7 @@ long long custom_binary_search(long long low, long long high, const long long &s
 	}
 	else{
 		while(high - low > step){
-			ll mid = low + (high - low >> 1);
+			long long mid = low + (high - low >> 1);
 			mid = mid / step * step + rem;
 			p(mid) ? high = mid : low = mid;
 		}
@@ -1826,9 +1822,9 @@ struct bigint{
 	bigint operator+(const bigint &v) const{
 		if(sign == v.sign){
 			bigint res = v;
-			for(int i = 0, carry = 0; i < max(sz(a), sz(v.a)) || carry; ++ i){
-				if(i == sz(res.a)) res.a.push_back(0);
-				res.a[i] += carry + (i < sz(a) ? a[i] : 0);
+			for(int i = 0, carry = 0; i < max(a.size(), v.a.size()) || carry; ++ i){
+				if(i == res.a.size()) res.a.push_back(0);
+				res.a[i] += carry + (i < a.size() ? a[i] : 0);
 				carry = res.a[i] >= base;
 				if(carry) res.a[i] -= base;
 			}
@@ -1840,8 +1836,8 @@ struct bigint{
 		if(sign == v.sign){
 			if(abs() >= v.abs()){
 				bigint res = *this;
-				for(int i = 0, carry = 0; i < sz(v.a) || carry; ++ i){
-					res.a[i] -= carry + (i < sz(v.a) ? v.a[i] : 0);
+				for(int i = 0, carry = 0; i < v.a.size() || carry; ++ i){
+					res.a[i] -= carry + (i < v.a.size() ? v.a[i] : 0);
 					carry = res.a[i] < 0;
 					if(carry) res.a[i] += base;
 				}
@@ -1854,9 +1850,9 @@ struct bigint{
 	}
 	void operator*=(int v){
 		if(v < 0) sign = -sign, v = -v;
-		for(int i = 0, carry = 0; i < sz(a) || carry; ++ i){
-			if(i == sz(a)) a.push_back(0);
-			ll cur = a[i] * (ll)v + carry;
+		for(int i = 0, carry = 0; i < a.size() || carry; ++ i){
+			if(i == a.size()) a.push_back(0);
+			long long cur = a[i] * (long long)v + carry;
 			carry = (int)(cur / base);
 			a[i] = (int)(cur % base);
 			//asm("divl %%ecx" : "=a"(carry), "=d"(a[i]) : "A"(cur), "c"(base));
@@ -1868,22 +1864,22 @@ struct bigint{
 		res *= v;
 		return res;
 	}
-	void operator*=(ll v){
+	void operator*=(long long v){
 		if(v < 0) sign = -sign, v = -v;
 		if(v > base){
 			*this = *this * (v / base) * base + *this * (v % base);
 			return ;
 		}
-		for(int i = 0, carry = 0; i < sz(a) || carry; ++ i){
-			if (i == sz(a)) a.push_back(0);
-			ll cur = a[i] * (ll)v + carry;
+		for(int i = 0, carry = 0; i < a.size() || carry; ++ i){
+			if (i == a.size()) a.push_back(0);
+			long long cur = a[i] * (long long)v + carry;
 			carry = (int)(cur / base);
 			a[i] = (int)(cur % base);
 			//asm("divl %%ecx" : "=a"(carry), "=d"(a[i]) : "A"(cur), "c"(base));
 		}
 		trim();
 	}
-	bigint operator*(ll v) const{
+	bigint operator*(long long v) const{
 		bigint res = *this;
 		res *= v;
 		return res;
@@ -1891,13 +1887,13 @@ struct bigint{
 	friend pair<bigint, bigint> divmod(const bigint &a1, const bigint &b1) {
 		int norm = base / (b1.a.back() + 1);
 		bigint a = a1.abs() * norm, b = b1.abs() * norm, q, r;
-		q.a.resize(sz(a.a));
-		for(int i = sz(a.a) - 1; i >= 0; -- i){
+		q.a.resize(a.a.size());
+		for(int i = int(a.a.size()) - 1; i >= 0; -- i){
 			r *= base;
 			r += a.a[i];
-			int s1 = sz(r.a) <= sz(b.a) ? 0 : r.a[sz(b.a)];
-			int s2 = sz(r.a) <= sz(b.a) - 1 ? 0 : r.a[sz(b.a) - 1];
-			int d = ((ll)base * s1 + s2) / b.a.back();
+			int s1 = r.a.size() <= b.a.size() ? 0 : r.a[b.a.size()];
+			int s2 = r.a.size() <= b.a.size() - 1 ? 0 : r.a[int(b.a.size()) - 1];
+			int d = ((long long)base * s1 + s2) / b.a.back();
 			r -= b * d;
 			while(r < 0) r += b, -- d;
 			q.a[i] = d;
@@ -1910,8 +1906,8 @@ struct bigint{
 	bigint operator%(const bigint &v) const{ return divmod(*this, v).second; }
 	void operator/=(int v){
 		if(v < 0) sign = -sign, v = -v;
-		for(int i = sz(a) - 1, rem = 0; i >= 0; -- i){
-			ll cur = a[i] + rem * (ll)base;
+		for(int i = int(a.size()) - 1, rem = 0; i >= 0; -- i){
+			long long cur = a[i] + rem * (long long)base;
 			a[i] = (int)(cur / v);
 			rem = (int)(cur % v);
 		}
@@ -1925,7 +1921,7 @@ struct bigint{
 	int operator%(int v) const{
 		if(v < 0) v = -v;
 		int m = 0;
-		for(int i = sz(a) - 1; i >= 0; -- i) m = (a[i] + m * (ll)base) % v;
+		for(int i = int(a.size()) - 1; i >= 0; -- i) m = (a[i] + m * (long long)base) % v;
 		return m * sign;
 	}
 	void operator+=(const bigint &v){ *this = *this + v; }
@@ -1934,8 +1930,8 @@ struct bigint{
 	void operator/=(const bigint &v){ *this = *this / v; }
 	bool operator<(const bigint &v) const{
 		if(sign != v.sign) return sign < v.sign;
-		if(sz(a) != sz(v.a)) return sz(a) * sign < sz(v.a) * v.sign;
-		for(int i = sz(a) - 1; i >= 0; -- i) if(a[i] != v.a[i]) return a[i] * sign < v.a[i] * sign;
+		if(a.size() != v.a.size()) return a.size() * sign < int(v.a.size()) * v.sign;
+		for(int i = int(a.size()) - 1; i >= 0; -- i) if(a[i] != v.a[i]) return a[i] * sign < v.a[i] * sign;
 		return false;
 	}
 	bool operator>(const bigint &v) const{ return v < *this; }
@@ -1947,7 +1943,7 @@ struct bigint{
 		while (!a.empty() && !a.back()) a.pop_back();
 		if(a.empty()) sign = 1;
 	}
-	bool isZero() const{ return a.empty() || (sz(a) == 1 && !a[0]); }
+	bool isZero() const{ return a.empty() || (a.size() == 1 && !a[0]); }
 	bigint operator-() const{
 		bigint res = *this;
 		res.sign = -sign;
@@ -1958,9 +1954,9 @@ struct bigint{
 		res.sign *= res.sign;
 		return res;
 	}
-	ll longValue() const{
-		ll res = 0;
-		for(int i = sz(a) - 1; i >= 0; -- i) res = res * base + a[i];
+	long long longValue() const{
+		long long res = 0;
+		for(int i = int(a.size()) - 1; i >= 0; -- i) res = res * base + a[i];
 		return res * sign;
 	}
 	friend bigint gcd(const bigint &a, const bigint &b){ return b.isZero() ? a : gcd(b, a % b); }
@@ -1969,11 +1965,11 @@ struct bigint{
 		sign = 1;
 		a.clear();
 		int pos = 0;
-		while(pos < (int) s.size() && (s[pos] == '-' || s[pos] == '+')){
+		while(pos < s.size() && (s[pos] == '-' || s[pos] == '+')){
 			if(s[pos] == '-') sign = -sign;
 			++ pos;
 		}
-		for(int i = sz(s) - 1; i >= pos; i -= base_digits){
+		for(int i = int(s.size()) - 1; i >= pos; i -= base_digits){
 			int x = 0;
 			for(int j = max(pos, i - base_digits + 1); j <= i; ++ j) x = x * 10 + s[j] - '0';
 			a.push_back(x);
@@ -1989,17 +1985,17 @@ struct bigint{
 	friend ostream& operator<<(ostream &stream, const bigint &v){
 		if(v.sign == -1) stream << '-';
 		stream << (v.a.empty() ? 0 : v.a.back());
-		for(int i = (int) v.a.size() - 2; i >= 0; -- i) stream << setw(base_digits) << setfill('0') << v.a[i];
+		for(int i = int(v.a.size()) - 2; i >= 0; -- i) stream << setw(base_digits) << setfill('0') << v.a[i];
 		return stream;
 	}
-	static vi convert_base(const vi &a, int old_digits, int new_digits){
-		vl p(max(old_digits, new_digits) + 1);
+	static vector<int> convert_base(const vector<int> &a, int old_digits, int new_digits){
+		vector<long long> p(max(old_digits, new_digits) + 1);
 		p[0] = 1;
-		for(int i = 1; i < sz(p); ++ i) p[i] = p[i - 1] * 10;
-		vi res;
-		ll cur = 0;
+		for(int i = 1; i < p.size(); ++ i) p[i] = p[i - 1] * 10;
+		vector<int> res;
+		long long cur = 0;
 		int cur_digits = 0;
-		for(int i = 0; i < sz(a); i++){
+		for(int i = 0; i < a.size(); i++){
 			cur += a[i] * p[cur_digits];
 			cur_digits += old_digits;
 			while(cur_digits >= new_digits){
@@ -2012,38 +2008,38 @@ struct bigint{
 		while(!res.empty() && !res.back()) res.pop_back();
 		return res;
 	}
-	static vl karatsubaMultiply(const vl &a, const vl &b){
-		int n = sz(a);
-		vl res(n << 1);
+	static vector<long long> karatsubaMultiply(const vector<long long> &a, const vector<long long> &b){
+		int n = a.size();
+		vector<long long> res(n << 1);
 		if(n <= 32){
 			for(int i = 0; i < n; ++ i) for(int j = 0; j < n; ++ j) res[i + j] += a[i] * b[j];
 			return res;
 		}
 		int k = n >> 1;
-		vl a1(a.begin(), a.begin() + k), a2(a.begin() + k, a.end());
-		vl b1(b.begin(), b.begin() + k), b2(b.begin() + k, b.end());
-		vl a1b1 = karatsubaMultiply(a1, b1), a2b2 = karatsubaMultiply(a2, b2);
+		vector<long long> a1(a.begin(), a.begin() + k), a2(a.begin() + k, a.end());
+		vector<long long> b1(b.begin(), b.begin() + k), b2(b.begin() + k, b.end());
+		vector<long long> a1b1 = karatsubaMultiply(a1, b1), a2b2 = karatsubaMultiply(a2, b2);
 		for(int i = 0; i < k; ++ i) a2[i] += a1[i];
 		for(int i = 0; i < k; ++ i) b2[i] += b1[i];
-		vl r = karatsubaMultiply(a2, b2);
-		for(int i = 0; i < sz(a1b1); ++ i) r[i] -= a1b1[i];
-		for(int i = 0; i < sz(a2b2); ++ i) r[i] -= a2b2[i];
-		for(int i = 0; i < sz(r); ++ i) res[i + k] += r[i];
-		for(int i = 0; i < sz(a1b1); ++ i) res[i] += a1b1[i];
-		for (int i = 0; i < sz(a2b2); ++ i) res[i + n] += a2b2[i];
+		vector<long long> r = karatsubaMultiply(a2, b2);
+		for(int i = 0; i < a1b1.size(); ++ i) r[i] -= a1b1[i];
+		for(int i = 0; i < a2b2.size(); ++ i) r[i] -= a2b2[i];
+		for(int i = 0; i < r.size(); ++ i) res[i + k] += r[i];
+		for(int i = 0; i < a1b1.size(); ++ i) res[i] += a1b1[i];
+		for (int i = 0; i < a2b2.size(); ++ i) res[i + n] += a2b2[i];
 		return res;
 	}
 	bigint operator*(const bigint &v) const{
-		vi a6 = convert_base(this->a, base_digits, 6), b6 = convert_base(v.a, base_digits, 6);
-		vl a(a6.begin(), a6.end()), b(b6.begin(), b6.end());
-		while(sz(a) < sz(b)) a.push_back(0);
-		while(sz(b) < sz(a)) b.push_back(0);
-		while(sz(a) & (sz(a) - 1)) a.push_back(0), b.push_back(0);
-		vl c = karatsubaMultiply(a, b);
+		vector<int> a6 = convert_base(this->a, base_digits, 6), b6 = convert_base(v.a, base_digits, 6);
+		vector<long long> a(a6.begin(), a6.end()), b(b6.begin(), b6.end());
+		while(a.size() < b.size()) a.push_back(0);
+		while(b.size() < a.size()) b.push_back(0);
+		while(a.size() & (int(a.size()) - 1)) a.push_back(0), b.push_back(0);
+		vector<long long> c = karatsubaMultiply(a, b);
 		bigint res;
 		res.sign = sign * v.sign;
-		for(int i = 0, carry = 0; i < sz(c); ++ i){
-			ll cur = c[i] + carry;
+		for(int i = 0, carry = 0; i < c.size(); ++ i){
+			long long cur = c[i] + carry;
 			res.a.push_back((int)(cur % 1000000));
 			carry = (int)(cur / 1000000);
 		}
@@ -2055,6 +2051,17 @@ struct bigint{
 
 // 156485479_2_9
 // Modular Arithmetics
+template<typename T>
+T modinv(T a, T m){
+	T u = 0, v = 1;
+	while(a){
+		T t = m / a;
+		m -= t * a; swap(a, m);
+		u -= t * v; swap(u, v);
+	}
+	assert(m == 1);
+	return u;
+}
 template<typename T>
 T modinv(T a, T m){
 	T u = 0, v = 1;
@@ -2150,8 +2157,8 @@ template<typename T> istream &operator>>(istream &in, Z_p<T> &number){
 	return in;
 }
 template<typename T> ostream &operator<<(ostream &out, const Z_p<T> &number){ return out << number(); }
-constexpr int md = (int)1e9 + 7;
-using Zp = Z_p<integral_constant<decay<decltype(md)>::type, md>>;
+constexpr int mod = (int)1e9 + 7;
+using Zp = Z_p<integral_constant<decay<decltype(mod)>::type, mod>>;
 
 // 156485479_3_1
 // Sparse Table
@@ -2189,7 +2196,7 @@ struct segment: vector<T>{
 	int N;
 	BO bin_op;
 	const T id;
-	segment(const vector<T> &arr, BO bin_op, T id): N(sz(arr)), bin_op(bin_op), id(id){
+	segment(const vector<T> &arr, BO bin_op, T id): N(arr.size()), bin_op(bin_op), id(id){
 		this->resize(N << 1, id);
 		for(int i = 0; i < N; ++ i) (*this)[i + N] = arr[i];
 		for(int i = N - 1; i > 0; -- i) (*this)[i] = bin_op((*this)[i << 1], (*this)[i << 1 | 1]);
@@ -2216,7 +2223,7 @@ struct reversed_segment: vector<T>{
 	int N;
 	BO bin_op;
 	T id;
-	reversed_segment(const vector<T> &arr, BO bin_op, T id): N(sz(arr)), bin_op(bin_op), id(id){
+	reversed_segment(const vector<T> &arr, BO bin_op, T id): N(arr.size()), bin_op(bin_op), id(id){
 		this->resize(N << 1, id);
 		for(int i = 0; i < N; ++ i) (*this)[i + N] = arr[i];
 	}
@@ -2254,7 +2261,7 @@ struct recursive_segment{
 	vector<T> arr;
 	BO bin_op;
 	T id;
-	recursive_segment(const vector<T> &arr, BO bin_op, T id): N(sz(arr)), bin_op(bin_op), id(id){
+	recursive_segment(const vector<T> &arr, BO bin_op, T id): N(arr.size()), bin_op(bin_op), id(id){
 		this->arr.resize(N << 2, id);
 		build(arr, 1, 0, N);
 	}
@@ -2581,7 +2588,7 @@ struct fenwick2d: vector<vector<T>>{
 	BO bin_op;
 	IO inv_op;
 	T id;
-	fenwick2d(const vector<vector<T>> &arr, BO bin_op, IO inv_op, T id): N(sz(arr)), M(sz(arr[0])), bin_op(bin_op), inv_op(inv_op), id(id){
+	fenwick2d(const vector<vector<T>> &arr, BO bin_op, IO inv_op, T id): N(arr.size()), M(arr[0].size()), bin_op(bin_op), inv_op(inv_op), id(id){
 		this->resize(N + 1, vector<T>(M + 1));
 		for(int i = 0; i < N; ++ i) for(int j = 0; j < M; ++ j) update(i, j, arr[i][j]);
 	}
@@ -2604,10 +2611,10 @@ struct fenwick2d: vector<vector<T>>{
 // 156485479_3_4
 // Wavelet Tree ( WARNING: NOT THOROUGHLY TESTED YET )
 // O(L log N) preprocessing, O(log N) per query
-struct node: vi{
+struct node: vector<int>{
 	int N, low, high;
 	node *l = NULL, *r = NULL;
-	node(vi::iterator bg, vi::iterator ed, int low, int high, function<bool(int, int)> cmp):
+	node(vector<int>::iterator bg, vector<int>::iterator ed, int low, int high, function<bool(int, int)> cmp):
 		N(ed - bg), low(low), high(high){
 		if(!N) return;
 		if(low + 1 == high){
@@ -2631,10 +2638,10 @@ struct wavelet{
 	int N;
 	node *root;
 	function<bool(int, int)> cmp;
-	vi arr;
-	wavelet(const vi &other, function<bool(int, int)> cmp = less<int>()):
+	vector<int> arr;
+	wavelet(const vector<int> &other, function<bool(int, int)> cmp = less<int>()):
 		N(other.size()), arr(other), cmp(cmp){
-		root = new node(all(arr), *min_element(all(arr), cmp), *max_element(all(arr), cmp) + 1, cmp);
+		root = new node(arr.begin(), arr.end(), *min_element(arr.begin(), arr.end(), cmp), *max_element(arr.begin(), arr.end(), cmp) + 1, cmp);
 	}
 	//Count elements less than val in the range [l, r)
 	int count(node *node, int ql, int qr, int val){
@@ -2657,12 +2664,12 @@ struct wavelet{
 // 156485479_3_5
 // Disjoint Set
 // O(alpha(n)) per query where alpha(n) is the inverse ackermann function
-struct disjoint: vi{
+struct disjoint: vector<int>{
 	int N;
-	// vector<pii> Log; // For persistency
+	// vector<pair<int, int>> Log; // For persistency
 	disjoint(int N): N(N){
 		this->resize(N);
-		iota(all((*this)), 0);
+		iota(this->begin(), this->end(), 0);
 	}
 	int root(int u){
 		// Log.emplace_back(u, (*this)[u]);
@@ -2803,7 +2810,7 @@ struct offline_less_than_k_query{
 	int N;
 	vector<pair<T, int>> event;
 	vector<tuple<T, int, int, int>> queries;
-	offline_less_than_k_query(const vector<T> &arr, bool IS_DVQ = true): N(sz(arr)), event(N){
+	offline_less_than_k_query(const vector<T> &arr, bool IS_DVQ = true): N(arr.size()), event(N){
 		if(IS_DVQ){
 			map<T, int> q;
 			for(int i = 0; i < N; ++ i){
@@ -2821,8 +2828,8 @@ struct offline_less_than_k_query{
 	}
 	template<typename Action>
 	void solve(Action ans){ // ans(index, answer)
-		sort(all(queries)), sort(all(event), greater<pair<T, int>>());
-		fenwick tr(vi(N), plus<int>(), minus<int>(), 0);
+		sort(queries.begin(), queries.end()), sort(event.begin(), event.end(), greater<pair<T, int>>());
+		fenwick tr(vector<int>(N), plus<int>(), minus<int>(), 0);
 		for(auto &[k, ql, qr, i]: queries){
 			while(!event.empty() && event.back().first < k){
 				tr.update(event.back().second, 1);
@@ -2915,7 +2922,7 @@ struct less_than_k_query{ // for less-than-k query, it only deals with numbers i
 	int N;
 	vector<node<T> *> p;
 	persistent_segment<int, plus<int>> tr;
-	less_than_k_query(const vector<T> &arr, bool IS_DVQ = true): N(sz(arr)), p(N + 1), tr(vi(N), plus<int>{}, 0){
+	less_than_k_query(const vector<T> &arr, bool IS_DVQ = true): N(arr.size()), p(N + 1), tr(vector<int>(N), plus<int>{}, 0){
 		vector<pair<T, int>> event(N);
 		if(IS_DVQ){
 			map<T, int> q;
@@ -2925,7 +2932,7 @@ struct less_than_k_query{ // for less-than-k query, it only deals with numbers i
 			}
 		}
 		else for(int i = 0; i < N; ++ i) event[i] = {arr[i], i};
-		sort(all(event), greater<pii>{});
+		sort(event.begin(), event.end(), greater<pair<int, int>>{});
 		tr.reserve(N);
 		for(int i = 0; i <= N; ++ i){
 			while(!event.empty() && event.back().first < i){
@@ -2964,14 +2971,14 @@ template<int B>
 struct Query{
 	int l, r, ind;
 	bool operator<(const Query &otr) const{
-		if(l / B != otr.l / B) return pii(l, r) < pii(otr.l, otr.r);
+		if(l / B != otr.l / B) return pair<int, int>(l, r) < pair<int, int>(otr.l, otr.r);
 		return (l / B & 1) ? (r < otr.r) : (r > otr.r);
 	}
 };
 template<typename T, typename Q, typename I, typename D, typename A>
 vector<T> answer_query_offline(const vector<T> &arr, vector<Q> query, I ins, D del, A ans){
-	sort(all(query));
-	vector<T> res(sz(query));
+	sort(query.begin(), query.end());
+	vector<T> res(query.size());
 	for(auto q: query){
 		static int l = 0, r = 0;
 		while(l > q.l) ins(-- l);
@@ -2988,8 +2995,8 @@ vector<T> answer_query_offline(const vector<T> &arr, vector<Q> query, I ins, D d
 // O(n + m)
 template<typename G, typename F>
 int scc(const G &g, F f){
-	int n = sz(g);
-	vi val(n, 0), comp(n, -1), z, cur;
+	int n = g.size();
+	vector<int> val(n, 0), comp(n, -1), z, cur;
 	int Time = 0, ncomps = 0;
 	auto dfs = [&](int u, auto &dfs)->int{
 		int low = val[u] = ++ Time, v;
@@ -3016,8 +3023,8 @@ int scc(const G &g, F f){
 // O(n + m)
 template<typename G, typename F, typename FF>
 int bcc(const G &g, F f, FF ff = [](int u, int v, int e){}){
-	int n = sz(g);
-	vi num(n), st;
+	int n = g.size();
+	vector<int> num(n), st;
 	int Time = 0, ncomps = 0;
 	auto dfs = [&](int u, int pe, auto &dfs)->int{
 		int me = num[u] = ++ Time, top = me;
@@ -3027,12 +3034,12 @@ int bcc(const G &g, F f, FF ff = [](int u, int v, int e){}){
 				if(num[v] < me) st.push_back(e);
 			}
 			else{
-				int si = sz(st);
+				int si = st.size();
 				int up = dfs(v, e, dfs);
 				top = min(top, up);
 				if(up == me){
 					st.push_back(e);
-					f(vi(st.begin() + si, st.end())); // Process BCCs (edgelist)
+					f(vector<int>(st.begin() + si, st.end())); // Process BCCs (edgelist)
 					st.resize(si);
 					ncomps ++;
 				}
@@ -3076,10 +3083,10 @@ template<typename T>
 struct dinic{
 	static constexpr T inf = numeric_limits<T>::max();
 	flownetwork<T> &g;
-	vi ptr, level, q;
+	vector<int> ptr, level, q;
 	dinic(flownetwork<T> &g): g(g), ptr(g.N), level(g.N), q(g.N){ }
 	bool bfs(){
-		fill(all(level), -1);
+		fill(level.begin(), level.end(), -1);
 		q[0] = g.sink;
 		level[g.sink] = 0;
 		int beg = 0, end = 1;
@@ -3148,11 +3155,11 @@ struct mcmf{
 		T c, f;
 		C cost;
 	};
-	vector<vi> g;
+	vector<vector<int>> g;
 	vector<edge> edges;
 	vector<C> d;
 	vector<bool> in_queue;
-	vi q, pe;
+	vector<int> q, pe;
 	int n, source, sink;
 	T flow;
 	C cost;
@@ -3249,14 +3256,14 @@ struct sparse_table: vector<vector<T>>{
 	}
 };
 struct LCA{
-	vi time;
-	vl depth;
+	vector<int> time;
+	vector<long long> depth;
 	int root;
-	sparse<pii> rmq;
-	LCA(vector<vector<pii>> &adj, int root): root(root), time(adj.size(), -99), depth(adj.size()), rmq(dfs(adj)){}
-	vector<pii> dfs(vector<vector<pii>> &adj){
-		vector<tuple<int, int, int, ll>> q(1);
-		vector<pii> res;
+	sparse<pair<int, int>> rmq;
+	LCA(vector<vector<pair<int, int>>> &adj, int root): root(root), time(adj.size(), -99), depth(adj.size()), rmq(dfs(adj)){}
+	vector<pair<int, int>> dfs(vector<vector<pair<int, int>>> &adj){
+		vector<tuple<int, int, int, long long>> q(1);
+		vector<pair<int, int>> res;
 		int T = root;
 		while(!q.empty()){
 			auto [u, p, d, di] = q.back();
@@ -3275,7 +3282,7 @@ struct LCA{
 		l = time[l], r = time[r];
 		return rmq.query(min(l, r), max(l, r)).second;
 	}
-	ll dist(int l, int r){
+	long long dist(int l, int r){
 		int lca = query(l, r);
 		return depth[l] + depth[r] - 2 * depth[lca];
 	}
@@ -3491,7 +3498,7 @@ struct HLD{
 	}
 	void insert(int u, int v){ adj[u].push_back(v), adj[v].push_back(u); }
 	void dfs_sz(int u){
-		if(par[u] != -1) adj[u].erase(find(all(adj[u]), par[u]));
+		if(par[u] != -1) adj[u].erase(find(adj[u].begin(), adj[u].end(), par[u]));
 		for(auto &v: adj[u]){
 			par[v] = u, depth[v] = depth[u] + 1;
 			dfs_sz(v);
@@ -3593,10 +3600,10 @@ struct CD: vector<vector<int>>{
 // AHU Algorithm ( Rooted Tree Isomorphism ) / Tree Isomorphism
 // O(n)
 void radix_sort(vector<pair<int, vector<int>>> &arr){
-	int n = arr.size(), mxval = 0, mxsz = 1 + accumulate(arr.begin(), arr.end(), 0, [](int x, const pair<int, vector<int>> &y){return max(x, sz(y.second));});
+	int n = arr.size(), mxval = 0, mxsz = 1 + accumulate(arr.begin(), arr.end(), 0, [](int x, const pair<int, vector<int>> &y){return max(x, y.second.size());});
 	vector<vector<int>> occur(mxsz);
 	for(int i = 0; i < n; ++ i){
-		occur[sz(arr[i].second)].push_back(i);
+		occur[arr[i].second.size()].push_back(i);
 		for(auto x: arr[i].second) mxval = max(mxval, x);
 	}
 	mxval ++;
@@ -3625,25 +3632,25 @@ bool isomorphic(const vector<vector<vector<int>>> &adj, const vector<int> &root)
 			}
 		};
 		dfs(root[k], -1);
-		int mxdepth = 1 + accumulate(all(depth[k]), 0, [](int x, int y){return max(x, y);});
+		int mxdepth = 1 + accumulate(depth[k].begin(), depth[k].end(), 0, [](int x, int y){return max(x, y);});
 		occur[k].resize(mxdepth);
 		for(int u = 0; u < n; ++ u) occur[k][depth[k][u]].push_back(u);
 	}
-	int mxdepth = sz(occur[0]);
-	if(mxdepth != sz(occur[1])) return false;
-	for(int d = 0; d < mxdepth; ++ d) if(sz(occur[0][d]) != sz(occur[1][d])) return false;
+	int mxdepth = occur[0].size();
+	if(mxdepth != occur[1].size()) return false;
+	for(int d = 0; d < mxdepth; ++ d) if(occur[0][d].size() != occur[1][d].size()) return false;
 	vector<vector<int>> label(2, vector<int>(n)), pos(2, vector<int>(n));
 	vector<vector<vector<int>>> sorted_list(mxdepth, vector<vector<int>>(2));
 	for(int k = 0; k < 2; ++ k){
-		sorted_list[mxdepth - 1][k].reserve(sz(occur[k][mxdepth - 1]));
+		sorted_list[mxdepth - 1][k].reserve(occur[k][mxdepth - 1].size());
 		for(auto u: occur[k][mxdepth - 1]) sorted_list[mxdepth - 1][k].push_back(u);
 	}
 	for(int d = mxdepth - 2; d >= 0; -- d){
 		vector<vector<pair<int, vector<int>>>> tuples(2);
 		for(int k = 0; k < 2; ++ k){
-			tuples[k].reserve(sz(occur[k][d]));
+			tuples[k].reserve(occur[k][d].size());
 			for(auto u: occur[k][d]){
-				pos[k][u] = sz(tuples[k]);
+				pos[k][u] = tuples[k].size();
 				tuples[k].emplace_back(u, vector<int>());
 			}
 			for(auto v: sorted_list[d + 1][k]){
@@ -3652,12 +3659,12 @@ bool isomorphic(const vector<vector<vector<int>>> &adj, const vector<int> &root)
 			}
 			radix_sort(tuples[k]);
 		}
-		for(int i = 0; i < sz(tuples[0]); ++ i) if(tuples[0][i].second != tuples[1][i].second) return false;
+		for(int i = 0; i < tuples[0].size(); ++ i) if(tuples[0][i].second != tuples[1][i].second) return false;
 		for(int k = 0; k < 2; ++ k){
 			int cnt = 0;
-			sorted_list[d][k].reserve(sz(occur[k][d]));
+			sorted_list[d][k].reserve(occur[k][d].size());
 			sorted_list[d][k].push_back(tuples[k][0].first);
-			for(int i = 1; i < sz(tuples[k]); ++ i){
+			for(int i = 1; i < tuples[k].size(); ++ i){
 				int u = tuples[k][i].first;
 				label[k][u] = (tuples[k][i - 1].second == tuples[k][i].second ? cnt : ++ cnt);
 				sorted_list[d][k].push_back(u);
@@ -3667,7 +3674,7 @@ bool isomorphic(const vector<vector<vector<int>>> &adj, const vector<int> &root)
 	return true;
 }
 vector<int> centroid(const vector<vector<int>> &adj){
-	int n = sz(adj);
+	int n = adj.size();
 	vector<int> size(n, 1);
 	function<void(int, int)> dfs_sz = [&](int u, int p){
 		for(auto v: adj[u]) if(v != p){
@@ -3690,7 +3697,7 @@ bool isomorphic(const vector<vector<vector<int>>> &adj){
 	return false;
 }
 
-// 156485479_4_6_1
+// 156485479_4_5_1
 // Shortest Path Tree On Sparse Graph ( Dijkstra, Bellman Ford, SPFA )
 template<typename T = long long, typename BO = plus<T>, typename Compare = less<T>>
 struct shortest_path_tree_sparse{
@@ -3698,23 +3705,22 @@ struct shortest_path_tree_sparse{
 		int from, to;
 		T cost;
 	};
-	const T inf;
 	int N;
 	BO bin_op;
 	Compare cmp;
-	const T id;
+	const T inf, id;
 	vector<vector<int>> adj;
 	vector<edge> edge;
 	vector<T> dist;
 	vector<int> parent;
-	shortest_path_tree_sparse(int N, const T inf = numeric_limits<T>::max() / 3, BO bin_op = plus<T>(), T id = 0, Compare cmp = less<T>()): N(N), inf(inf), bin_op(bin_op), id(id), cmp(cmp), adj(N), dist(N, inf), parent(N, -1){ }
+	shortest_path_tree_sparse(int N, const T inf = numeric_limits<T>::max() / 8, BO bin_op = plus<T>(), T id = 0, Compare cmp = less<T>()): N(N), inf(inf), bin_op(bin_op), id(id), cmp(cmp), adj(N){ }
 	void insert(int u, int v, T w){
 		adj[u].push_back(edge.size());
 		edge.push_back({u, v, w});
 	}
 	void init(){
-		fill(dist.begin(), dist.end(), inf);
-		fill(parent.begin(), parent.end(), -1);
+		dist.resize(N), parent.resize(N);
+		fill(dist.begin(), dist.end(), inf), fill(parent.begin(), parent.end(), -1);
 	}
 	void init_dijkstra(int s = 0){
 		init();
@@ -3812,22 +3818,22 @@ struct shortest_path_tree_sparse{
 	}
 };
 
-// 156485479_4_6_2
+// 156485479_4_5_2
 // Shortest Path Tree On Dense Graph ( Dijkstra, Floyd Warshall )
 template<typename T = long long, typename BO = plus<T>, typename Compare = less<T>>
 struct shortest_path_tree_dense{
-	const T inf;
 	int N;
 	BO bin_op;
 	Compare cmp;
-	const T id;
+	const T inf, id;
 	vector<vector<T>> adj, dist;
 	vector<vector<int>> parent, pass;
-	shortest_path_tree_dense(int N, const T inf = numeric_limits<T>::max() / 3, BO bin_op = plus<T>(), T id = 0, Compare cmp = less<T>()): N(N), inf(inf), bin_op(bin_op), id(id), cmp(cmp), adj(N, vector<T>(N, inf)), dist(N, vector<T>(N, inf)), parent(N, vector<int>(N, -1)), pass(N, vector<int>(N, -1)){ }
-	void insert(int u, int v, T w){ if(cmp(w, adj[u][v])) adj[u][v] = w; }
+	shortest_path_tree_dense(int N, const T inf = numeric_limits<T>::max() / 8, BO bin_op = plus<T>(), T id = 0, Compare cmp = less<T>()): N(N), inf(inf), bin_op(bin_op), id(id), cmp(cmp), adj(N, vector<T>(N, inf)){ }
+	void insert(int u, int v, T w){ assert(u != v); if(cmp(w, adj[u][v])) adj[u][v] = w; }
+	void clear(){ for(int u = 0; u < N; ++ u) fill(adj[u].begin(), adj[u].end(), inf); }
 	void init(int s){
-		fill(dist[s].begin(), dist[s].end(), inf);
-		fill(parent[s].begin(), parent[s].end(), -1);
+		dist.resize(N), parent.resize(N), dist[s].resize(N), parent[s].resize(N);
+		fill(dist[s].begin(), dist[s].end(), inf), fill(parent[s].begin(), parent[s].end(), -1);
 	}
 	void init_dijkstra(int s){
 		init(s);
@@ -3845,17 +3851,18 @@ struct shortest_path_tree_dense{
 		}
 	}
 	vector<int> path_from_root(int s, int u){
+		if(dist[s][u] >= inf) return { };
 		vector<int> vertices;
-		for(; u != s && u != -1; u = parent[s][u]) vertices.push_back(u);
-		if(u == -1) return { };
+		for(; u != s; u = parent[s][u]) vertices.push_back(u);
 		vertices.push_back(s);
 		reverse(vertices.begin(), vertices.end());
 		return vertices;
 	}
+	void init_all_pair(){
+		pass.resize(N, vector<int>(N)), dist = adj;
+		for(int u = 0; u < N; ++ u) fill(pass[u].begin(), pass[u].end(), -1), dist[u][u] = id;
+	}
 	bool init_floyd_warshall(){
-		dist = adj;
-		fill(pass.begin(), pass.end(), vector<int>(N, -1));
-		for(int u = 0; u < N; ++ u) dist[u][u] = id;
 		for(int k = 0; k < N; ++ k) for(int i = 0; i < N; ++ i) for(int j = 0; j < N; ++ j){
 			if(cmp(dist[i][k], inf) && cmp(dist[k][j], inf) && cmp(bin_op(dist[i][k], dist[k][j]), dist[i][j])){
 				dist[i][j] = bin_op(dist[i][k], dist[k][j]);
@@ -3885,7 +3892,7 @@ struct shortest_path_tree_dense{
 // Returns the starting position of the lexicographically minimal rotation
 // O(n)
 int min_rotation(string s){
-	int n = sz(s);
+	int n = s.size();
 	s += s;
 	int a = 0;
 	for(int b = 0; b < n; ++ b) for(int i = 0; i < n; ++ i){
@@ -4014,7 +4021,7 @@ struct suffix_array{
 		return p;
 	}
 	vector<int> get_lcp(const vector<int> &p){
-		int n = sz(s);
+		int n = s.size();
 		vector<int> rank(n);
 		for(int i = 0; i < n; ++ i) rank[p[i]] = i;
 		int k = 0;
@@ -4132,7 +4139,7 @@ vector<int> prefix_function(const Str &s){
 template<typename Str, typename UO = function<char(int)>, int lim = 26>
 pair<vector<int>, vector<vector<int>>> prefix_automaton(const Str &s, UO trans = [](int c){return c + 'a';}){
 	vector<int> p = prefix_function(s);
-	int n = sz(s);
+	int n = s.size();
 	vector<vector<int>> aut(n, vector<int>(lim));
 	for(int i = 0; i < n; ++ i) for(int c = 0; c < lim; ++ c){
 		if(i > 0 && trans(c) != s[i]) aut[i][c] = aut[p[i - 1]][c];
@@ -4147,14 +4154,14 @@ pair<vector<int>, vector<vector<int>>> prefix_automaton(const Str &s, UO trans =
 template<typename Str>
 struct polyhash: vector<vector<long long>>{
 	const int lim;
-	const ll base, mod;
+	const long long base, mod;
 	vector<long long> p;
-	polyhash(int lim, ll mod): lim(lim), p(lim, 1), mod(mod), base(rngll() % (ll)(0.4 * mod) + 0.3 * mod){
+	polyhash(int lim, long long mod): lim(lim), p(lim, 1), mod(mod), base(rngll() % (long long)(0.4 * mod) + 0.3 * mod){
 		for(int i = 1; i < lim; ++ i) p[i] = p[i - 1] * base % mod;
 	}
 	void insert(const Str &s){
 		this->emplace_back(s.size() + 1);
-		for(int i = 0; i < sz(s); ++ i) this->back()[i + 1] = (this->back()[i] * base + s[i]) % mod;
+		for(int i = 0; i < s.size(); ++ i) this->back()[i + 1] = (this->back()[i] * base + s[i]) % mod;
 	}
 	void extend(typename Str::value_type c, int i = 0){
 		(*this)[i].push_back(((*this)[i].back() * base + c) % mod);
@@ -4185,7 +4192,7 @@ struct polyhash: vector<vector<long long>>{
 template<typename Str>
 struct double_polyhash{
 	pair<polyhash<Str>, polyhash<Str>> h;
-	double_polyhash(int N, ll mod): h{polyhash<Str>(N, mod), polyhash<Str>(N, mod)}{ }
+	double_polyhash(int N, long long mod): h{polyhash<Str>(N, mod), polyhash<Str>(N, mod)}{ }
 	void insert(const Str &s){
 		h.first.insert(s), h.second.insert(s);
 	}
@@ -4256,7 +4263,7 @@ struct suffix_automaton{
 		last = cur;
 	}
 	void print(){
-		for(int u = 0; u < sz(state); ++ u){
+		for(int u = 0; u < state.size(); ++ u){
 			cout << "--------------------------------\n";
 			cout << "Node " << u << ": len = " << state[u].len << ", link = " << state[u].link;
 			cout << ", firstpos = " << state[u].firstpos << ", cnt = " << state[u].cnt;
@@ -4275,7 +4282,7 @@ struct suffix_automaton{
 	}
 	vector<long long> distinct_substr_cnt(){
 		vector<long long> dp(state.size());
-		function<ll(int)> solve = [&](int u){
+		function<long long(int)> solve = [&](int u){
 			if(dp[u]) return dp[u];
 			dp[u] = 1;
 			for(auto [c, v]: state[u].next) dp[u] += solve(v);
@@ -4298,8 +4305,8 @@ struct suffix_automaton{
 		solve(0);
 		return res;
 	}
-	pair<Str, int> k_th_substr(ll k){
-		vl dp(distinct_substr_cnt());
+	pair<Str, int> k_th_substr(long long k){
+		vector<long long> dp(distinct_substr_cnt());
 		assert(dp[0] >= k && k);
 		Str res;
 		int u = 0;
@@ -4326,12 +4333,12 @@ struct suffix_automaton{
 	}
 	pair<int, int> find_first(const Str &s){ // length, pos
 		auto [l, u] = match(s);
-		return {l, state[u].firstpos - sz(s) + 1};
+		return {l, state[u].firstpos - int(s.size()) + 1};
 	}
 	void process_invlink(){ for(int u = 1; u < state.size(); ++ u) state[state[u].link].invlink.push_back(u); }
 	vector<int> find_all(const Str &s, bool invlink_init = false){
 		auto [l, u] = match(s);
-		if(l < sz(s)) return{};
+		if(l < s.size()) return{};
 		vector<int> res;
 		if(!invlink_init) process_invlink();
 		function<void(int)> solve = [&](int u){
@@ -4395,7 +4402,7 @@ struct suffix_automaton{
 };
 template<typename Str>
 Str lcs(vector<Str> a){
-	swap(a[0], *min_element(all(a), [](const Str &s, const Str &t){ return s.size() < t.size(); }));
+	swap(a[0], *min_element(a.begin(), a.end(), [](const Str &s, const Str &t){ return s.size() < t.size(); }));
 	vector<int> res(a[0].size());
 	iota(res.begin(), res.end(), 1);
 	for(int i = 1; i < a.size(); ++ i){
@@ -4414,7 +4421,7 @@ Str lcs(vector<Str> a){
 
 // 156485479_6_1
 // 2D Geometry Classes
-template<typename T = ll> struct point{
+template<typename T = long long> struct point{
 	T x, y;
 	template<typename U> point(const point<U> &otr): x(otr.x), y(otr.y){ }
 	template<typename U, typename V> point(const pair<U, V> &p): x(p.first), y(p.second){ }
@@ -4455,10 +4462,10 @@ template<typename T> T squared_distance(const point<T> &p, const point<T> &q){ r
 template<typename T, typename U, typename V> T ori(const point<T> &p, const point<U> &q, const point<V> &r){ return (q - p) ^ (r - p); }
 template<typename T> T doubled_signed_area(const vector<point<T>> &arr){
 	T s = arr.back() ^ arr.front();
-	for(int i = 1; i < sz(arr); ++ i) s += arr[i - 1] ^ arr[i];
+	for(int i = 1; i < arr.size(); ++ i) s += arr[i - 1] ^ arr[i];
 	return s;
 }
-template<typename T = ll> struct line{
+template<typename T = long long> struct line{
 	point<T> p, d; // p + d*t
 	template<typename U = T, typename V = T> line(point<U> p = {0, 0}, point<V> q = {0, 0}, bool Two_Points = true): p(p), d(Two_Points ? q - p : q){ }
 	template<typename U> line(point<U> d): p(), d(static_cast<point<T>>(d)){ }
@@ -4541,7 +4548,7 @@ template<typename T> double distance_between_rays(const line<T> &L, const line<T
 		else return distance(L.p, M.p);
 	}
 	else{
-		if(intersect_no_parallel_overlap<1, 0, 1, 0, ll>(L, M).first) return 0;
+		if(intersect_no_parallel_overlap<1, 0, 1, 0, long long>(L, M).first) return 0;
 		else return min(distance_to_ray(L.p, M), distance_to_ray(M.p, L));
 	}
 }
@@ -4568,24 +4575,24 @@ template<typename Polygon>
 struct convex_hull: pair<Polygon, Polygon>{ // (Lower, Upper) type {0: both, 1: lower, 2: upper}
 	int type;
 	convex_hull(Polygon arr = Polygon(), int type = 0, bool is_sorted = false): type(type){
-		if(!is_sorted) sort(all(arr)), arr.resize(unique(all(arr)) - arr.begin());
-#define ADDP(C, cmp) while(sz(C) > 1 && ori(C[sz(C) - 2], p, C.back()) cmp 0) C.pop_back(); C.push_back(p);
+		if(!is_sorted) sort(arr.begin(), arr.end()), arr.resize(unique(arr.begin(), arr.end()) - arr.begin());
+#define ADDP(C, cmp) while(C.size() > 1 && ori(C[int(C.size()) - 2], p, C.back()) cmp 0) C.pop_back(); C.push_back(p);
 		for(auto &p: arr){
 			if(type < 2){ ADDP(this->first, >=) }
 			if(!(type & 1)){ ADDP(this->second, <=) }
 		}
-		reverse(all(this->second));
+		reverse(this->second.begin(), this->second.end());
 	}
 	Polygon get_hull() const{
 		if(type) return type == 1 ? this->first : this->second;
-		if(sz(this->first) <= 1) return this->first;
+		if(this->first.size() <= 1) return this->first;
 		Polygon res(this->first);
 		res.insert(res.end(), ++ this->second.begin(), -- this->second.end());
 		return res;
 	}
 	int min_element(const typename Polygon::value_type &p) const{
 		assert(p.y >= 0 && !this->first.empty());
-		int low = 0, high = sz(this->first);
+		int low = 0, high = this->first.size();
 		while(high - low > 2){
 			int mid1 = (2 * low + high) / 3, mid2 = (low + 2 * high) / 3;
 			p * this->first[mid1] >= p * this->first[mid2] ? low = mid1 : high = mid2;
@@ -4596,7 +4603,7 @@ struct convex_hull: pair<Polygon, Polygon>{ // (Lower, Upper) type {0: both, 1: 
 	}
 	int max_element(const typename Polygon::value_type &p) const{
 		assert(p.y >= 0 && !this->second.empty());
-		int low = 0, high = sz(this->second);
+		int low = 0, high = this->second.size();
 		while(high - low > 2){
 			int mid1 = (2 * low + high) / 3, mid2 = (low + 2 * high) / 3;
 			p * this->second[mid1] <= p * this->second[mid2] ? low = mid1 : high = mid2;
@@ -4607,24 +4614,24 @@ struct convex_hull: pair<Polygon, Polygon>{ // (Lower, Upper) type {0: both, 1: 
 	}
 	Polygon linearize() const{
 		if(type == 1) return this->first;
-		if(type == 2){ Polygon res(this->second); reverse(all(res)); return res; }
-		if(sz(this->first) <= 1) return this->first;
+		if(type == 2){ Polygon res(this->second); reverse(res.begin(), res.end()); return res; }
+		if(this->first.size() <= 1) return this->first;
 		Polygon res;
-		res.reserve(sz(this->first) + sz(this->second));
-		merge(all(this->first), ++ this->second.rbegin(), -- this->second.rend(), back_inserter(res));
+		res.reserve(this->first.size() + this->second.size());
+		merge(this->first.begin(), this->first.end(), ++ this->second.rbegin(), -- this->second.rend(), back_inserter(res));
 		return res;
 	}
 	convex_hull operator^(const convex_hull &otr) const{
 		Polygon temp, A = linearize(), B = otr.linearize();
-		temp.reserve(sz(A) + sz(B));
-		merge(all(A), all(B), back_inserter(temp));
-		temp.resize(unique(all(temp)) - temp.begin());
+		temp.reserve(A.size() + B.size());
+		merge(A.begin(), A.end(), B.begin(), B.end(), back_inserter(temp));
+		temp.resize(unique(temp.begin(), temp.end()) - temp.begin());
 		return {temp, type, true};
 	}
 	pair<Polygon, Polygon> get_boundary() const{
 		Polygon L(this->first), R(this->second);
-		for(int i = sz(L) - 1; i > 0; -- i) L[i] -= L[i - 1];
-		for(int i = sz(R) - 1; i > 0; -- i) R[i] -= R[i - 1];
+		for(int i = int(L.size()) - 1; i > 0; -- i) L[i] -= L[i - 1];
+		for(int i = int(R.size()) - 1; i > 0; -- i) R[i] -= R[i - 1];
 		return {L, R};
 	}
 	convex_hull operator+(const convex_hull &otr) const{
@@ -4634,10 +4641,10 @@ struct convex_hull: pair<Polygon, Polygon>{ // (Lower, Upper) type {0: both, 1: 
 		compare_by_angle<typename Polygon::value_type> cmp;
 #define PROCESS(COND, X) \
 if(COND && !A.X.empty() && !B.X.empty()){ \
-	res.X.reserve(sz(A.X) + sz(B.X)); \
+	res.X.reserve(A.X.size() + B.X.size()); \
 	res.X.push_back(A.X.front() + B.X.front()); \
 	merge(A.X.begin() + 1, A.X.end(), B.X.begin() + 1, B.X.end(), back_inserter(res.X), cmp); \
-	for(int i = 1; i < sz(res.X); ++ i) res.X[i] += res.X[i - 1]; \
+	for(int i = 1; i < res.X.size(); ++ i) res.X[i] += res.X[i - 1]; \
 }
 		PROCESS(type < 2, first)
 		PROCESS(!(type & 1), second)
@@ -4664,8 +4671,8 @@ struct custom_hash{
 # define M_PI 3.141592653589793238462643383279502884L
 const int RANDOM = rnd();
 struct custom_hash{ // To use most bits rather than just the lowest ones:
-	static const uint64_t C = ll(2e18 * M_PI) + 71; // large odd number
-	ll operator()(ll x) const { return __builtin_bswap64((x^RANDOM)*C); }
+	static const uint64_t C = long long(2e18 * M_PI) + 71; // large odd number
+	long long operator()(long long x) const { return __builtin_bswap64((x^RANDOM)*C); }
 };
 
 /*
