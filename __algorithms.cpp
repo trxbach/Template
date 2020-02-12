@@ -2219,11 +2219,11 @@ struct segment: vector<T>{
 // Iterative Segment Tree with Reversed Operation ( Commutative Operation Only )
 // O(N) Preprocessing, O(1) per query
 template<typename T, typename BO>
-struct reversed_segment: vector<T>{
+struct segment: vector<T>{
 	int N;
 	BO bin_op;
 	T id;
-	reversed_segment(const vector<T> &arr, BO bin_op, T id): N(arr.size()), bin_op(bin_op), id(id){
+	segment(const vector<T> &arr, BO bin_op, T id): N(arr.size()), bin_op(bin_op), id(id){
 		this->resize(N << 1, id);
 		for(int i = 0; i < N; ++ i) (*this)[i + N] = arr[i];
 	}
@@ -2247,21 +2247,16 @@ struct reversed_segment: vector<T>{
 	}
 };
 
-// 156485479_3_2_3
-// Iterative Segment Tree Supporting Lazy Propagation
-// INCOMPLETE
-
-
 // 156485479_3_2_4
 // Simple Recursive Segment Tree
 // O(N) preprocessing, O(log N) per query
 template<typename T, typename BO>
-struct recursive_segment{
+struct segment{
 	int N;
 	vector<T> arr;
 	BO bin_op;
 	T id;
-	recursive_segment(const vector<T> &arr, BO bin_op, T id): N(arr.size()), bin_op(bin_op), id(id){
+	segment(const vector<T> &arr, BO bin_op, T id): N(arr.size()), bin_op(bin_op), id(id){
 		this->arr.resize(N << 2, id);
 		build(arr, 1, 0, N);
 	}
@@ -2338,23 +2333,23 @@ struct recursive_segment{
 // Lazy Dynamic Segment Tree
 // O(1) or O(N) preprocessing, O(log L) or O(log N) per query
 template<typename T, typename LOP, typename QOP, typename AOP>
-struct lazy_segment{
-	lazy_segment *l = 0, *r = 0;
+struct segment{
+	segment *l = 0, *r = 0;
 	int low, high;
 	LOP lop;                // Lazy op(L, L -> L)
 	QOP qop;                // Query op(Q, Q -> Q)
 	AOP aop;                // Apply op(Q, L, leftend, rightend -> Q)
 	const vector<T> id;     // Lazy id(L), Query id(Q), Disable constant(Q)
 	T lset, lazy, val;
-	lazy_segment(int low, int high, LOP lop, QOP qop, AOP aop, const vector<T> &id): low(low), high(high), lop(lop), qop(qop), aop(aop), id(id){
+	segment(int low, int high, LOP lop, QOP qop, AOP aop, const vector<T> &id): low(low), high(high), lop(lop), qop(qop), aop(aop), id(id){
 		lazy = id[0], val = id[1], lset = id[2];
 	}
-	lazy_segment(const vector<T> &arr, int low, int high, LOP lop, QOP qop, AOP aop, const vector<T> &id): low(low), high(high), lop(lop), qop(qop), aop(aop), id(id){
+	segment(const vector<T> &arr, int low, int high, LOP lop, QOP qop, AOP aop, const vector<T> &id): low(low), high(high), lop(lop), qop(qop), aop(aop), id(id){
 		lazy = id[0], lset = id[2];
 		if(high - low > 1){
 			int mid = low + (high - low) / 2;
-			l = new lazy_segment(arr, low, mid, lop, qop, aop, id);
-			r = new lazy_segment(arr, mid, high, lop, qop, aop, id);
+			l = new segment(arr, low, mid, lop, qop, aop, id);
+			r = new segment(arr, mid, high, lop, qop, aop, id);
 			val = qop(l->val, r->val);
 		}
 		else val = arr[low];
@@ -2362,8 +2357,8 @@ struct lazy_segment{
 	void push(){
 		if(!l){
 			int mid = low + (high - low) / 2;
-			l = new lazy_segment(low, mid, lop, qop, aop, id);
-			r = new lazy_segment(mid, high, lop, qop, aop, id);
+			l = new segment(low, mid, lop, qop, aop, id);
+			r = new segment(mid, high, lop, qop, aop, id);
 		}
 		if(lset != id[2]){
 			l->set(low, high, lset);
@@ -2459,11 +2454,11 @@ struct node{
 	}
 };
 template<typename T, typename BO>
-struct persistent_segment: vector<node<T> *>{
+struct segment: vector<node<T> *>{
 	int N;
 	BO bin_op;
 	const T id;
-	persistent_segment(const vector<T> &arr, BO bin_op, T id): N(arr.size()), bin_op(bin_op), id(id){
+	segment(const vector<T> &arr, BO bin_op, T id): N(arr.size()), bin_op(bin_op), id(id){
 		this->push_back(build(arr, 0, N));
 	}
 	node<T> *build(const vector<T> &arr, int left, int right){
@@ -2533,7 +2528,7 @@ struct fenwick: vector<T>{
 	int N;
 	BO bin_op;
 	IO inv_op;
-	T id;
+	const T id;
 	fenwick(const vector<T> &arr, BO bin_op, IO inv_op, T id): N(arr.size()), bin_op(bin_op), inv_op(inv_op), id(id){
 		this->resize(N + 1, id);
 		for(int i = 0; i < N; ++ i) update(i, arr[i]);
@@ -2554,13 +2549,35 @@ struct fenwick: vector<T>{
 // 156485479_3_3_2
 // Fenwick Tree Supporting Range Queries of The Same Type
 // O(N log N) preprocessing, O(log N) per query
+template<typename T, typename BO, typename IO>
+struct fenwick: vector<T>{
+	int N;
+	BO bin_op;
+	IO inv_op;
+	const T id;
+	fenwick(const vector<T> &arr, BO bin_op, IO inv_op, T id): N(arr.size()), bin_op(bin_op), inv_op(inv_op), id(id){
+		this->resize(N + 1, id);
+		for(int i = 0; i < N; ++ i) update(i, arr[i]);
+	}
+	void update(int p, T val){
+		for(p ++; p <= N; p += p & -p) (*this)[p] = bin_op((*this)[p], val);
+	}
+	T sum(int p){
+		T res = id;
+		for(p ++; p > 0; p -= p & -p) res = bin_op(res, (*this)[p]);
+		return res;
+	}
+	T query(int l, int r){
+		return inv_op(sum(r - 1), sum(l - 1));
+	}
+};
 template<typename T, typename BO, typename IO, typename MO>
 struct rangefenwick{
 	fenwick<T, BO, IO> tr1, tr2;
 	BO bin_op;
 	IO inv_op;
 	MO multi_op;
-	T id;
+	const T id;
 	rangefenwick(int N, BO bin_op, IO inv_op, MO multi_op, T id):
 		tr1(vector<T>(N, id), bin_op, inv_op, id),
 		tr2(vector<T>(N, id), bin_op, inv_op, id),
@@ -2587,13 +2604,13 @@ struct fenwick2d: vector<vector<T>>{
 	int N, M;
 	BO bin_op;
 	IO inv_op;
-	T id;
+	const T id;
 	fenwick2d(const vector<vector<T>> &arr, BO bin_op, IO inv_op, T id): N(arr.size()), M(arr[0].size()), bin_op(bin_op), inv_op(inv_op), id(id){
 		this->resize(N + 1, vector<T>(M + 1));
 		for(int i = 0; i < N; ++ i) for(int j = 0; j < M; ++ j) update(i, j, arr[i][j]);
 	}
 	void update(int x, int y, T val){
-		x ++, y ++;
+		++ x, -- y;
 		for(int i = x; i <= N; i += i & -i) for(int j = y; j <= N; j += j & -j) (*this)[i][j] = bin_op((*this)[i][j], val);
 	}
 	T sum(int x, int y){
@@ -2853,11 +2870,11 @@ struct node{
 	}
 };
 template<typename T, typename BO>
-struct persistent_segment: vector<node<T> *>{
+struct segment: vector<node<T> *>{
 	int N;
 	BO bin_op;
 	const T id;
-	persistent_segment(const vector<T> &arr, BO bin_op, T id): N(arr.size()), bin_op(bin_op), id(id){
+	segment(const vector<T> &arr, BO bin_op, T id): N(arr.size()), bin_op(bin_op), id(id){
 		this->push_back(build(arr, 0, N));
 	}
 	node<T> *build(const vector<T> &arr, int left, int right){
@@ -3021,12 +3038,12 @@ int scc(const G &g, F f){
 // 156485479_4_2
 // Biconnected Components
 // O(n + m)
-template<typename G, typename F, typename FF>
+template<typename G, typename F, typename FF = function<void(int, int, int)>>
 int bcc(const G &g, F f, FF ff = [](int u, int v, int e){}){
 	int n = g.size();
 	vector<int> num(n), st;
 	int Time = 0, ncomps = 0;
-	auto dfs = [&](int u, int pe, auto &dfs)->int{
+	function<int(int, int)> dfs = [&](int u, int pe){
 		int me = num[u] = ++ Time, top = me;
 		for(auto [v, e]: g[u]) if(e != pe){
 			if(num[v]){
@@ -3035,7 +3052,7 @@ int bcc(const G &g, F f, FF ff = [](int u, int v, int e){}){
 			}
 			else{
 				int si = st.size();
-				int up = dfs(v, e, dfs);
+				int up = dfs(v, e);
 				top = min(top, up);
 				if(up == me){
 					st.push_back(e);
@@ -3049,7 +3066,7 @@ int bcc(const G &g, F f, FF ff = [](int u, int v, int e){}){
 		}
 		return top;
 	};
-	for(int u = 0; u < n; ++ u) if(!num[u]) dfs(u, -1, dfs);
+	for(int u = 0; u < n; ++ u) if(!num[u]) dfs(u, -1);
 	return ncomps;
 }
 
@@ -3379,23 +3396,23 @@ struct binary_lift: vector<vector<pair<int, T>>>{
 // Heavy Light Decomposition
 // O(N + M) processing, O(log^2 N) per query
 template<typename T, typename LOP, typename QOP, typename AOP>
-struct lazy_segment{
-	lazy_segment *l = 0, *r = 0;
+struct segment{
+	segment *l = 0, *r = 0;
 	int low, high;
 	LOP lop;                // Lazy op(L, L -> L)
 	QOP qop;                // Query op(Q, Q -> Q)
 	AOP aop;                // Apply op(Q, L, leftend, rightend -> Q)
 	const vector<T> id;     // Lazy id(L), Query id(Q), Disable constant(Q)
 	T lset, lazy, val;
-	lazy_segment(int low, int high, LOP lop, QOP qop, AOP aop, const vector<T> &id): low(low), high(high), lop(lop), qop(qop), aop(aop), id(id){
+	segment(int low, int high, LOP lop, QOP qop, AOP aop, const vector<T> &id): low(low), high(high), lop(lop), qop(qop), aop(aop), id(id){
 		lazy = id[0], val = id[1], lset = id[2];
 	}
-	lazy_segment(const vector<T> &arr, int low, int high, LOP lop, QOP qop, AOP aop, const vector<T> &id): low(low), high(high), lop(lop), qop(qop), aop(aop), id(id){
+	segment(const vector<T> &arr, int low, int high, LOP lop, QOP qop, AOP aop, const vector<T> &id): low(low), high(high), lop(lop), qop(qop), aop(aop), id(id){
 		lazy = id[0], lset = id[2];
 		if(high - low > 1){
 			int mid = low + (high - low) / 2;
-			l = new lazy_segment(arr, low, mid, lop, qop, aop, id);
-			r = new lazy_segment(arr, mid, high, lop, qop, aop, id);
+			l = new segment(arr, low, mid, lop, qop, aop, id);
+			r = new segment(arr, mid, high, lop, qop, aop, id);
 			val = qop(l->val, r->val);
 		}
 		else val = arr[low];
@@ -3403,8 +3420,8 @@ struct lazy_segment{
 	void push(){
 		if(!l){
 			int mid = low + (high - low) / 2;
-			l = new lazy_segment(low, mid, lop, qop, aop, id);
-			r = new lazy_segment(mid, high, lop, qop, aop, id);
+			l = new segment(low, mid, lop, qop, aop, id);
+			r = new segment(mid, high, lop, qop, aop, id);
 		}
 		if(lset != id[2]){
 			l->set(low, high, lset);
