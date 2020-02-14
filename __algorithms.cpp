@@ -2180,24 +2180,24 @@ struct sparse_table: vector<vector<T>>{
 // Iterative Segment Tree
 // O(N) processing, O(log N) per query
 template<typename T, typename BO>
-struct segment: vector<T>{
+struct segment{
 	int N;
 	BO bin_op;
 	const T id;
-	segment(const vector<T> &arr, BO bin_op, T id): N(arr.size()), bin_op(bin_op), id(id){
-		this->resize(N << 1, id);
-		for(int i = 0; i < N; ++ i) (*this)[i + N] = arr[i];
-		for(int i = N - 1; i > 0; -- i) (*this)[i] = bin_op((*this)[i << 1], (*this)[i << 1 | 1]);
+	vector<T> val;
+	segment(const vector<T> &arr, BO bin_op, T id): N(arr.size()), bin_op(bin_op), id(id), val(N << 1, id){
+		for(int i = 0; i < N; ++ i) val[i + N] = arr[i];
+		for(int i = N - 1; i > 0; -- i) val[i] = bin_op(val[i << 1], val[i << 1 | 1]);
 	}
-	void set(int p, T val){
-		for((*this)[p += N] = val; p > 1; p >>= 1) (*this)[p >> 1] = bin_op((*this)[p], (*this)[p ^ 1]);
+	void set(int p, T x){
+		for(val[p += N] = x; p > 1; p >>= 1) val[p >> 1] = bin_op(val[p], val[p ^ 1]);
 	}
 	T query(int l, int r){
 		if(l >= r) return id;
 		T resl = id, resr = id;
 		for(l += N, r += N; l < r; l >>= 1, r >>= 1){
-			if(l & 1) resl = bin_op(resl, (*this)[l ++]);
-			if(r & 1) resr = bin_op((*this)[-- r], resr);
+			if(l & 1) resl = bin_op(resl, val[l ++]);
+			if(r & 1) resr = bin_op(val[-- r], resr);
 		}
 		return bin_op(resl, resr);
 	}
@@ -2207,30 +2207,30 @@ struct segment: vector<T>{
 // Iterative Segment Tree with Reversed Operation ( Commutative Operation Only )
 // O(N) Preprocessing, O(1) per query
 template<typename T, typename BO>
-struct segment: vector<T>{
+struct segment{
 	int N;
 	BO bin_op;
 	T id;
-	segment(const vector<T> &arr, BO bin_op, T id): N(arr.size()), bin_op(bin_op), id(id){
-		this->resize(N << 1, id);
-		for(int i = 0; i < N; ++ i) (*this)[i + N] = arr[i];
+	vector<T> val;
+	segment(const vector<T> &arr, BO bin_op, T id): N(arr.size()), bin_op(bin_op), id(id), val(N << 1, id){
+		for(int i = 0; i < N; ++ i) val[i + N] = arr[i];
 	}
-	void update(int l, int r, T val){
+	void update(int l, int r, T x){
 		for(l += N, r += N; l < r; l >>= 1, r >>= 1){
-			if(l & 1) (*this)[l ++] = bin_op((*this)[l], val);
-			if(r & 1) (*this)[r] = bin_op((*this)[-- r], val);
+			if(l & 1) val[l ++] = bin_op(val[l], x);
+			if(r & 1) val[r] = bin_op(val[-- r], x);
 		}
 	}
 	T query(int p){
 		T res = id;
-		for(p += N; p > 0; p >>= 1) res = bin_op(res, (*this)[p]);
+		for(p += N; p > 0; p >>= 1) res = bin_op(res, val[p]);
 		return res;
 	}
 	void push(){
 		for(int i = 1; i < N; ++ i){
-			(*this)[i << 1] = bin_op((*this)[i << 1], (*this)[i]);
-			(*this)[i << 1 | 1] = bin_op((*this)[i << 1 | 1], (*this)[i]);
-			(*this)[i] = id;
+			val[i << 1] = bin_op(val[i << 1], val[i]);
+			val[i << 1 | 1] = bin_op(val[i << 1 | 1], val[i]);
+			val[i] = id;
 		}
 	}
 };
@@ -2964,7 +2964,7 @@ int scc(const Graph &adj, Process_SCC f){
 // Biconnected Components / adj[u]: list of [vertex, edgenum]
 // O(N + M)
 template<typename Graph, typename Process_BCC, typename Process_Bridge = function<void(int, int, int)>>
-int bcc(const Graph &adj, Process_BCC f, Process_Bridge g = [](int u, int v, int e){}){
+int bcc(const Graph &adj, Process_BCC f, Process_Bridge g = [](int u, int v, int e){ }){
 	int n = int(adj.size());
 	vector<int> num(n), st;
 	int timer = 0, ncomps = 0;
@@ -3298,17 +3298,18 @@ struct binary_lift: vector<vector<int>>{
 // Binary Lifting for Weighted Tree Supporting Commutative Monoid Operations
 // O(N log N) processing, O(log N) per query
 template<typename T, typename BO>
-struct binary_lift: vector<vector<pair<int, T>>>{
+struct binary_lift{
 	int N, root, lg;
 	BO bin_op;
 	const T id;
-	const vector<T> val;
-	vector<vector<pair<int, T>>> up;
+	vector<T> val;
+	vector<vector<pair<int, T>>> adj, up;
 	vector<int> depth;
-	binary_lift(int N, int root, const vector<T> &val, BO bin_op, T id): N(N), root(root), bin_op(bin_op), id(id), lg(32 - __builtin_clz(N)), depth(N), val(val), up(N, vector<pair<int, T>>(lg + 1)){
-		this->resize(N);
+	binary_lift(int N, int root, const vector<T> &val, BO bin_op, T id): N(N), root(root), bin_op(bin_op), id(id), lg(32 - __builtin_clz(N)), depth(N), val(val), adj(N), up(N, vector<pair<int, T>>(lg + 1)){ }
+	void insert(int u, int v, T w){
+		adj[u].emplace_back(v, w);
+		adj[v].emplace_back(u, w);
 	}
-	void insert(int u, int v, T w){ (*this)[u].emplace_back(v, w), (*this)[v].emplace_back(u, w); }
 	void init(){ dfs(root, root, id); }
 	void dfs(int u, int p, T w){
 		up[u][0] = {p, bin_op(val[u], w)};
@@ -3316,7 +3317,7 @@ struct binary_lift: vector<vector<pair<int, T>>>{
 			up[up[u][i - 1].first][i - 1].first
 			, bin_op(up[u][i - 1].second, up[up[u][i - 1].first][i - 1].second)
 		};
-		for(auto &[v, x]: (*this)[u]) if(v != p){
+		for(auto &[v, x]: adj[u]) if(v != p){
 			depth[v] = depth[u] + 1;
 			dfs(v, u, x);
 		}
