@@ -3061,7 +3061,7 @@ int bcc(const Graph &adj, Process_BCC f, Process_Bridge g = [](int u, int v, int
 				top = min(top, up);
 				if(up == me){
 					st.push_back(e);
-					f(vector<int>(st.begin() + si, st.end()));
+					f(vector<int>(st.begin() + si, st.end())); // Processes edgelist
 					st.resize(si);
 					ncomps ++;
 				}
