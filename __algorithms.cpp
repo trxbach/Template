@@ -2183,7 +2183,10 @@ struct segment{
 		for(int i = N - 1; i > 0; -- i) val[i] = bin_op(val[i << 1], val[i << 1 | 1]);
 	}
 	void set(int p, T x){
-		for(val[p += N] = x; p > 1; p >>= 1) val[p >> 1] = bin_op(val[p], val[p ^ 1]);
+		for(p += N, val[p] = x; p > 1; p >>= 1) val[p >> 1] = bin_op(val[p], val[p ^ 1]);
+	}
+	void update(int p, T x){
+		for(p += N, val[p] = bin_op(val[p], x); p > 1; p >>= 1) val[p >> 1] = bin_op(val[p], val[p ^ 1]);
 	}
 	T query(int l, int r){
 		if(l >= r) return id;
@@ -2232,7 +2235,7 @@ struct segment{
 // Simple Recursive Segment Tree
 // O(N) preprocessing, O(log N) per query
 template<typename T, typename BO>
-struct segment: vector<T>{
+struct segment{
 	int N;
 	BO bin_op;
 	const T id;
@@ -2306,8 +2309,57 @@ struct segment: vector<T>{
 };
 
 // 156485479_3_2_4
-// Implement 2D Segment Tree Here
-// 
+// Iterative 2D Segment Tree ( Only for commutative group )
+// O(NM log NM) processing, O(log NM) per query
+template<typename T, typename BO>
+struct segment{
+	int N, M;
+	BO bin_op;
+	const T id;
+	vector<vector<T>> val;
+	segment(const vector<vector<T>> &arr, BO bin_op, T id): N(arr.size()), M(arr[0].size()), bin_op(bin_op), id(id), val(N << 1, vector<T>(M << 1, id)){
+		for(int i = 0; i < N; ++ i) for(int j = 0; j < N; ++ j) val[i + N][j + N] = arr[i][j];
+		for(int i = N - 1; i > 0; -- i) for(int j = 0; j < N; ++ j) val[i][j + N] = bin_op(val[i << 1][j + N], val[i << 1 | 1][j + N]);
+		for(int i = 1; i < N << 1; ++ i) for(int j = N - 1; j > 0; -- j) val[i][j] = bin_op(val[i][j << 1], val[i][j << 1 | 1]);
+	}
+	void set(int p, int q, T x){
+		val[p += N][q += M] = x;
+		for(int j = q; j >>= 1; ) val[p][j] = bin_op(val[p][j << 1], val[p][j << 1 | 1]);
+		for(int i = p; i >>= 1; ){
+			val[i][q] = bin_op(val[i << 1][q], val[i << 1 | 1][q]);
+			for(int j = q; j >>= 1; ) val[i][j] = bin_op(val[i][j << 1], val[i][j << 1 | 1]);
+		}
+	}
+	void update(int p, int q, T x){
+		p += N, q += N, val[p][q] = bin_op(val[p][q], x);
+		for(int j = q; j >>= 1; ) val[p][j] = bin_op(val[p][j << 1], val[p][j << 1 | 1]);
+		for(int i = p; i >>= 1; ){
+			val[i][q] = bin_op(val[i << 1][q], val[i << 1 | 1][q]);
+			for(int j = q; j >>= 1; ) val[i][j] = bin_op(val[i][j << 1], val[i][j << 1 | 1]);
+		}
+	}
+	T query(int pl, int ql, int pr, int qr){
+		if(pl >= pr || ql >= qr) return id;
+		T res = id;
+		for(int il = pl + N, ir = pr + N; il < ir; il >>= 1, ir >>= 1){
+			if(il & 1){
+				for(int jl = ql + N, jr = qr + N; jl < jr; jl >>= 1, jr >>= 1){
+					if(jl & 1) res = bin_op(res, val[il][jl ++]);
+					if(jr & 1) res = bin_op(res, val[il][-- jr]);
+				}
+				++ il;
+			}
+			if(ir & 1){
+				-- ir;
+				for(int jl = ql + N, jr = qr + N; jl < jr; jl >>= 1, jr >>= 1){
+					if(jl & 1) res = bin_op(res, val[ir][jl ++]);
+					if(jr & 1) res = bin_op(res, val[ir][-- jr]);
+				}
+			}
+		}
+		return res;
+	}
+};
 
 // 156485479_3_2_5
 // Lazy Dynamic Segment Tree
@@ -2514,6 +2566,9 @@ struct fenwick{
 	fenwick(const vector<T> &arr, BO bin_op, IO inv_op, T id): N(arr.size()), bin_op(bin_op), inv_op(inv_op), id(id), val(N + 1, id){
 		for(int i = 0; i < N; ++ i) update(i, arr[i]);
 	}
+	void set(int p, T x){
+		for(x = inv_op(x, query(p, p + 1)), ++ p; p <= N; p += p & -p) val[p] = bin_op(val[p], x);
+	}
 	void update(int p, T x){
 		for(++ p; p <= N; p += p & -p) val[p] = bin_op(val[p], x);
 	}
@@ -2539,6 +2594,9 @@ struct fenwick{
 	vector<T> val;
 	fenwick(const vector<T> &arr, BO bin_op, IO inv_op, T id): N(arr.size()), bin_op(bin_op), inv_op(inv_op), id(id), val(N + 1, id){
 		for(int i = 0; i < N; ++ i) update(i, arr[i]);
+	}
+	void set(int p, T x){
+		for(x = inv_op(x, query(p, p + 1)), ++ p; p <= N; p += p & -p) val[p] = bin_op(val[p], x);
 	}
 	void update(int p, T x){
 		for(++ p; p <= N; p += p & -p) val[p] = bin_op(val[p], x);
@@ -2581,28 +2639,32 @@ struct rangefenwick{
 // 2D Fenwick Tree ( Only for Commutative Group )
 // O(NM log NM) preprocessing, O(log N log M) per query
 template<typename T, typename BO, typename IO>
-struct fenwick2d{
+struct fenwick{
 	int N, M;
 	BO bin_op;
 	IO inv_op;
 	const T id;
 	vector<vector<T>> val;
-	fenwick2d(const vector<vector<T>> &arr, BO bin_op, IO inv_op, T id): N(arr.size()), M(arr[0].size()), bin_op(bin_op), inv_op(inv_op), id(id), val(N + 1, vector<T>(M + 1)){
+	fenwick(const vector<vector<T>> &arr, BO bin_op, IO inv_op, T id): N(arr.size()), M(arr[0].size()), bin_op(bin_op), inv_op(inv_op), id(id), val(N + 1, vector<T>(M + 1)){
 		for(int i = 0; i < N; ++ i) for(int j = 0; j < M; ++ j) update(i, j, arr[i][j]);
 	}
-	void update(int x, int y, T val){
-		++ x, -- y;
-		for(int i = x; i <= N; i += i & -i) for(int j = y; j <= N; j += j & -j) val[i][j] = bin_op(val[i][j], val);
+	void set(int p, int q, T x){
+		x = inv_op(x, query(p, q, p + 1, q + 1)), ++ p, ++ q;
+		for(int i = p; i <= N; i += i & -i) for(int j = q; j <= N; j += j & -j) val[i][j] = bin_op(val[i][j], x);
 	}
-	T sum(int x, int y){
+	void update(int p, int q, T x){
+		++ p, ++ q;
+		for(int i = p; i <= N; i += i & -i) for(int j = q; j <= N; j += j & -j) val[i][j] = bin_op(val[i][j], x);
+	}
+	T sum(int p, int q){
 		T res = id;
-		++ x, ++ y;
-		for(int i = x; i > 0; i -= i & -i) for(int j = y; j > 0; j -= j & -j) res = bin_op(res, val[i][j]);
+		++ p, ++ q;
+		for(int i = p; i > 0; i -= i & -i) for(int j = q; j > 0; j -= j & -j) res = bin_op(res, val[i][j]);
 		return res;
 	}
-	T query(int x1, int y1, int x2, int y2){
-		-- x1, -- y1, -- x2, -- y2;
-		return inv_op(bin_op(sum(x2, y2), sum(x1, y1)), bin_op(sum(x2, y1), sum(x1, y2)));
+	T query(int pl, int ql, int pr, int qr){
+		-- pl, -- ql, -- pr, -- qr;
+		return inv_op(bin_op(sum(pr, qr), sum(pl, ql)), bin_op(sum(pr, ql), sum(pl, qr)));
 	}
 };
 
@@ -2730,6 +2792,9 @@ struct fenwick{
 	vector<T> val;
 	fenwick(const vector<T> &arr, BO bin_op, IO inv_op, T id): N(arr.size()), bin_op(bin_op), inv_op(inv_op), id(id), val(N + 1, id){
 		for(int i = 0; i < N; ++ i) update(i, arr[i]);
+	}
+	void set(int p, T x){
+		for(x = inv_op(x, query(p, p + 1)), ++ p; p <= N; p += p & -p) val[p] = bin_op(val[p], x);
 	}
 	void update(int p, T x){
 		for(++ p; p <= N; p += p & -p) val[p] = bin_op(val[p], x);
@@ -4887,7 +4952,7 @@ struct custom_hash{
 };
 // KACTL Hash Function
 # define M_PI 3.141592653589793238462643383279502884L
-const int RANDOM = rnd();
+const int RANDOM = rng();
 struct custom_hash{ // To use most bits rather than just the lowest ones:
 	static const uint64_t C = long long(2e18 * M_PI) + 71; // large odd number
 	long long operator()(long long x) const { return __builtin_bswap64((x^RANDOM)*C); }
