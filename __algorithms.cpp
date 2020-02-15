@@ -96,17 +96,17 @@ Category
 
 
 3. Data Structure
-	3.1. Sparse Table
+	3.1. Sparse Table / 2D
 		156485479_3_1
 	3.2. Segment Tree
 		3.2.1. Simple Iterative Segment Tree
 			156485479_3_2_1
 		3.2.2. Iterative Segment Tree with Reversed Operation
 			156485479_3_2_2
-		3.2.3. Recursive Segment Tree
+		3.2.3. 2D Segment Tree
 			156485479_3_2_3
-		3.2.4. 2D Segment Tree
-			156485479_3_2_4 ( INCOMPLETE )
+		3.2.4. Recursive Segment Tree
+			156485479_3_2_4
 		3.2.5. Lazy Dynamic Segment Tree
 			156485479_3_2_5 
 		3.2.6. Persistent Segment Tree
@@ -2144,28 +2144,49 @@ using Zp = Z_p<integral_constant<decay<decltype(mod)>::type, mod>>;
 // Sparse Table
 // The binary operator must be idempotent and associative
 // O(N log N) preprocessing, O(1) per query
-template<typename T, typename BO = function<T(T, T)>>
+template<typename T, typename BO>
 struct sparse_table{
 	int N;
 	BO bin_op;
 	vector<vector<T>> val;
-	sparse_table(const vector<T> &arr, BO bin_op = [](T x, T y){return min(x, y);}): N(arr.size()), bin_op(bin_op){
-		int t = 1, d = 1;
-		while(t < N) t *= 2, ++ d;
-		val.assign(d, arr);
-		for(int i = 0; i < d - 1; ++ i) for(int j = 0; j < N; ++ j){
+	vector<int> bit;
+	sparse_table(const vector<T> &arr, BO bin_op): N(arr.size()), bin_op(bin_op), val(__lg(N) + 1, arr), bit(N + 1){
+		for(int i = 1; i <= N; ++ i) bit[i] = __lg(i);
+		for(int i = 0; i < __lg(N); ++ i) for(int j = 0; j < N; ++ j){
 			val[i + 1][j] = bin_op(val[i][j], val[i][min(N - 1, j + (1 << i))]);
 		}
 	}
 	sparse_table(){ }
 	T query(int l, int r){
-		int d = 31 - __builtin_clz(r - l);
+		assert(l < r);
+		int d = bit[r - l];
 		return bin_op(val[d][l], val[d][r - (1 << d)]);
 	}
-	sparse_table &operator=(const sparse_table &otr){
-		N = otr.N, bin_op = otr.bin_op;
-		val = otr.val;
-		return *this;
+};
+// 2D Sparse Table
+// The binary operator must be idempotent and associative
+// O(NM log NM) processing, O(1) per query
+template<typename T, typename BO>
+struct sparse_table{
+	int N, M;
+	BO bin_op;
+	vector<vector<vector<vector<T>>>> val;
+	vector<int> bit;
+	sparse_table(const vector<vector<T>> &arr, BO bin_op): N(arr.size()), M(arr[0].size()), bin_op(bin_op), val(__lg(N) + 1, vector<vector<vector<T>>>(__lg(M) + 1, arr)), bit(max(N, M) + 1){
+		for(int i = 1; i <= max(N, M); ++ i) bit[i] = 31 - __builtin_clz(i);
+		for(int ii = 0; ii < N; ++ ii) for(int jj = 0; jj < M; ++ jj){
+			for(int i = 0, j = 0; j < __lg(M); ++ j) val[i][j + 1][ii][jj] = bin_op(val[i][j][ii][jj], val[i][j][ii][min(M - 1, jj + (1 << j))]);
+		}
+		for(int i = 0; i < __lg(N); ++ i) for(int ii = 0; ii < N; ++ ii){
+			for(int j = 0; j <= __lg(M); ++ j) for(int jj = 0; jj < M; ++ jj){
+				val[i + 1][j][ii][jj] = bin_op(val[i][j][ii][jj], val[i][j][min(N - 1, ii + (1 << i))][jj]);
+			}
+		}
+	}
+	T query(int pl, int ql, int pr, int qr){
+		assert(pl < pr && ql < qr);
+		int pd = bit[pr - pl], qd = bit[qr - ql];
+		return bin_op(bin_op(val[pd][qd][pl][ql], val[pd][qd][pl][qr - (1 << qd)]), bin_op(val[pd][qd][pr - (1 << pd)][ql], val[pd][qd][pr - (1 << pd)][qr - (1 << qd)]));
 	}
 };
 
@@ -2232,6 +2253,59 @@ struct segment{
 };
 
 // 156485479_3_2_3
+// Iterative 2D Segment Tree ( Only for commutative group )
+// O(NM) processing, O(log NM) per query
+template<typename T, typename BO>
+struct segment{
+	int N, M;
+	BO bin_op;
+	const T id;
+	vector<vector<T>> val;
+	segment(const vector<vector<T>> &arr, BO bin_op, T id): N(arr.size()), M(arr[0].size()), bin_op(bin_op), id(id), val(N << 1, vector<T>(M << 1, id)){
+		for(int i = 0; i < N; ++ i) for(int j = 0; j < N; ++ j) val[i + N][j + N] = arr[i][j];
+		for(int i = N - 1; i > 0; -- i) for(int j = 0; j < N; ++ j) val[i][j + N] = bin_op(val[i << 1][j + N], val[i << 1 | 1][j + N]);
+		for(int i = 1; i < N << 1; ++ i) for(int j = N - 1; j > 0; -- j) val[i][j] = bin_op(val[i][j << 1], val[i][j << 1 | 1]);
+	}
+	void set(int p, int q, T x){
+		val[p += N][q += M] = x;
+		for(int j = q; j >>= 1; ) val[p][j] = bin_op(val[p][j << 1], val[p][j << 1 | 1]);
+		for(int i = p; i >>= 1; ){
+			val[i][q] = bin_op(val[i << 1][q], val[i << 1 | 1][q]);
+			for(int j = q; j >>= 1; ) val[i][j] = bin_op(val[i][j << 1], val[i][j << 1 | 1]);
+		}
+	}
+	void update(int p, int q, T x){
+		p += N, q += N, val[p][q] = bin_op(val[p][q], x);
+		for(int j = q; j >>= 1; ) val[p][j] = bin_op(val[p][j << 1], val[p][j << 1 | 1]);
+		for(int i = p; i >>= 1; ){
+			val[i][q] = bin_op(val[i << 1][q], val[i << 1 | 1][q]);
+			for(int j = q; j >>= 1; ) val[i][j] = bin_op(val[i][j << 1], val[i][j << 1 | 1]);
+		}
+	}
+	T query(int pl, int ql, int pr, int qr){
+		if(pl >= pr || ql >= qr) return id;
+		T res = id;
+		for(int il = pl + N, ir = pr + N; il < ir; il >>= 1, ir >>= 1){
+			if(il & 1){
+				for(int jl = ql + N, jr = qr + N; jl < jr; jl >>= 1, jr >>= 1){
+					if(jl & 1) res = bin_op(res, val[il][jl ++]);
+					if(jr & 1) res = bin_op(res, val[il][-- jr]);
+				}
+				++ il;
+			}
+			if(ir & 1){
+				-- ir;
+				for(int jl = ql + N, jr = qr + N; jl < jr; jl >>= 1, jr >>= 1){
+					if(jl & 1) res = bin_op(res, val[ir][jl ++]);
+					if(jr & 1) res = bin_op(res, val[ir][-- jr]);
+				}
+			}
+		}
+		return res;
+	}
+};
+
+// 156485479_3_2_4
 // Simple Recursive Segment Tree
 // O(N) preprocessing, O(log N) per query
 template<typename T, typename BO>
@@ -2305,59 +2379,6 @@ struct segment{
 	template<typename IO>
 	int upper_bound(int i, T x, IO inv_op){
 		return upper_bound(bin_op(x, query(0, min(i, N))), inv_op);
-	}
-};
-
-// 156485479_3_2_4
-// Iterative 2D Segment Tree ( Only for commutative group )
-// O(NM log NM) processing, O(log NM) per query
-template<typename T, typename BO>
-struct segment{
-	int N, M;
-	BO bin_op;
-	const T id;
-	vector<vector<T>> val;
-	segment(const vector<vector<T>> &arr, BO bin_op, T id): N(arr.size()), M(arr[0].size()), bin_op(bin_op), id(id), val(N << 1, vector<T>(M << 1, id)){
-		for(int i = 0; i < N; ++ i) for(int j = 0; j < N; ++ j) val[i + N][j + N] = arr[i][j];
-		for(int i = N - 1; i > 0; -- i) for(int j = 0; j < N; ++ j) val[i][j + N] = bin_op(val[i << 1][j + N], val[i << 1 | 1][j + N]);
-		for(int i = 1; i < N << 1; ++ i) for(int j = N - 1; j > 0; -- j) val[i][j] = bin_op(val[i][j << 1], val[i][j << 1 | 1]);
-	}
-	void set(int p, int q, T x){
-		val[p += N][q += M] = x;
-		for(int j = q; j >>= 1; ) val[p][j] = bin_op(val[p][j << 1], val[p][j << 1 | 1]);
-		for(int i = p; i >>= 1; ){
-			val[i][q] = bin_op(val[i << 1][q], val[i << 1 | 1][q]);
-			for(int j = q; j >>= 1; ) val[i][j] = bin_op(val[i][j << 1], val[i][j << 1 | 1]);
-		}
-	}
-	void update(int p, int q, T x){
-		p += N, q += N, val[p][q] = bin_op(val[p][q], x);
-		for(int j = q; j >>= 1; ) val[p][j] = bin_op(val[p][j << 1], val[p][j << 1 | 1]);
-		for(int i = p; i >>= 1; ){
-			val[i][q] = bin_op(val[i << 1][q], val[i << 1 | 1][q]);
-			for(int j = q; j >>= 1; ) val[i][j] = bin_op(val[i][j << 1], val[i][j << 1 | 1]);
-		}
-	}
-	T query(int pl, int ql, int pr, int qr){
-		if(pl >= pr || ql >= qr) return id;
-		T res = id;
-		for(int il = pl + N, ir = pr + N; il < ir; il >>= 1, ir >>= 1){
-			if(il & 1){
-				for(int jl = ql + N, jr = qr + N; jl < jr; jl >>= 1, jr >>= 1){
-					if(jl & 1) res = bin_op(res, val[il][jl ++]);
-					if(jr & 1) res = bin_op(res, val[il][-- jr]);
-				}
-				++ il;
-			}
-			if(ir & 1){
-				-- ir;
-				for(int jl = ql + N, jr = qr + N; jl < jr; jl >>= 1, jr >>= 1){
-					if(jl & 1) res = bin_op(res, val[ir][jl ++]);
-					if(jr & 1) res = bin_op(res, val[ir][-- jr]);
-				}
-			}
-		}
-		return res;
 	}
 };
 
@@ -3263,37 +3284,32 @@ struct mcmf{
 
 // 156485479_4_5_1
 // LCA
-// O(N log N) precomputing, O(1) per query
-template<typename T, typename BO = function<T(T, T)>>
+// O(N log N) processing, O(1) per query
+template<typename T, typename BO>
 struct sparse_table{
 	int N;
 	BO bin_op;
 	vector<vector<T>> val;
-	sparse_table(const vector<T> &arr, BO bin_op = [](T x, T y){return min(x, y);}): N(arr.size()), bin_op(bin_op){
-		int t = 1, d = 1;
-		while(t < N) t *= 2, ++ d;
-		val.assign(d, arr);
-		for(int i = 0; i < d - 1; ++ i) for(int j = 0; j < N; ++ j){
+	vector<int> bit;
+	sparse_table(const vector<T> &arr, BO bin_op): N(arr.size()), bin_op(bin_op), val(__lg(N) + 1, arr), bit(N + 1){
+		for(int i = 1; i <= N; ++ i) bit[i] = __lg(i);
+		for(int i = 0; i < __lg(N); ++ i) for(int j = 0; j < N; ++ j){
 			val[i + 1][j] = bin_op(val[i][j], val[i][min(N - 1, j + (1 << i))]);
 		}
 	}
 	sparse_table(){ }
 	T query(int l, int r){
-		int d = 31 - __builtin_clz(r - l);
+		assert(l < r);
+		int d = bit[r - l];
 		return bin_op(val[d][l], val[d][r - (1 << d)]);
-	}
-	sparse_table &operator=(const sparse_table &otr){
-		N = otr.N, bin_op = otr.bin_op;
-		val = otr.val;
-		return *this;
 	}
 };
 struct LCA{
 	vector<int> time;
 	vector<long long> depth;
 	int root;
-	sparse<pair<int, int>> rmq;
-	LCA(vector<vector<pair<int, int>>> &adj, int root): root(root), time(adj.size(), -99), depth(adj.size()), rmq(dfs(adj)){}
+	sparse_table<pair<int, int>, function<pair<int, int>(pair<int, int>, pair<int, int>)>> rmq;
+	LCA(vector<vector<pair<int, int>>> &adj, int root): root(root), time(adj.size(), -99), depth(adj.size()), rmq(dfs(adj), [](pair<int, int> x, pair<int, int> y){ return min(x, y); }){}
 	vector<pair<int, int>> dfs(vector<vector<pair<int, int>>> &adj){
 		vector<tuple<int, int, int, long long>> q(1);
 		vector<pair<int, int>> res;
@@ -4229,28 +4245,23 @@ struct manachar{
 // 156485479_5_3
 // Suffix Array and Kasai's Algorithm
 // O(N log N)
-template<typename T, typename BO = function<T(T, T)>>
+template<typename T, typename BO>
 struct sparse_table{
 	int N;
 	BO bin_op;
 	vector<vector<T>> val;
-	sparse_table(const vector<T> &arr, BO bin_op = [](T x, T y){return min(x, y);}): N(arr.size()), bin_op(bin_op){
-		int t = 1, d = 1;
-		while(t < N) t <<= 1, ++ d;
-		val.assign(d, arr);
-		for(int i = 0; i < d - 1; ++ i) for(int j = 0; j < N; ++ j){
+	vector<int> bit;
+	sparse_table(const vector<T> &arr, BO bin_op): N(arr.size()), bin_op(bin_op), val(__lg(N) + 1, arr), bit(N + 1){
+		for(int i = 1; i <= N; ++ i) bit[i] = __lg(i);
+		for(int i = 0; i < __lg(N); ++ i) for(int j = 0; j < N; ++ j){
 			val[i + 1][j] = bin_op(val[i][j], val[i][min(N - 1, j + (1 << i))]);
 		}
 	}
 	sparse_table(){ }
 	T query(int l, int r){
-		int d = 31 - __builtin_clz(r - l);
+		assert(l < r);
+		int d = bit[r - l];
 		return bin_op(val[d][l], val[d][r - (1 << d)]);
-	}
-	sparse_table &operator=(const sparse_table &otr){
-		N = otr.N, bin_op = otr.bin_op;
-		val = otr.val;
-		return *this;
 	}
 };
 template<typename Str, int lim = 256>
@@ -4264,7 +4275,7 @@ struct suffix_array{
 		p.erase(p.begin());
 		for(int i = 0; i < N; ++ i) c[p[i]] = i;
 		l = get_lcp(p);
-		rmq = sparse_table<int, function<int(int, int)>>(l);
+		rmq = sparse_table<int, function<int(int, int)>>(l, [](int x, int y){ return min(x, y); });
 	}
 	vector<int> sort_cyclic_shifts(const Str &s){
 		int n = int(s.size());
