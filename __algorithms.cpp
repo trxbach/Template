@@ -2411,8 +2411,8 @@ struct segment{
 	void push(){
 		if(!l){
 			int mid = low + (high - low) / 2;
-			l = new segment(low, mid, lop, qop, aop, id);
-			r = new segment(mid, high, lop, qop, aop, id);
+			l = new segment(low, mid, lop, qop, aop, id, init);
+			r = new segment(mid, high, lop, qop, aop, id, init);
 		}
 		if(lset != id[2]){
 			l->set(low, high, lset);
@@ -3454,8 +3454,8 @@ struct segment{
 	void push(){
 		if(!l){
 			int mid = low + (high - low) / 2;
-			l = new segment(low, mid, lop, qop, aop, id);
-			r = new segment(mid, high, lop, qop, aop, id);
+			l = new segment(low, mid, lop, qop, aop, id, init);
+			r = new segment(mid, high, lop, qop, aop, id, init);
 		}
 		if(lset != id[2]){
 			l->set(low, high, lset);
@@ -4991,7 +4991,7 @@ gp_hash_table | 1e6: 109ms 36720KB | 5e6: 686ms  295516KB | 1e7: ????    MLE
 
 // 156485479_7_2
 // Bump Allocator
-static char BUFF[450 << 20];
+static char BUFF[220 << 20];
 void *operator new(size_t s){
 	static size_t i = sizeof BUFF;
 	assert(s < i);
