@@ -237,7 +237,7 @@ long long modgeo(long long b, long long e, const long long &mod){
 template<typename T>
 T binexp(T b, long long e, const T &id){
 	T res = id;
-	for(; e; b = b * b, e /= 2) if(e & 1) res = res * b;
+	for(; e; b = b * b, e >>= 1) if(e & 1) res = res * b;
 	return res;
 }
 template<typename T>
@@ -257,7 +257,23 @@ T bingeo(const T &b, long long e, const T &add_id, const T &mul_id){
 	T res = mul_id, p = mul_id;
 	for(long long bit = 1 << 30 - __builtin_clz(e); bit; bit >>= 1){
 		res = res * (mul_id + p * b), p = p * p * b;
-		if(bit & e) res = (res + (p = p * b));
+		if(bit & e) res = res + (p = p * b);
+	}
+	return res;
+}
+template<typename T, typename BO>
+T binexp(T b, long long e, BO bin_op, const T &id){
+	T res = id;
+	for(; e; b = bin_op(b, b), e >>= 1) if(e & 1) res = bin_op(res, b);
+	return res;
+}
+template<typename T, typename AO, typename MO>
+T bingeo(const T &b, long long e, AO add_op, const T &add_id, MO mul_op, const T &mul_id){
+	if(e < 2) return e ? mul_id : add_id;
+	T res = mul_id, p = mul_id;
+	for(long long bit = 1 << 30 - __builtin_clz(e); bit; bit >>= 1){
+		res = mul_op(res, add_op(mul_id, mul_op(p, b))), p = mul_op(mul_op(p, p), b);
+		if(bit & e) res = add_op(res, p = mul_op(p, b));
 	}
 	return res;
 }
@@ -294,8 +310,7 @@ pair<vector<int>, vector<int>> linearsieve(int n){
 struct combinatorics{
 	const long long N, mod;
 	vector<long long> inv, fact, invfact;
-	combinatorics(long long N, long long mod):
-		N(N), mod(mod), inv(N + 1), fact(N + 1), invfact(N + 1){
+	combinatorics(long long N, long long mod): N(N), mod(mod), inv(N + 1), fact(N + 1), invfact(N + 1){
 		inv[1] = 1, fact[0] = fact[1] = invfact[0] = invfact[1] = 1;
 		for(long long i = 2; i <= N; i ++){
 			inv[i] = (mod - mod / i * inv[mod % i] % mod) % mod;
@@ -310,12 +325,12 @@ struct combinatorics{
 		return n < r ? 0 : fact[n] * invfact[n - r] % mod;
 	}
 	long long H(int n, int r){
-		return c(n + r - 1, r);
+		return C(n + r - 1, r);
 	}
 	long long Cat(int n, int k, int m){
 		if(m <= 0) return 0;
-		else if(k >= 0 && k < m) return c(n + k, k);
-		else if(k < n + m) return (c(n + k, k) - c(n + k, k - m) + mod) % mod;
+		else if(k >= 0 && k < m) return C(n + k, k);
+		else if(k < n + m) return (C(n + k, k) - C(n + k, k - m) + mod) % mod;
 		else return 0;
 	}
 };
@@ -3107,37 +3122,41 @@ void articulation_points(const Graph &adj, Process_Articulation_Point f){
 // Dinic's Maximum Flow Algorithm
 // O(V^2E) ( O(sqrt(V) * E ) for unit network )
 template<typename T>
-struct flownetwork{
+struct flow_network{
 	static constexpr T eps = (T)1e-9;
 	int N;
 	vector<vector<int>> adj;
-	struct edge{
+	struct Edge{
 		int from, to;
 		T capacity, flow;
 	};
-	vector<edge> edge;
+	vector<Edge> edge;
 	int source, sink;
 	T flow = 0;
-	flownetwork(int N, int source, int sink): N(N), source(source), sink(sink), adj(N){ }
+	flow_network(int N, int source, int sink): N(N), source(source), sink(sink), adj(N){ }
 	void clear(){
 		for(auto &e: edge) e.flow = 0;
 		flow = 0;
 	}
-	int insert(int from, int to, T fcap, T bcap){
-		int ind = edge.size();
+	int insert(int from, int to, T forward_cap, T backward_cap){
+		int ind = (int)edge.size();
 		adj[from].push_back(ind);
-		edge.push_back({from, to, fcap, 0});
+		edge.push_back({from, to, forward_cap, 0});
 		adj[to].push_back(ind + 1);
-		edge.push_back({to, from, bcap, 0});
+		edge.push_back({to, from, backward_cap, 0});
 		return ind;
+	}
+	void add_flow(int i, T f){
+		edge[i].flow += f;
+		edge[i ^ 1].flow -= f;
 	}
 };
 template<typename T>
 struct dinic{
 	static constexpr T inf = numeric_limits<T>::max();
-	flownetwork<T> &g;
+	flow_network<T> &g;
 	vector<int> ptr, level, q;
-	dinic(flownetwork<T> &g): g(g), ptr(g.N), level(g.N), q(g.N){ }
+	dinic(flow_network<T> &g): g(g), ptr(g.N), level(g.N), q(g.N){ }
 	bool bfs(){
 		fill(level.begin(), level.end(), -1);
 		q[0] = g.sink;
@@ -3166,8 +3185,7 @@ struct dinic{
 			if(e.capacity - e.flow > g.eps && level[e.to] == level[u] - 1){
 				T F = dfs(e.to, min(e.capacity - e.flow, w));
 				if(F > g.eps){
-					g.edge[ind].flow += F;
-					g.edge[ind ^ 1].flow -= F;
+					g.add_flow(ind, F);
 					return F;
 				}
 			}
@@ -3203,33 +3221,32 @@ struct dinic{
 template<typename T, typename C>
 struct mcmf{
 	static constexpr T eps = (T) 1e-9;
-	struct edge{
+	struct Edge{
 		int from, to;
-		T c, f;
+		T capacity, flow;
 		C cost;
 	};
-	vector<vector<int>> g;
-	vector<edge> edges;
+	vector<vector<int>> adj;
+	vector<Edge> edge;
 	vector<C> d;
 	vector<bool> in_queue;
 	vector<int> q, pe;
-	int n, source, sink;
-	T flow;
-	C cost;
-	mcmf(int n, int source, int sink): n(n), source(source), sink(sink), g(n), d(n), in_queue(n), pe(n){
-		assert(0 <= source && source < n && 0 <= sink && sink < n && source != sink);
-		flow = cost = 0;
-	}
-	void clear_flow(){
-		for(const edge &e: edges) e.f = 0;
+	int N, source, sink;
+	T flow = 0;
+	C cost = 0;
+	mcmf(int N, int source, int sink): N(N), source(source), sink(sink), adj(N), d(N), in_queue(N), pe(N){ }
+	void clear(){
+		for(auto &e: edge) e.flow = 0;
 		flow = 0;
 	}
-	void add(int from, int to, T forward_cap, T backward_cap, C cost){
-		assert(0 <= from && from < n && 0 <= to && to < n);
-		g[from].push_back((int) edges.size());
-		edges.push_back({from, to, forward_cap, 0, cost});
-		g[to].push_back((int) edges.size());
-		edges.push_back({to, from, backward_cap, 0, -cost});
+	int insert(int from, int to, T forward_cap, T backward_cap, C cost){
+		assert(0 <= from && from < N && 0 <= to && to < N);
+		int ind = int(edge.size());
+		adj[from].push_back((int)edge.size());
+		edge.push_back({from, to, forward_cap, 0, cost});
+		adj[to].push_back((int)edge.size());
+		edge.push_back({to, from, backward_cap, 0, -cost});
+		return ind;
 	}
 	bool expath(){
 		fill(d.begin(), d.end(), numeric_limits<C>::max());
@@ -3239,13 +3256,13 @@ struct mcmf{
 		in_queue[source] = true;
 		int beg = 0;
 		bool found = false;
-		while(beg < q.size()){
+		while(beg < (int)q.size()){
 			int i = q[beg ++];
 			if(i == sink) found = true;
 			in_queue[i] = false;
-			for(int id : g[i]){
-				const edge &e = edges[id];
-				if(e.c - e.f > eps && d[i] + e.cost < d[e.to]){
+			for(int id : adj[i]){
+				const auto &e = edge[id];
+				if(e.capacity - e.flow > eps && d[i] + e.cost < d[e.to]){
 					d[e.to] = d[i] + e.cost;
 					pe[e.to] = id;
 					if(!in_queue[e.to]){
@@ -3259,16 +3276,16 @@ struct mcmf{
 			T push = numeric_limits<T>::max();
 			int v = sink;
 			while(v != source){
-				const edge &e = edges[pe[v]];
-				push = min(push, e.c - e.f);
+				const auto &e = edge[pe[v]];
+				push = min(push, e.capacity - e.flow);
 				v = e.from;
 			}
 			v = sink;
 			while(v != source){
-				edge &e = edges[pe[v]];
-				e.f += push;
-				edge &back = edges[pe[v] ^ 1];
-				back.f -= push;
+				auto &e = edge[pe[v]];
+				e.flow += push;
+				auto &back = edge[pe[v] ^ 1];
+				back.flow -= push;
 				v = e.from;
 			}
 			flow += push;
@@ -3777,14 +3794,35 @@ struct shortest_path_tree{
 		dist.resize(N), parent.resize(N);
 		fill(dist.begin(), dist.end(), inf), fill(parent.begin(), parent.end(), -1);
 	}
-	void init_dijkstra(int s = 0){
+	void init_bfs(const vector<int> S = {0}){
 		init();
-		dist[s] = id;
+		deque<int> q;
+		for(auto s: S){
+			dist[s] = id;
+			q.push_back(s);
+		}
+		while(!q.empty()){
+			int u = q.front();
+			q.pop_front();
+			for(auto i: adj[u]){
+				auto [_, v, w] = edge[i];
+				if(dist[v] == inf){
+					dist[v] = bin_op(dist[u], w);
+					q.push_back(v);
+				}
+			}
+		}
+	}
+	void init_dijkstra(const vector<int> S = {0}){
+		init();
 		auto qcmp = [&](const pair<T, int> &lhs, const pair<T, int> &rhs){
 			return lhs.first == rhs.first ? lhs.second < rhs.second : cmp(rhs.first, lhs.first);
 		};
 		priority_queue<pair<T, int>, vector<pair<T, int>>, decltype(qcmp)> q(qcmp);
-		q.push({id, s});
+		for(auto s: S){
+			dist[s] = id;
+			q.push({id, s});
+		}
 		while(!q.empty()){
 			auto [d, u] = q.top();
 			q.pop();
@@ -3799,14 +3837,16 @@ struct shortest_path_tree{
 			}
 		}
 	}
-	pair<vector<int>, vector<int>> init_bellman_ford(int s = 0, bool find_any_cycle = false){ // cycle {vertices, edges}
+	pair<vector<int>, vector<int>> init_bellman_ford(const vector<int> S = {0}, bool find_any_cycle = false){ // cycle {vertices, edges}
 		if(find_any_cycle){
 			fill(dist.begin(), dist.end(), id);
 			fill(parent.begin(), parent.end(), -1);
 		}
 		else{
 			init();
-			dist[s] = id;
+			for(auto s: S){
+				dist[s] = id;
+			}
 		}
 		int x;
 		for(int i = 0; i < N; ++ i){
@@ -3833,14 +3873,16 @@ struct shortest_path_tree{
 			return {vertices, edges};
 		}
 	}
-	bool init_spfa(int s = 0){ // returns false if cycle
+	bool init_spfa(const vector<int> S = {0}){ // returns false if cycle
 		init();
 		vector<int> cnt(N);
 		vector<bool> inq(N);
 		deque<int> q;
-		dist[s] = id;
-		q.push_back(s);
-		inq[s] = true;
+		for(auto s: S){
+			dist[s] = id;
+			q.push_back(s);
+			inq[s] = true;
+		}
 		while(!q.empty()){
 			int u = q.front();
 			q.pop_front();
@@ -4615,7 +4657,7 @@ struct suffix_automaton{
 	pair<Str, int> smallest_substr(int length){
 		Str res;
 		int u = 0;
-		for(int u = 0; length --; ){
+		for(; length --; ){
 			assert(!state[u].next.empty());
 			auto it = state[u].next.begin();
 			res.push_back(it->first);
@@ -4739,7 +4781,7 @@ template<typename T = long long> struct point{
 	bool operator==(const point &otr) const{ return tie(x, y) == tie(otr.x, otr.y); }
 	bool operator!=(const point &otr) const{ return tie(x, y) != tie(otr.x, otr.y); }
 	double norm() const{ return sqrt(x * x + y * y); }
-	T sqnorm() const{ return x * x + y * y; }
+	T squared_norm() const{ return x * x + y * y; }
 	double arg() const{ return atan2(y, x); } // [-pi, pi]
 	point<double> unit() const{ return point<double>(x, y) / norm(); }
 	point perp() const{ return point(-y, x); }
@@ -4747,12 +4789,13 @@ template<typename T = long long> struct point{
 	point<double> rotate(const double &theta) const{ return point<double>(x * cos(theta) - y * sin(theta), x * sin(theta) + y * cos(theta)); }
 	point reflect_x() const{ return point(x, -y); }
 	point reflect_y() const{ return point(-x, y); }
+	bool operator||(const point &otr) const{ return !(*this ^ otr); }
 };
 template<typename T> point<T> operator*(const T &c, const point<T> &p){ return point<T>(c * p.x, c * p.y); }
 template<typename T> istream &operator>>(istream &in, point<T> &p){ return in >> p.x >> p.y; }
-template<typename T> ostream &operator<<(ostream &out, const point<T> &p){ return out << pair<T, T>(p.x, p.y); }
+template<typename T> ostream &operator<<(ostream &out, const point<T> &p){ return out << "(" << p.x << ", " << p.y << ")"; }
 template<typename T> double distance(const point<T> &p, const point<T> &q){ return (p - q).norm(); }
-template<typename T> T squared_distance(const point<T> &p, const point<T> &q){ return (p - q).sqnorm(); }
+template<typename T> T squared_distance(const point<T> &p, const point<T> &q){ return (p - q).squared_norm(); }
 template<typename T, typename U, typename V> T ori(const point<T> &p, const point<U> &q, const point<V> &r){ return (q - p) ^ (r - p); }
 template<typename T> T doubled_signed_area(const vector<point<T>> &arr){
 	T s = arr.back() ^ arr.front();
@@ -4768,21 +4811,21 @@ template<typename T = long long> struct line{
 	point<T> q() const{ return p + d; }
 	bool degen() const{ return d == point<T>(); }
 	tuple<T, T, T> coef(){ return {d.y, -d.x, d.perp() * p}; } // d.y (X - p.x) - d.x (Y - p.y) = 0
+	bool operator||(const line<T> &L){ return d || L.d; }
 };
-template<typename T> bool parallel(const line<T> &L, const line<T> &M){ return !(L.d ^ M.d); }
 template<typename T> bool on_line(const point<T> &p, const line<T> &L){
 	if(L.degen()) return p == L.p;
-	return (p - L.p) ^ L.d == 0;
+	return (p - L.p) || L.d;
 }
 template<typename T> bool on_ray(const point<T> &p, const line<T> &L){
 	if(L.degen()) return p == L.p;
 	auto a = L.p - p, b = L.q() - p;
-	return !(a ^ b) && a * L.d <= 0;
+	return (a || b) && a * L.d <= 0;
 }
 template<typename T> bool on_segment(const point<T> &p, const line<T> &L){
 	if(L.degen()) return p == L.p;
 	auto a = L.p - p, b = L.q() - p;
-	return !(a ^ b) && a * b <= 0;
+	return (a || b) && a * b <= 0;
 }
 template<typename T> double distance_to_line(const point<T> &p, const line<T> &L){
 	if(L.degen()) return distance(p, L.p);
@@ -4817,7 +4860,7 @@ template<int LA, int LB, int RA, int RB, typename T> pair<bool, point<double>> i
 	return {intersect, static_cast<point<double>>(L.p) + 1.0 * ls / s * static_cast<point<double>>(L.d)};
 }
 // Assumes parallel lines do not intersect
-template<typename T> pair<bool, point<double>> intersect_closed_segments_no_parallel_overlap(const line<T> &L, const line<T> &M) {
+template<typename T> pair<bool, point<double>> intersect_closed_segments_no_parallel_overlap(const line<T> &L, const line<T> &M){
 	return intersect_no_parallel_overlap<1, 1, 1, 1>(L, M);
 }
 // Assumes nothing
@@ -4837,7 +4880,7 @@ template<typename T> pair<bool, line<double>> intersect_closed_segments(const li
 	return {intersect, line<double>(static_cast<point<double>>(L.p) + 1.0 * ls / s * static_cast<point<double>>(L.d), point<double>())};
 }
 template<typename T> double distance_between_rays(const line<T> &L, const line<T> &M){
-	if(parallel(L, M)){
+	if(L || M){
 		if(L.d * M.d >= 0 || (M.p - L.p) * M.d <= 0) return distance_to_line(L.p, M);
 		else return distance(L.p, M.p);
 	}
@@ -4861,6 +4904,96 @@ template<typename It, typename P> void sort_by_angle(It first, It last, const P 
 	compare_by_angle<P> cmp(origin);
 	sort(first, pivot, cmp), sort(pivot, last, cmp);
 }
+// 3D Geometry Classes
+template<typename T = long long> struct point{
+	T x, y, z;
+	template<typename U> point(const point<U> &otr): x(otr.x), y(otr.y), z(otr.z){ }
+	template<typename U, typename V, typename W> point(const tuple<U, V, W> &p): x(get<0>(p)), y(get<1>(p)), z(get<2>(p)){ }
+	template<typename U = T, typename V = T, typename W = T> point(U x = 0, V y = 0, W z = 0): x(x), y(y), z(z){ }
+	template<typename U> explicit operator point<U>() const{ return point<U>(static_cast<U>(x), static_cast<U>(y), static_cast<U>(z)); }
+	T operator*(const point &otr) const{ return x * otr.x + y * otr.y + z * otr.z; }
+	point operator^(const point &otr) const{ return point(y * otr.z - z * otr.y, z * otr.x - x * otr.z, x * otr.y - y * otr.x); }
+	point operator+(const point &otr) const{ return point(x + otr.x, y + otr.y, z + otr.z); }
+	point &operator+=(const point &otr){ return *this = *this + otr; }
+	point operator-(const point &otr) const{ return point(x - otr.x, y - otr.y, z - otr.z); }
+	point &operator-=(const point &otr){ return *this = *this - otr; }
+	point operator*(const T &c) const{ return point(x * c, y * c, z * c); }
+	point &operator*=(const T &c) { return *this = *this * c; }
+	point operator/(const T &c) const{ return point(x / c, y / c, z / c); }
+	point &operator/=(const T &c) { return *this = *this / c; }
+	point operator-() const{ return point(-x, -y, -z); }
+	bool operator<(const point &otr) const{ return tie(x, y, z) < tie(otr.x, otr.y, otr.z); }
+	bool operator>(const point &otr) const{ return tie(x, y, z) > tie(otr.x, otr.y, otr.z); }
+	bool operator<=(const point &otr) const{ return tie(x, y, z) <= tie(otr.x, otr.y, otr.z); }
+	bool operator>=(const point &otr) const{ return tie(x, y, z) >= tie(otr.x, otr.y, otr.z); }
+	bool operator==(const point &otr) const{ return tie(x, y, z) == tie(otr.x, otr.y, otr.z); }
+	bool operator!=(const point &otr) const{ return tie(x, y, z) != tie(otr.x, otr.y, otr.z); }
+	double norm() const{ return sqrt(x * x + y * y + z * z); }
+	T squared_norm() const{ return x * x + y * y + z * z; }
+	point<double> unit() const{ return point<double>(x, y, z) / norm(); }
+	point reflect_x() const{ return point(x, -y, -z); }
+	point reflect_y() const{ return point(-x, y, -z); }
+	point reflect_z() const{ return point(-x, -y, z); }
+	point reflect_xy() const{ return point(x, y, -z); }
+	point reflect_yz() const{ return point(-x, y, z); }
+	point reflect_zx() const{ return point(x, -y, z); }
+	bool operator||(const point &otr) const{ return *this ^ otr == point(); }
+};
+template<typename T> point<T> operator*(const T &c, const point<T> &p){ return point<T>(c * p.x, c * p.y, c * p.z); }
+template<typename T> istream &operator>>(istream &in, point<T> &p){ return in >> p.x >> p.y >> p.z; }
+template<typename T> ostream &operator<<(ostream &out, const point<T> &p){ return out << "(" << p.x << ", " << p.y << ", " << p.z << ")"; }
+template<typename T> double distance(const point<T> &p, const point<T> &q){ return (p - q).norm(); }
+template<typename T> T squared_distance(const point<T> &p, const point<T> &q){ return (p - q).squared_norm(); }
+template<typename T, typename U, typename V, typename W> T ori(const point<T> &p, const point<U> &q, const point<V> &r, const point<W> &s){ return ((q - p) ^ (r - p)) * (s - p); }
+template<typename T> T sextupled_signed_volume(const vector<vector<point<T>>> &arr){
+	T s = 0;
+	for(const auto &face: arr){
+		assert(int(face.size()) >= 3);
+		s += (face[int(face.size()) - 2] ^ face[int(face.size()) - 1]) * face[0] + (face[int(face.size()) - 1] ^ face[0]) * face[1];
+		for(int i = 0; i + 3 <= int(face.size()); ++ i) s += (face[i] ^ face[i + 1]) * face[i + 2];
+	}
+	return s;
+}
+template<typename T = long long> struct line{
+	point<T> p, d; // p + d*t
+	template<typename U = T, typename V = T> line(point<U> p = {0, 0}, point<V> q = {0, 0}, bool Two_Points = true): p(p), d(Two_Points ? q - p : q){ }
+	template<typename U> line(point<U> d): p(), d(static_cast<point<T>>(d)){ }
+	template<typename U> explicit operator line<U>() const{ return line<U>(point<U>(p), point<U>(d), false); }
+	point<T> q() const{ return p + d; }
+	bool degen() const{ return d == point<T>(); }
+	bool operator||(const line<T> &L){ return d || L.d; }
+};
+template<typename T> bool parallel(const line<T> &L, const line<T> &M){ return L.d ^ M.d == point<T>(); }
+template<typename T> bool on_line(const point<T> &p, const line<T> &L){
+	if(L.degen()) return p == L.p;
+	return (p - L.p) || L.d;
+}
+template<typename T> bool on_ray(const point<T> &p, const line<T> &L){
+	if(L.degen()) return p == L.p;
+	auto a = L.p - p, b = L.q() - p;
+	return (a || b) && a * L.d <= 0;
+}
+template<typename T> bool on_segment(const point<T> &p, const line<T> &L){
+	if(L.degen()) return p == L.p;
+	auto a = L.p - p, b = L.q() - p;
+	return (a || b) && a * b <= 0;
+}
+template<typename T> double distance_to_line(const point<T> &p, const line<T> &L){
+	if(L.degen()) return distance(p, L.p);
+	return ((p - L.p) ^ L.d).norm() / L.d.norm();
+}
+template<typename T> double distance_to_ray(const point<T> &p, const line<T> &L){
+	if((p - L.p) * L.d <= 0) return distance(p, L.p);
+	return distance_to_line(p, L);
+}
+template<typename T> double distance_to_segment(const point<T> &p, const line<T> &L){
+	if((p - L.p) * L.d <= 0) return distance(p, L.p);
+	if((p - L.q()) * L.d >= 0) return distance(p, L.q());
+	return distance_to_line(p, L);
+}
+template<typename T> point<double> projection(const point<T> &p, const line<T> &L){ return static_cast<point<double>>(L.p) + (L.degen() ? point<double>() : (p - L.p) * L.d / L.d.norm() * static_cast<point<double>>(L.d)); }
+template<typename T> point<double> reflection(const point<T> &p, const line<T> &L){ return 2.0 * projection(p, L) - static_cast<point<double>>(p); }
+template<typename T> point<double> closest_point_on_segment(const point<T> &p, const line<T> &L){ return (p - L.p) * L.d <= 0 ? static_cast<point<double>>(L.p) : ((p - L.q()) * L.d >= 0 ? static_cast<point<double>>(L.q()) : projection(p, L)); }
 
 // 156485479_6_2
 // Convex Hull and Minkowski Sum
