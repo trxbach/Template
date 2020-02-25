@@ -128,6 +128,8 @@ Category
 		156485479_3_7
 	3.8. Mo's Algorithm
 		156485479_3_8
+	3.9. KD Tree
+		156485479_3_8 ( INCOMPLETE )
 
 
 4. Graph
@@ -167,6 +169,8 @@ Category
 		156485479_4_8
 	4.9. Two Satisfiability
 		156485479_4_9
+	4.10. Euler Walk
+		156485479_4_10
 
 
 5. String
@@ -348,12 +352,23 @@ long long phi(long long x){
 	return res;
 }
 // Calculate phi(x) for all 1 <= x <= n
-// O(n log n)
-vector<int> process_phi(int n){
-	vector<int> phi(n + 1);
-	for(int i = 0; i <= n; ++ i) phi[i] = i & 1 ? i : i / 2;
-	for(int i = 3; i <= n; i += 2) if(phi[i] == i) for(int j = i; j <= n; j += i) phi[j] -= phi[j] / i;
-	return phi;
+// O(n)
+pair<vector<int>, vector<int>> linearsieve(int n){
+	vector<int> lpf(n + 1), prime;
+	prime.reserve(n + 1);
+	for(int i = 2; i <= n; ++ i){
+		if(!lpf[i]) lpf[i] = i, prime.push_back(i);
+		for(int j = 0; j < int(prime.size()) && prime[j] <= lpf[i] && i * prime[j] <= n; ++ j){
+			lpf[i * prime[j]] = prime[j];
+		}
+	}
+	return {lpf, prime};
+}
+tuple<vector<int>, vector<int>, vector<int>> process_phi(int n){
+	auto [lpf, prime] = linearsieve(n);
+	vector<int> phi(n + 1, 1);
+	for(int i = 3; i <= n; ++ i) phi[i] = phi[i / lpf[i]] * (i / lpf[i] % lpf[i] ? lpf[i] - 1 : lpf[i]);
+	return {phi, lpf, prime};
 }
 
 // 156485479_1_6
@@ -499,7 +514,7 @@ tuple<vector<int>, vector<int>, vector<int>> process_mobius(int n){
 	auto [lpf, prime] = linearsieve(n);
 	vector<int> mobius(n + 1, 1);
 	for(int i = 2; i <= n; ++ i) mobius[i] = (i / lpf[i] % lpf[i] ? -mobius[i / lpf[i]] : 0);
-	return {lpf, prime, mobius}
+	return {mobius, lpf, prime};
 }
 
 // 156485479_1_12
@@ -1190,7 +1205,7 @@ struct matrix: vector<vector<long long>>{
 		for(int i = 0; i < N; ++ i) for(int j = 0; j < M; ++ j) if((*this)[i][j] != otr[i][j]) return false;
 		return true;
 	}
-	matrix operator=(const matrix &otr){
+	matrix &operator=(const matrix &otr){
 		N = otr.N, M = otr.M;
 		resize(N);
 		for(int i = 0; i < N; ++ i) (*this)[i] = otr[i];
@@ -1201,9 +1216,8 @@ struct matrix: vector<vector<long long>>{
 		for(int i = 0; i < N; ++ i) for(int j = 0; j < M; ++ j) res[i][j] = ((*this)[i][j] + otr[i][j]) % mod;
 		return res;
 	}
-	matrix operator+=(const matrix &otr){
-		*this = *this + otr;
-		return *this;
+	matrix &operator+=(const matrix &otr){
+		return *this = *this + otr;
 	}
 	matrix operator*(const matrix &otr) const{
 		assert(M == otr.N);
@@ -1212,15 +1226,17 @@ struct matrix: vector<vector<long long>>{
 		for(int i = 0; i < N; ++ i) for(int j = 0; j < L; ++ j) for(int k = 0; k < M; ++ k) (res[i][j] += (*this)[i][k] * otr[k][j]) %= mod;
 		return res;
 	}
-	matrix operator*=(const matrix &otr){
-		*this = *this * otr;
-		return *this;
+	matrix &operator*=(const matrix &otr){
+		return *this = *this * otr;
 	}
 	matrix operator^(long long e) const{
 		assert(N == M);
 		matrix res(N, N, mod, 1), b(*this);
 		for(; e; b *= b, e >>= 1) if(e & 1) res *= b;
 		return res;
+	}
+	matrix &operator^=(const long long e){
+		return *this = *this ^ e;
 	}
 	long long det() const{
 		assert(N == M);
@@ -1243,12 +1259,12 @@ struct matrix: vector<vector<long long>>{
 };
 
 // 156485479_2_3_2
-// Matrix for general ring
+// Matrix for general semiring
 // T must support +, *, !=, <<, >>
 template<typename T>
 struct matrix: vector<vector<T>>{
 	int N, M;
-	const T add_id, mul_id; // multiplicative identity
+	const T add_id, mul_id;
 	matrix(int N, int M, const T &add_id, const T &mul_id, bool is_id = false): N(N), M(M), add_id(add_id), mul_id(mul_id){
 		this->resize(N, vector<T>(M, add_id));
 		if(is_id) for(int i = 0; i < min(N, M); ++ i) (*this)[i][i] = mul_id;
@@ -1262,7 +1278,7 @@ struct matrix: vector<vector<T>>{
 		for(int i = 0; i < N; ++ i) for(int j = 0; j < M; ++ j) if((*this)[i][j] != otr[i][j]) return false;
 		return true;
 	}
-	matrix operator=(const matrix &otr){
+	matrix &operator=(const matrix &otr){
 		N = otr.N, M = otr.M;
 		this->resize(N);
 		for(int i = 0; i < N; ++ i) (*this)[i] = otr[i];
@@ -1273,9 +1289,8 @@ struct matrix: vector<vector<T>>{
 		for(int i = 0; i < N; ++ i) for(int j = 0; j < M; ++ j) res[i][j] = (*this)[i][j] + otr[i][j];
 		return res;
 	}
-	matrix operator+=(const matrix &otr){
-		*this = *this + otr;
-		return *this;
+	matrix &operator+=(const matrix &otr){
+		return *this = *this + otr;
 	}
 	matrix operator*(const matrix &otr) const{
 		assert(M == otr.N);
@@ -1284,15 +1299,17 @@ struct matrix: vector<vector<T>>{
 		for(int i = 0; i < N; ++ i) for(int j = 0; j < L; ++ j) for(int k = 0; k < M; ++ k) res[i][j] = res[i][j] + (*this)[i][k] * otr[k][j];
 		return res;
 	}
-	matrix operator*=(const matrix &otr){
-		*this = *this * otr;
-		return *this;
+	matrix &operator*=(const matrix &otr){
+		return *this = *this * otr;
 	}
 	matrix operator^(long long e) const{
 		assert(N == M);
 		matrix res(N, N, add_id, mul_id, true), b(*this);
 		for(; e; b *= b, e >>= 1) if(e & 1) res *= b;
 		return res;
+	}
+	matrix &operator^=(const long long e){
+		return *this = *this ^ e;
 	}
 };
 
@@ -4222,6 +4239,28 @@ struct two_sat{
 		return true;
 	}
 };
+
+// 156485479_4_10
+// Euler Walk / adj list must be of form  [vertex, edge_index]
+// O(N + M)
+pair<vector<int>, vector<int>> euler_walk(const vector<vector<pair<int, int>>> &adj, int m, int source = 0){
+	int n = int(adj.size());
+	vector<int> deg(n), its(n), used(m), res_v, res_e;
+	vector<pair<int, int>> q = {{source, -1}};
+	++ deg[source]; // to allow Euler paths, not just cycles
+	while(!q.empty()){
+		auto [u, e] = q.back();
+		int &it = its[u], end = int(adj[u].size());
+		if(it == end){ res_v.push_back(u); res_e.push_back(e); q.pop_back(); continue; }
+		auto [v, f] = adj[u][it ++];
+		if(!used[f]){
+			-- deg[u], ++ deg[v];
+			used[f] = 1; q.emplace_back(v, f);
+		}
+	}
+	for(auto d: deg) if(d < 0 || int(res_v.size()) != m + 1) return {};
+	return {{res_v.rbegin(), res_v.rend()}, {res_e.rbegin() + 1, res_e.rend()}};
+}
 
 // 156485479_5_1
 // Returns the starting position of the lexicographically minimal rotation
