@@ -48,7 +48,7 @@ Category
 	2.3. Matrix
 		2.3.1. Entries in R
 			156485479_2_3_1
-		2.3.2. Entries in some ring
+		2.3.2. Entries in some semiring
 			156485479_2_3_2
 	2.4. Polynomial
 		2.4.1. Convolution
