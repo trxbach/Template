@@ -184,7 +184,7 @@ Category
 		156485479_5_3
 	5.4. Z Function
 		156485479_5_4
-	5.5. Aho Corasic
+	5.5. Aho Corasic Automaton
 		156485479_5_5
 	5.6. Prefix Function / Prefix Automaton
 		156485479_5_6
@@ -196,6 +196,8 @@ Category
 		156485479_5_9
 	5.10. Palindrome Tree ( INCOMPLETE )
 		156485479_5_10
+	5.11. Levenshtein Automaton ( INCOMPLETE )
+		156485479_5_11
 
 
 6. Geometry
@@ -4798,6 +4800,9 @@ Str lcs(vector<Str> a){
 	
 // 156485479_5_10
 // Palindrome Tree
+
+// 156485479_5_11
+// Levenshtein Automaton
 
 // 156485479_6_1
 // 2D Geometry Classes
