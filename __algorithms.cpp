@@ -93,6 +93,8 @@ Category
 		156485479_2_8
 	2.9. Modular Arithmetics
 		156485479_2_9
+	2.10. Discrete Log
+		156485479_2_10
 
 
 3. Data Structure
@@ -201,6 +203,8 @@ Category
 		156485479_6_1
 	6.2. Convex Hull and Minkowski Addition
 		156485479_6_2
+	6.3. KD Tree
+		156485479_6_3
 
 
 7. Miscellaneous
@@ -219,15 +223,8 @@ long long modexp(long long b, long long e, const long long &mod){
 	for(; e; b = b * b % mod, e >>= 1) if(e & 1) res = res * b % mod;
 	return res;
 }
-long long modinv(long long a, long long m){
-	long long u = 0, v = 1;
-	while(a){
-		long long t = m / a;
-		m -= t * a; swap(a, m);
-		u -= t * v; swap(u, v);
-	}
-	assert(m == 1);
-	return u;
+long long modinv(long long a, const long long &mod){
+	return modexp(a, mod - 2, mod);
 }
 long long modgeo(long long b, long long e, const long long &mod){
 	if(e < 2) return e;
@@ -245,15 +242,8 @@ T binexp(T b, long long e, const T &id){
 	return res;
 }
 template<typename T>
-T modinv(T a, T m){
-	T u = 0, v = 1;
-	while(a){
-		T t = m / a;
-		m -= t * a; swap(a, m);
-		u -= t * v; swap(u, v);
-	}
-	assert(m == 1);
-	return u;
+T modinv(T a, const T &mod){
+	return modexp(a, mod - 2, mod);
 }
 template<typename T>
 T bingeo(const T &b, long long e, const T &add_id, const T &mul_id){
@@ -1015,15 +1005,13 @@ mod = 1e9 + 7;
 // 156485479_2_1
 // Linear Recurrence Relation Solver / Berlekamp - Massey Algorithm
 // O(N^2 log n) / O(N^2)
-long long modinv(long long a, long long m){
-	long long u = 0, v = 1;
-	while(a){
-		long long t = m / a;
-		m -= t * a; swap(a, m);
-		u -= t * v; swap(u, v);
-	}
-	assert(m == 1);
-	return u;
+long long modexp(long long b, long long e, const long long &mod){
+	long long res = 1;
+	for(; e; b = b * b % mod, e >>= 1) if(e & 1) res = res * b % mod;
+	return res;
+}
+long long modinv(long long a, const long long &mod){
+	return modexp(a, mod - 2, mod);
 }
 struct recurrence{
 	int N;
@@ -1111,15 +1099,13 @@ int solve_linear_equations(const vector<vector<double>> &AA, vector<double> &x, 
 // 156485479_2_2_2
 // Find a solution of the system of linear equations. Return -1 if no sol, rank otherwise.
 // O(n^2 m)
-long long modinv(long long a, long long m){
-	long long u = 0, v = 1;
-	while(a){
-		long long t = m / a;
-		m -= t * a; swap(a, m);
-		u -= t * v; swap(u, v);
-	}
-	assert(m == 1);
-	return u;
+long long modexp(long long b, long long e, const long long &mod){
+	long long res = 1;
+	for(; e; b = b * b % mod, e >>= 1) if(e & 1) res = res * b % mod;
+	return res;
+}
+long long modinv(long long a, const long long &mod){
+	return modexp(a, mod - 2, mod);
 }
 int solve_linear_equations(const vector<vector<long long>> &AA, vector<long long> &x, const vector<long long> &bb, long long mod){
 	auto A = AA;
@@ -1358,15 +1344,13 @@ vector<long long> polymul(const vector<long long> &a, const vector<long long> &b
 // Number Theoric Transformation. Use (998244353, 15311432, 1 << 23) or (7340033, 5, 1 << 20)
 // Size must be a power of two
 // O(n log n)
-long long modinv(long long a, long long m){
-	long long u = 0, v = 1;
-	while(a){
-		long long t = m / a;
-		m -= t * a; swap(a, m);
-		u -= t * v; swap(u, v);
-	}
-	assert(m == 1);
-	return u;
+long long modexp(long long b, long long e, const long long &mod){
+	long long res = 1;
+	for(; e; b = b * b % mod, e >>= 1) if(e & 1) res = res * b % mod;
+	return res;
+}
+long long modinv(long long a, const long long &mod){
+	return modexp(a, mod - 2, mod);
 }
 const long long mod = 998244353, root = 15311432, root_pw = 1 << 23, root_1 = modinv(root, mod);
 vector<long long> ntt(const vector<long long> &arr, bool invert){
@@ -1485,15 +1469,13 @@ vector<double> interpolate(vector<double> x, vector<double> y){
 // 156485479_2_4_2_1_2
 // Polynomial Interpolation
 // O(n ^ 2)
-long long modinv(long long a, long long m){
-	long long u = 0, v = 1;
-	while(a){
-		long long t = m / a;
-		m -= t * a; swap(a, m);
-		u -= t * v; swap(u, v);
-	}
-	assert(m == 1);
-	return u;
+long long modexp(long long b, long long e, const long long &mod){
+	long long res = 1;
+	for(; e; b = b * b % mod, e >>= 1) if(e & 1) res = res * b % mod;
+	return res;
+}
+long long modinv(long long a, const long long &mod){
+	return modexp(a, mod - 2, mod);
 }
 vector<long long> interpolate(vector<long long> x, vector<long long> y, long long mod){
 	int n = int(x.size());
@@ -2171,6 +2153,29 @@ template<typename T> istream &operator>>(istream &in, Z_p<T> &number){
 template<typename T> ostream &operator<<(ostream &out, const Z_p<T> &number){ return out << number(); }
 constexpr int mod = (int)1e9 + 7;
 using Zp = Z_p<integral_constant<decay<decltype(mod)>::type, mod>>;
+
+// 156485479_2_10
+// Discrete Log
+// O(sqrt(mod) log mod)
+// a and mod must be relatively prime
+long long modexp(long long b, long long e, const long long &mod){
+	long long res = 1;
+	for(; e; b = b * b % mod, e >>= 1) if(e & 1) res = res * b % mod;
+	return res;
+}
+int discrete_log(int a, int b, int mod){
+	int n = (int)sqrt(mod + .0) + 1;
+	map<int, int> q;
+	for(int p = n; p >= 1; -- p) q[modexp(a, p * n, mod)] = p;
+	for(int p = 0; p <= n; ++ p){
+		int cur = (modexp(a, p, mod) * b) % mod;
+		if(q.count(cur)){
+			int ans = q[cur] * n - p;
+			return ans;
+		}
+	}
+	return -1;
+}
 
 // 156485479_3_1
 // Sparse Table
@@ -5117,6 +5122,71 @@ if(COND && !A.X.empty() && !B.X.empty()){ \
 		return res;
 	}
 };
+
+// 156485479_6_3
+// KD Tree
+// O(log N) for randomly distributed points
+// Point Class must support x, y, less-compare, equal
+template<typename T, typename point>
+struct Node{
+	static constexpr T inf = 1e9;
+	point p; // if this is a leaf, the single point in it
+	T xlow = inf, xhigh = -inf, ylow = inf, yhigh = -inf; // bounds
+	Node *l = 0, *r = 0;
+	Node(vector<point> &&arr): p(arr[0]){
+		for(auto p: arr){
+			ctmin(xlow, p.x), ctmax(xhigh, p.x);
+			ctmin(ylow, p.y), ctmax(yhigh, p.y);
+		}
+		if(int(arr.size()) > 1){ // split on x if the box is wider than high (not best heuristic...)
+			if(xhigh - xlow >= yhigh - ylow) sort(arr.begin(), arr.end());
+			else sort(arr.begin(), arr.end(), [](point p, point q){ return p.y < q.y; });
+			int mid = int(arr.size()) / 2;// divide by taking half the array for each child (not best performance with many duplicates in the middle)
+			l = new Node({begin(arr), begin(arr) + mid});
+			r = new Node({arr.begin() + mid, arr.end()});
+		}
+	}
+	T distance(const point &p){ // min squared dist to point p
+		T x = min(max(p.x, xlow), xhigh), y = min(max(p.y, ylow), yhigh); 
+		return (x - p.x) * (x - p.x) + (y - p.y) * (y - p.y);
+	}
+};
+template<typename T, typename point, bool IGNORE_ITSELF = true>
+struct KDTree{
+	static constexpr T inf = 1e9;
+	Node<T, point> *root;
+	template<typename Arr> KDTree(const Arr& arr): root(new Node<T, point>({arr.begin(), arr.end()})){ }
+	pair<T, point> search(Node<T, point> *node, const point &p){
+		if(!node->l){
+			if(IGNORE_ITSELF && p == node->p) return {inf, point()};
+			return {(p.x - node->p.x) * (p.x - node->p.x) + (p.y - node->p.y) * (p.y - node->p.y), node->p};
+		}
+		Node<T, point> *l = node->l, *r = node->r;
+		T bl = l->distance(p), br = r->distance(p);
+		if(bl > br) swap(br, bl), swap(l, r);
+		auto best = search(l, p); // search closest side f, other side if needed
+		if(br < best.first) ctmin(best, search(r, p));
+		return best;
+	}
+	pair<T, point> query(const point &p){
+		return search(root, p);
+	}
+};
+struct P{
+	long long x, y;
+	bool operator<(const P &p) const{
+		return x == p.x ? y < p.y : x < p.x;
+	}
+	bool operator==(const P &p) const{
+		return x == p.x && y == p.y;
+	}
+};
+istream &operator>>(istream &in, P &p){
+	return in >> p.x >> p.y;
+}
+ostream &operator<<(ostream &out, const P &p){
+	return out << "(" << p.x << ", " << p.y << ")";
+}
 
 // 156485479_7_1
 // Custom Hash Function for unordered_set and unordered map
