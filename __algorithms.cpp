@@ -131,7 +131,7 @@ Category
 	3.8. Mo's Algorithm
 		156485479_3_8
 	3.9. KD Tree
-		156485479_3_8 ( INCOMPLETE )
+		156485479_3_8
 
 
 4. Graph
