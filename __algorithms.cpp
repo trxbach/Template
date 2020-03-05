@@ -11,7 +11,7 @@ Category
 1. Number Theory
 	1.1. Modular Exponentiation, Modular Inverse
 		156485479_1_1
-	1.2. Extended Euclidean Algorithm
+	1.2. Extended Euclidean Algorithm / Linear Diophantine Equation
 		156485479_1_2
 	1.3. Linear Sieve
 		156485479_1_3
@@ -19,20 +19,18 @@ Category
 		156485479_1_4
 	1.5. Euler Totient Function
 		156485479_1_5
-	1.6. Millar Rabin Primality Test
+	1.6. Millar Rabin Primality Test / Pollard Rho Algorithm
 		156485479_1_6
-	1.7. Pollard Rho and Factorization
+	1.7. Tonelli Shanks Algorithm ( Solution to x^2 = a mod p )
 		156485479_1_7
-	1.8. Tonelli Shanks Algorithm ( Solution to x^2 = a mod p )
+	1.8. Chinese Remainder Theorem
 		156485479_1_8
-	1.9. Chinese Remainder Theorem
+	1.9. Lehman Factorization
 		156485479_1_9
-	1.10. Lehman Factorization
+	1.10. Mobius Function
 		156485479_1_10
-	1.11. Mobius Function
+	1.11. Polynomial Class
 		156485479_1_11
-	1.12. Polynomial Class
-		156485479_1_12
 
 
 2. Numeric
@@ -71,8 +69,8 @@ Category
 					156485479_2_4_2_1_2
 			2.4.2.2. Fast Interpolation
 				156485479_2_4_2_2 ( INCOMPLETE )
-	2.5. Kadane
-		156485479_2_5
+	2.6. Binary Search
+		156485479_2_6
 	2.6. DP Optimization
 		2.6.1. Convex Hull Trick ( Line Containers / Li Chao Tree )
 			2.6.1.1. Sorted Line Container
@@ -87,7 +85,7 @@ Category
 			156485479_2_6_3
 		2.6.4. Lagrange ( Aliens Trick, Wqs Binary Search )
 			156485479_2_6_4
-	2.7. Binary Search
+	2.7. Kadane
 		156485479_2_7
 	2.8. BigInteger
 		156485479_2_8
@@ -156,7 +154,7 @@ Category
 				156485479_4_5_2_2
 		4.5.3. Heavy Light Decomposition
 			156485479_4_5_3
-		4.5.4. Centroid Decomposition
+		4.5.4. Centroid / Centroid Decomposition
 			156485479_4_5_4
 		4.5.5. AHU Algorithm ( Rooted Tree Isomorphism ) / Tree Isomorphism
 			156485479_4_5_5
@@ -215,7 +213,7 @@ Category
 	7.2. Bump Allocator
 		156485479_7_2
 
-*******************************************************************************/
+************************************************************************************************************/
 
 // 156485479_1_1
 // Modular Exponentiation, Modular Inverse and Geometric Sum
@@ -237,26 +235,6 @@ long long modgeo(long long b, long long e, const long long &mod){
 	}
 	return res;
 }
-template<typename T>
-T binexp(T b, long long e, const T &id){
-	T res = id;
-	for(; e; b = b * b, e >>= 1) if(e & 1) res = res * b;
-	return res;
-}
-template<typename T>
-T modinv(T a, const T &mod){
-	return modexp(a, mod - 2, mod);
-}
-template<typename T>
-T bingeo(const T &b, long long e, const T &add_id, const T &mul_id){
-	if(e < 2) return e ? mul_id : add_id;
-	T res = mul_id, p = mul_id;
-	for(long long bit = 1 << 30 - __builtin_clz(e); bit; bit >>= 1){
-		res = res * (mul_id + p * b), p = p * p * b;
-		if(bit & e) res = res + (p = p * b);
-	}
-	return res;
-}
 template<typename T, typename BO>
 T binexp(T b, long long e, BO bin_op, const T &id){
 	T res = id;
@@ -275,14 +253,59 @@ T bingeo(const T &b, long long e, AO add_op, const T &add_id, MO mul_op, const T
 }
 
 // 156485479_1_2
-// Extended Euclidean Algorithm
+// Extended Euclidean Algorithm / Linear Diophantine Equation
 // O(max(log x, log y))
-long long euclid(long long x, long long y, long long &a, long long &b){
-	if(y){
-		long long d = euclid(y, x % y, b, a);
-		return b -= x / y * a, d;
+typedef long long ll;
+ll euclid(ll a, ll b, ll &x, ll &y){
+	if(b){
+		ll d = euclid(b, a % b, y, x);
+		return y -= a / b * x, d;
 	}
-	return a = 1, b = 0, x;
+	return x = 1, y = 0, a;
+}
+// solutions to ax + by = c where x in [xlow, xhigh] and y in [ylow, yhigh]
+// cnt, leftsol, rightsol, gcd of a and b
+typedef long long ll;
+ll euclid(ll a, ll b, ll &x, ll &y){
+	if(b){
+		ll d = euclid(b, a % b, y, x);
+		return y -= a / b * x, d;
+	}
+	return x = 1, y = 0, a;
+}
+array<ll, 6> solve_linear_diophantine(ll a, ll b, ll c, ll xlow, ll xhigh, ll ylow, ll yhigh){
+	ll x, y, g = euclid(abs(a), abs(b), x, y);
+	array<ll, 6> no_sol{0, 0, 0, 0, 0, g};
+	if(c % g) return no_sol;
+	x *= c / g, y *= c / g;
+	if(a < 0) x = -x;
+	if(b < 0) y = -y;
+	a /= g, b /= g, c /= g;
+	auto shift = [&](ll &x, ll &y, ll a, ll b, ll cnt){ x += cnt * b, y -= cnt * a; };
+	int sign_a = a > 0 ? 1 : -1, sign_b = b > 0 ? 1 : -1;
+
+	shift(x, y, a, b, (xlow - x) / b);
+	if(x < xlow) shift(x, y, a, b, sign_b);
+	if(x > xhigh) return no_sol;
+	ll lx1 = x;
+	
+	shift(x, y, a, b, (xhigh - x) / b);
+	if(x > xhigh) shift(x, y, a, b, -sign_b);
+	ll rx1 = x;
+
+	shift(x, y, a, b, -(ylow - y) / a);
+	if(y < ylow) shift(x, y, a, b, -sign_a);
+	if(y > yhigh) return no_sol;
+	ll lx2 = x;
+
+	shift(x, y, a, b, -(yhigh - y) / a);
+	if(y > yhigh) shift(x, y, a, b, sign_a);
+	ll rx2 = x;
+
+	if(lx2 > rx2) swap(lx2, rx2);
+	ll lx = max(lx1, lx2), rx = min(rx1, rx2);
+	if(lx > rx) return no_sol;
+	return {(rx - lx) / abs(b) + 1, lx, (c - lx * a) / b, rx, (c - rx * a) / b, g};
 }
 
 // 156485479_1_3
@@ -308,7 +331,7 @@ struct combinatorics{
 	vector<long long> inv, fact, invfact;
 	combinatorics(long long N, long long mod): N(N), mod(mod), inv(N + 1), fact(N + 1), invfact(N + 1){
 		inv[1] = 1, fact[0] = fact[1] = invfact[0] = invfact[1] = 1;
-		for(long long i = 2; i <= N; i ++){
+		for(long long i = 2; i <= N; ++ i){
 			inv[i] = (mod - mod / i * inv[mod % i] % mod) % mod;
 			fact[i] = fact[i - 1] * i % mod;
 			invfact[i] = invfact[i - 1] * inv[i] % mod;
@@ -364,8 +387,8 @@ tuple<vector<int>, vector<int>, vector<int>> process_phi(int n){
 }
 
 // 156485479_1_6
-// Millar Rabin Primality Test
-// O(log n) {constant is around 7}
+// Millar Rabin Primality Test / Pollard Rho Algorithm
+// 7 times slower than a^b mod m / O(n^{1/4}) gcd calls
 typedef unsigned long long ull;
 typedef long double ld;
 ull mod_mul(ull a, ull b, ull M) {
@@ -381,17 +404,13 @@ bool isprime(ull n){
 	if(n < 2 || n % 6 % 4 != 1) return n - 2 < 2;
 	vector<ull> A{2, 325, 9375, 28178, 450775, 9780504, 1795265022};
 	ull s = __builtin_ctzll(n - 1), d = n >> s;
-	for(auto a: A){
+	for(auto &a: A){
 		ull p = mod_pow(a, d, n), i = s;
-		while(p != 1 && p != n - 1 && a % n && i --) p = mod_pow(p, p, n);
+		while(p != 1 && p != n - 1 && a % n && i --) p = mod_mul(p, p, n);
 		if(p != n - 1 && i != s) return 0;
 	}
 	return 1;
 }
-
-// 156485479_1_7
-// Pollard Rho Algorithm
-// O(n^{1/4} log n)
 ull pfactor(ull n){
 	auto f = [n](ull x){ return (mod_mul(x, x, n) + 1) % n; };
 	if(!(n & 1)) return 2;
@@ -410,7 +429,7 @@ vector<ull> factorize(ull n){
 	return l;
 }
 
-// 156485479_1_8
+// 156485479_1_7
 // Tonelli Shanks Algorithm ( Solution to x^2 = a mod p )
 // O(log^2 p)
 long long modexp(long long b, long long e, const long long &mod){
@@ -443,7 +462,7 @@ long long sqrt(long long a, long long p){
 	}
 }
 
-// 156485479_1_9
+// 156485479_1_8
 // Chinese Remainder Theorem (Return a number x which satisfies x = a mod m & x = b mod n)
 // All the values has to be less than 2^30
 // O(log(m + n))
@@ -467,7 +486,7 @@ long long crt(long long a, long long m, long long b, long long n){
 	return d * crt_coprime(0LL, m/d, b/d, n/d) + a;
 }
 
-// 156485479_1_10
+// 156485479_1_9
 // Lehman Factorization / return a prime divisor of x
 // x has to be equal or less than 10^14
 // O(N^1/3)
@@ -488,7 +507,7 @@ long long primefactor(long long x){
 	return x;
 }
 
-// 156485479_1_11
+// 156485479_1_10
 // Mobius Function
 // O(n)
 pair<vector<int>, vector<int>> linearsieve(int n){
@@ -509,7 +528,7 @@ tuple<vector<int>, vector<int>, vector<int>> process_mobius(int n){
 	return {mobius, lpf, prime};
 }
 
-// 156485479_1_12
+// 156485479_1_11
 // Polynomial Class
 namespace algebra {
 	int mod;
@@ -1162,7 +1181,7 @@ int solve_linear_equations(const vector<bs> &AA, bs& x, const vector<int> &bb, i
 		swap(A[i], A[br]);
 		swap(b[i], b[br]);
 		swap(col[i], col[bc]);
-		for(int j = 0; j < n; ++ j) if(A[j][i] != A[j][bc]) A[j].flip(i); A[j].flip(bc);
+		for(int j = 0; j < n; ++ j) if(A[j][i] != A[j][bc]) A[j].flip(i), A[j].flip(bc);
 		for(int j = i + 1; j < n; ++ j) if(A[j][i]) b[j] ^= b[i], A[j] ^= A[i];
 		++ rank;
 	}
@@ -1504,17 +1523,47 @@ vector<long long> interpolate(vector<long long> x, vector<long long> y, long lon
 // (INCOMPLETE!)
 
 // 156485479_2_5
-// Kadane
-// O(N)
-template<typename T>
-T kadane(const vector<T> &arr){
-	int n = int(arr.size());
-	T lm = 0, gm = 0;
-	for(int i = 0; i < n; ++ i){
-		lm = max(arr[i], arr[i] + lm);
-		gm = max(gm, lm);
+// Binary Search
+// O(log(high - low)) applications of p
+template<typename Pred>
+long long custom_binary_search(long long low, long long high, Pred p, bool is_left = true){
+	assert(low < high);
+	if(is_left){
+		while(high - low > 1){
+			long long mid = low + (high - low >> 1);
+			p(mid) ? low = mid : high = mid;
+		}
+		return low;
 	}
-	return gm;
+	else{
+		while(high - low > 1){
+			long long mid = low + (high - low >> 1);
+			p(mid) ? high = mid : low = mid;
+		}
+		return high;
+	}
+}
+// Binary search for numbers with the same remainder mod step
+template<typename Pred>
+long long custom_binary_search(long long low, long long high, const long long &step, Pred p, bool is_left = true){
+	assert(low < high && (high - low) % step == 0);
+	const long long rem = (low % step + step) % step;
+	if(is_left){
+		while(high - low > step){
+			long long mid = low + (high - low >> 1);
+			mid = mid / step * step + rem;
+			p(mid) ? low = mid : high = mid;
+		}
+		return low;
+	}
+	else{
+		while(high - low > step){
+			long long mid = low + (high - low >> 1);
+			mid = mid / step * step + rem;
+			p(mid) ? high = mid : low = mid;
+		}
+		return high;
+	}
 }
 
 // 156485479_2_6_1_1
@@ -1739,47 +1788,17 @@ pair<long long, vector<int>> LagrangeDP(int n, DP f, long long k, long long low,
 }
 
 // 156485479_2_7
-// Binary Search
-// O(log(high - low)) applications of p
-template<typename Pred>
-long long custom_binary_search(long long low, long long high, Pred p, bool is_left = true){
-	assert(low < high);
-	if(is_left){
-		while(high - low > 1){
-			long long mid = low + (high - low >> 1);
-			p(mid) ? low = mid : high = mid;
-		}
-		return low;
+// Kadane
+// O(N)
+template<typename T>
+T kadane(const vector<T> &arr){
+	int n = int(arr.size());
+	T lm = 0, gm = 0;
+	for(int i = 0; i < n; ++ i){
+		lm = max(arr[i], arr[i] + lm);
+		gm = max(gm, lm);
 	}
-	else{
-		while(high - low > 1){
-			long long mid = low + (high - low >> 1);
-			p(mid) ? high = mid : low = mid;
-		}
-		return high;
-	}
-}
-// Binary search for numbers with the same remainder mod step
-template<typename Pred>
-long long custom_binary_search(long long low, long long high, const long long &step, Pred p, bool is_left = true){
-	assert(low < high && (high - low) % step == 0);
-	const long long rem = (low % step + step) % step;
-	if(is_left){
-		while(high - low > step){
-			long long mid = low + (high - low >> 1);
-			mid = mid / step * step + rem;
-			p(mid) ? low = mid : high = mid;
-		}
-		return low;
-	}
-	else{
-		while(high - low > step){
-			long long mid = low + (high - low >> 1);
-			mid = mid / step * step + rem;
-			p(mid) ? high = mid : low = mid;
-		}
-		return high;
-	}
+	return gm;
 }
 
 // 156485479_2_8
@@ -3581,11 +3600,11 @@ template<typename DS, typename BO, typename T, int VALS_IN_EDGES = 1>
 struct heavy_light_decomposition{
 	int N, root;
 	vector<vector<int>> adj;
-	vector<int> par, size, depth, next, pos, rpos;
+	vector<int> par, sz, depth, next, pos, rpos;
 	DS &tr;
 	BO bin_op;
 	const T id;
-	heavy_light_decomposition(int N, int root, DS &tr, BO bin_op, T id): N(N), root(root), adj(N), par(N, -1), size(N, 1), depth(N), next(N), pos(N), tr(tr), bin_op(bin_op), id(id){
+	heavy_light_decomposition(int N, int root, DS &tr, BO bin_op, T id): N(N), root(root), adj(N), par(N, -1), sz(N, 1), depth(N), next(N), pos(N), tr(tr), bin_op(bin_op), id(id){
 		this->root = next[root] = root;
 	}
 	void insert(int u, int v){
@@ -3597,8 +3616,8 @@ struct heavy_light_decomposition{
 		for(auto &v: adj[u]){
 			par[v] = u, depth[v] = depth[u] + 1;
 			dfs_sz(v);
-			size[u] += size[v];
-			if(size[v] > size[adj[u][0]]) swap(v, adj[u][0]);
+			sz[u] += sz[v];
+			if(sz[v] > sz[adj[u][0]]) swap(v, adj[u][0]);
 		}
 	}
 	void dfs_hld(int u){
@@ -3627,8 +3646,8 @@ struct heavy_light_decomposition{
 		else processpath(u, v, [this, &val](int l, int r){tr.set(l, r, val);});
 	}
 	void updatesubtree(int u, T val, int is_update = true){
-		if(is_update) tr.update(pos[u] + VALS_IN_EDGES, pos[u] + size[u], val);
-		else tr.set(pos[u] + VALS_IN_EDGES, pos[u] + size[u], val);
+		if(is_update) tr.update(pos[u] + VALS_IN_EDGES, pos[u] + sz[u], val);
+		else tr.set(pos[u] + VALS_IN_EDGES, pos[u] + sz[u], val);
 	}
 	T querypath(int u, int v){
 		T res = id;
@@ -3636,38 +3655,57 @@ struct heavy_light_decomposition{
 		return res;
 	}
 	T querysubtree(int u){
-		return tr.query(pos[u] + VALS_IN_EDGES, pos[u] + size[u]);
+		return tr.query(pos[u] + VALS_IN_EDGES, pos[u] + sz[u]);
 	}
 };
 
 // 156485479_4_5_4
+// Find all the centroids
+// O(N)
+vector<int> centroid(const vector<vector<int>> &adj){
+	int n = int(adj.size());
+	vector<int> sz(n, 1);
+	function<void(int, int)> dfs_sz = [&](int u, int p){
+		for(auto v: adj[u]) if(v != p){
+			dfs_sz(v, u);
+			sz[u] += sz[v];
+		}
+	};
+	dfs_sz(0, -1);
+	function<vector<int>(int, int)> dfs_cent = [&](int u, int p){
+		for(auto v: adj[u]) if(v != p && sz[v] > n / 2) return dfs_cent(v, u);
+		for(auto v: adj[u]) if(v != p && n - sz[v] <= n / 2) return vector<int>{u, v};
+		return vector<int>{u};
+	};
+	return dfs_cent(0, -1);
+}
 // Centroid Decomposition
 // O(N log N) processing
 struct centroid_decomposition{
 	int N, root;
-	vector<int> dead, size, par, cpar;
+	vector<int> dead, sz, par, cpar;
 	vector<vector<int>> adj, cchild, dist;
-	centroid_decomposition(int N): N(N), adj(N), dead(N), size(N), par(N), cchild(N), cpar(N), dist(N){ }
+	centroid_decomposition(int N): N(N), adj(N), dead(N), sz(N), par(N), cchild(N), cpar(N), dist(N){ }
 	void insert(int u, int v){
 		adj[u].push_back(v);
 		adj[v].push_back(u);
 	}
 	void dfs_sz(int u){
-		size[u] = 1;
+		sz[u] = 1;
 		for(auto v: adj[u]) if(!dead[v] && v != par[u]){
 			par[v] = u;
 			dfs_sz(v);
-			size[u] += size[v];
+			sz[u] += sz[v];
 		}
 	}
 	int centroid(int u){
 		par[u] = -1;
 		dfs_sz(u);
-		int s = size[u];
+		int s = sz[u];
 		while(1){
 			int w = 0, msz = 0;
-			for(auto v: adj[u]) if(!dead[v] && v != par[u] && msz < size[v]){
-				w = v, msz = size[v];
+			for(auto v: adj[u]) if(!dead[v] && v != par[u] && msz < sz[v]){
+				w = v, msz = sz[v];
 			}
 			if(msz * 2 <= s) return u;
 			u = w;
@@ -3989,6 +4027,7 @@ struct shortest_path_tree_dense{
 		for(int u = 0; u < N; ++ u) fill(pass[u].begin(), pass[u].end(), -1), dist[u][u] = id;
 	}
 	bool init_floyd_warshall(){
+		init_all_pair();
 		for(int k = 0; k < N; ++ k) for(int i = 0; i < N; ++ i) for(int j = 0; j < N; ++ j){
 			if(cmp(dist[i][k], inf) && cmp(dist[k][j], inf) && cmp(bin_op(dist[i][k], dist[k][j]), dist[i][j])){
 				dist[i][j] = bin_op(dist[i][k], dist[k][j]);
@@ -5097,7 +5136,7 @@ struct convex_hull: pair<Polygon, Polygon>{ // (Lower, Upper) type {0: both, 1: 
 		merge(this->first.begin(), this->first.end(), ++ this->second.rbegin(), -- this->second.rend(), back_inserter(res));
 		return res;
 	}
-	convex_hull operator^(const convex_hull &otr) const{
+	convex_hull operator^(const convex_hull &otr) const{ // Convex Hull Merge
 		Polygon temp, A = linearize(), B = otr.linearize();
 		temp.reserve(A.size() + B.size());
 		merge(A.begin(), A.end(), B.begin(), B.end(), back_inserter(temp));
@@ -5110,7 +5149,7 @@ struct convex_hull: pair<Polygon, Polygon>{ // (Lower, Upper) type {0: both, 1: 
 		for(int i = int(R.size()) - 1; i > 0; -- i) R[i] -= R[i - 1];
 		return {L, R};
 	}
-	convex_hull operator+(const convex_hull &otr) const{
+	convex_hull operator+(const convex_hull &otr) const{ // Minkowski Sum
 		assert(type == otr.type);
 		convex_hull res(Polygon(), type);
 		pair<Polygon, Polygon> A(this->get_boundary()), B(otr.get_boundary());
@@ -5140,8 +5179,8 @@ struct Node{
 	Node *l = 0, *r = 0;
 	Node(vector<point> &&arr): p(arr[0]){
 		for(auto p: arr){
-			ctmin(xlow, p.x), ctmax(xhigh, p.x);
-			ctmin(ylow, p.y), ctmax(yhigh, p.y);
+			xlow = min(xlow, p.x), xhigh = max(xhigh, p.x);
+			ylow = min(ylow, p.y), yhigh = max(yhigh, p.y);
 		}
 		if(int(arr.size()) > 1){ // split on x if the box is wider than high (not best heuristic...)
 			if(xhigh - xlow >= yhigh - ylow) sort(arr.begin(), arr.end());
@@ -5169,8 +5208,8 @@ struct KDTree{
 		Node<T, point> *l = node->l, *r = node->r;
 		T bl = l->distance(p), br = r->distance(p);
 		if(bl > br) swap(br, bl), swap(l, r);
-		auto best = search(l, p); // search closest side f, other side if needed
-		if(br < best.first) ctmin(best, search(r, p));
+		auto best = search(l, p); // search closest side, other side if needed
+		if(br < best.first) best = min(best, search(r, p));
 		return best;
 	}
 	pair<T, point> query(const point &p){
