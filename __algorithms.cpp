@@ -69,8 +69,8 @@ Category
 					156485479_2_4_2_1_2
 			2.4.2.2. Fast Interpolation
 				156485479_2_4_2_2 ( INCOMPLETE )
-	2.6. Binary Search
-		156485479_2_6
+	2.5. Binary Search
+		156485479_2_5
 	2.6. DP Optimization
 		2.6.1. Convex Hull Trick ( Line Containers / Li Chao Tree )
 			2.6.1.1. Sorted Line Container
