@@ -2440,80 +2440,60 @@ struct segment{
 
 // 156485479_3_2_5
 // Lazy Dynamic Segment Tree
-// O(1) or O(N) preprocessing, O(log L) or O(log N) per query
-template<typename T, typename LOP, typename QOP, typename AOP, typename INIT = function<T(int, int)>>
+// O(1) or O(N) processing, O(log L) or O(log N) per query
+template<typename B, typename T, typename LOP, typename QOP, typename AOP, typename INIT = function<T(B, B)>>
 struct segment{
+	LOP lop;              // lop(low, high, lazy, ql, qr, x): apply query to the lazy
+	QOP qop;              // qop(low, high, lval, rval): merge the value
+	AOP aop;              // aop(low, high, val, ql, qr, x): apply query to the val
+	INIT init;            // init(low, high): initialize node representing (low, high)
+	const array<T, 2> id; // lazy id, query id
 	segment *l = 0, *r = 0;
-	int low, high;
-	LOP lop;                // Lazy op(L, L -> L)
-	QOP qop;                // Query op(Q, Q -> Q)
-	AOP aop;                // Apply op(Q, L, leftend, rightend -> Q)
-	const vector<T> id;     // Lazy id(L), Query id(Q), Disable constant(Q)
-	T lset, lazy, val;
-	INIT init;
-	segment(int low, int high, LOP lop, QOP qop, AOP aop, const vector<T> &id, INIT init): low(low), high(high), lop(lop), qop(qop), aop(aop), id(id), init(init){
-		lazy = id[0], lset = id[2], val = init(low, high);
-	}
-	segment(const vector<T> &arr, int low, int high, LOP lop, QOP qop, AOP aop, const vector<T> &id): low(low), high(high), lop(lop), qop(qop), aop(aop), id(id){
-		lazy = id[0], lset = id[2];
+	B low, high;
+	T lazy, val;
+	segment(LOP lop, QOP qop, AOP aop, const array<T, 2> &id, B low, B high, INIT init): lop(lop), qop(qop), aop(aop), id(id), low(low), high(high), lazy(id[0]), init(init), val(init(low, high)){ }
+	template<typename IT>
+	segment(LOP lop, QOP qop, AOP aop, const array<T, 2> &id, B low, B high, IT begin, IT end): lop(lop), qop(qop), aop(aop), id(id), low(low), high(high), lazy(id[0]){
+		assert(end - begin == high - low);
 		if(high - low > 1){
-			int mid = low + (high - low) / 2;
-			l = new segment(arr, low, mid, lop, qop, aop, id);
-			r = new segment(arr, mid, high, lop, qop, aop, id);
-			val = qop(l->val, r->val);
+			IT inter = begin + (end - begin >> 1);
+			B mid = low + (high - low >> 1);
+			l = new segment(lop, qop, aop, id, low, mid, begin, inter);
+			r = new segment(lop, qop, aop, id, mid, high, inter, end);
+			val = qop(low, high, l->val, r->val);
 		}
-		else val = arr[low];
+		else val = *begin;
 	}
 	void push(){
 		if(!l){
-			int mid = low + (high - low) / 2;
-			l = new segment(low, mid, lop, qop, aop, id, init);
-			r = new segment(mid, high, lop, qop, aop, id, init);
+			B mid = low + (high - low >> 1);
+			l = new segment(lop, qop, aop, id, low, mid, init);
+			r = new segment(lop, qop, aop, id, mid, high, init);
 		}
-		if(lset != id[2]){
-			l->set(low, high, lset);
-			r->set(low, high, lset);
-			lset = id[2];
-		}
-		else if(lazy != id[0]){
+		if(lazy != id[0]){
 			l->update(low, high, lazy);
 			r->update(low, high, lazy);
 			lazy = id[0];
 		}
 	}
-	void set(int ql, int qr, T x){
+	void update(B ql, B qr, T x){
 		if(qr <= low || high <= ql) return;
 		if(ql <= low && high <= qr){
-			lset = x;
-			lazy = id[0];
-			val = aop(id[1], x, low, high);
-		}
-		else{
-			push();
-			l->set(ql, qr, x);
-			r->set(ql, qr, x);
-			val = qop(l->val, r->val);
-		}
-	}
-	void update(int ql, int qr, T x){
-		if(qr <= low || high <= ql) return;
-		if(ql <= low && high <= qr){
-			if(lset != id[2]) lset = lop(lset, x);
-			else lazy = lop(lazy, x);
-			val = aop(val, x, low, high);
+			lazy = lop(low, high, lazy, ql, qr, x);
+			val = aop(low, high, val, ql, qr, x);
 		}
 		else{
 			push();
 			l->update(ql, qr, x);
 			r->update(ql, qr, x);
-			val = qop(l->val, r->val);
+			val = qop(low, high, l->val, r->val);
 		}
 	}
-	T query(int ql, int qr){
+	T query(B ql, B qr){
 		if(qr <= low || high <= ql) return id[1];
 		if(ql <= low && high <= qr) return val;
 		push();
-		return qop(l->query(ql, qr), r->query(ql, qr));
+		return qop(low, high, l->query(ql, qr), r->query(ql, qr));
 	}
 	// Below assumes T is an ordered field and node stores positive values
 	template<typename IO>
@@ -2530,7 +2510,7 @@ struct segment{
 	}
 	template<typename IO>
 	int lower_bound(int i, T x, IO inv_op){
-		return lower_bound(qop(x, query(low, min(i, high))), inv_op);
+		return lower_bound(qop(low, high, x, query(low, min(i, high))), inv_op);
 	}
 	template<typename IO>
 	int pub(T x, IO inv_op){
@@ -2546,7 +2526,7 @@ struct segment{
 	}
 	template<typename IO>
 	int upper_bound(int i, T x, IO inv_op){
-		return upper_bound(qop(x, query(low, min(i, high))), inv_op);
+		return upper_bound(qop(low, high, x, query(low, min(i, high))), inv_op);
 	}
 };
 
@@ -3486,79 +3466,59 @@ struct binary_lift{
 // 156485479_4_5_3
 // Heavy Light Decomposition
 // O(N + M) processing, O(log^2 N) per query
-template<typename T, typename LOP, typename QOP, typename AOP, typename INIT = function<T(int, int)>>
+template<typename B, typename T, typename LOP, typename QOP, typename AOP, typename INIT = function<T(B, B)>>
 struct segment{
+	LOP lop;              // lop(low, high, lazy, ql, qr, x): apply query to the lazy
+	QOP qop;              // qop(low, high, lval, rval): merge the value
+	AOP aop;              // aop(low, high, val, ql, qr, x): apply query to the val
+	INIT init;            // init(low, high): initialize node representing (low, high)
+	const array<T, 2> id; // lazy id, query id
 	segment *l = 0, *r = 0;
-	int low, high;
-	LOP lop;                // Lazy op(L, L -> L)
-	QOP qop;                // Query op(Q, Q -> Q)
-	AOP aop;                // Apply op(Q, L, leftend, rightend -> Q)
-	const vector<T> id;     // Lazy id(L), Query id(Q), Disable constant(Q)
-	T lset, lazy, val;
-	INIT init;
-	segment(int low, int high, LOP lop, QOP qop, AOP aop, const vector<T> &id, INIT init): low(low), high(high), lop(lop), qop(qop), aop(aop), id(id), init(init){
-		lazy = id[0], lset = id[2], val = init(low, high);
-	}
-	segment(const vector<T> &arr, int low, int high, LOP lop, QOP qop, AOP aop, const vector<T> &id): low(low), high(high), lop(lop), qop(qop), aop(aop), id(id){
-		lazy = id[0], lset = id[2];
+	B low, high;
+	T lazy, val;
+	segment(LOP lop, QOP qop, AOP aop, const array<T, 2> &id, B low, B high, INIT init): lop(lop), qop(qop), aop(aop), id(id), low(low), high(high), lazy(id[0]), init(init), val(init(low, high)){ }
+	template<typename IT>
+	segment(LOP lop, QOP qop, AOP aop, const array<T, 2> &id, B low, B high, IT begin, IT end): lop(lop), qop(qop), aop(aop), id(id), low(low), high(high), lazy(id[0]){
+		assert(end - begin == high - low);
 		if(high - low > 1){
-			int mid = low + (high - low) / 2;
-			l = new segment(arr, low, mid, lop, qop, aop, id);
-			r = new segment(arr, mid, high, lop, qop, aop, id);
-			val = qop(l->val, r->val);
+			IT inter = begin + (end - begin >> 1);
+			B mid = low + (high - low >> 1);
+			l = new segment(lop, qop, aop, id, low, mid, begin, inter);
+			r = new segment(lop, qop, aop, id, mid, high, inter, end);
+			val = qop(low, high, l->val, r->val);
 		}
-		else val = arr[low];
+		else val = *begin;
 	}
 	void push(){
 		if(!l){
-			int mid = low + (high - low) / 2;
-			l = new segment(low, mid, lop, qop, aop, id, init);
-			r = new segment(mid, high, lop, qop, aop, id, init);
+			B mid = low + (high - low >> 1);
+			l = new segment(lop, qop, aop, id, low, mid, init);
+			r = new segment(lop, qop, aop, id, mid, high, init);
 		}
-		if(lset != id[2]){
-			l->set(low, high, lset);
-			r->set(low, high, lset);
-			lset = id[2];
-		}
-		else if(lazy != id[0]){
+		if(lazy != id[0]){
 			l->update(low, high, lazy);
 			r->update(low, high, lazy);
 			lazy = id[0];
 		}
 	}
-	void set(int ql, int qr, T x){
+	void update(B ql, B qr, T x){
 		if(qr <= low || high <= ql) return;
 		if(ql <= low && high <= qr){
-			lset = x;
-			lazy = id[0];
-			val = aop(id[1], x, low, high);
-		}
-		else{
-			push();
-			l->set(ql, qr, x);
-			r->set(ql, qr, x);
-			val = qop(l->val, r->val);
-		}
-	}
-	void update(int ql, int qr, T x){
-		if(qr <= low || high <= ql) return;
-		if(ql <= low && high <= qr){
-			if(lset != id[2]) lset = lop(lset, x);
-			else lazy = lop(lazy, x);
-			val = aop(val, x, low, high);
+			lazy = lop(low, high, lazy, ql, qr, x);
+			val = aop(low, high, val, ql, qr, x);
 		}
 		else{
 			push();
 			l->update(ql, qr, x);
 			r->update(ql, qr, x);
-			val = qop(l->val, r->val);
+			val = qop(low, high, l->val, r->val);
 		}
 	}
-	T query(int ql, int qr){
+	T query(B ql, B qr){
 		if(qr <= low || high <= ql) return id[1];
 		if(ql <= low && high <= qr) return val;
 		push();
-		return qop(l->query(ql, qr), r->query(ql, qr));
+		return qop(low, high, l->query(ql, qr), r->query(ql, qr));
 	}
 	// Below assumes T is an ordered field and node stores positive values
 	template<typename IO>
@@ -3575,7 +3535,7 @@ struct segment{
 	}
 	template<typename IO>
 	int lower_bound(int i, T x, IO inv_op){
-		return lower_bound(qop(x, query(low, min(i, high))), inv_op);
+		return lower_bound(qop(low, high, x, query(low, min(i, high))), inv_op);
 	}
 	template<typename IO>
 	int pub(T x, IO inv_op){
@@ -3591,7 +3551,7 @@ struct segment{
 	}
 	template<typename IO>
 	int upper_bound(int i, T x, IO inv_op){
-		return upper_bound(qop(x, query(low, min(i, high))), inv_op);
+		return upper_bound(qop(low, high, x, query(low, min(i, high))), inv_op);
 	}
 };
 template<typename DS, typename BO, typename T, int VALS_IN_EDGES = 1>
@@ -4985,8 +4945,8 @@ template<typename P> struct compare_by_angle{
 	bool operator()(const P &p, const P &q) const{ return ori(origin, p, q) > 0; }
 };
 template<typename It, typename P> void sort_by_angle(It first, It last, const P &origin){
-	first = partition(first, last, [&origin](const decltype(*first) &point){ return point == origin; });
-	auto pivot = partition(first, last, [&origin](const decltype(*first) &point) { return point > origin; });
+	first = partition(first, last, [&origin](const decltype(*first) &point){ return origin == point; });
+	auto pivot = partition(first, last, [&origin](const decltype(*first) &point) { return origin < point; });
 	compare_by_angle<P> cmp(origin);
 	sort(first, pivot, cmp), sort(pivot, last, cmp);
 }
@@ -5271,6 +5231,12 @@ map           | 1e6: 576ms 31560KB | 5e6: 4757ms 156552KB | 1e7: 10498ms 313280K
 unodered_map  | 1e6: 327ms 32220KB | 5e6: 2121ms 147132KB | 1e7: 4835ms  295068KB
 cc_hash_table | 1e6: 249ms 31916KB | 5e6: 2011ms 197140KB | 1e7: 4383ms  394588KB
 gp_hash_table | 1e6: 109ms 36720KB | 5e6: 686ms  295516KB | 1e7: ????    MLE
+
+constants
+set / map                     : around 4
+unordered_set / unordered_map : around 40
+cc_hash_table                 : around 35
+gp_hash_table                 : around 20
 */
 
 // 156485479_7_2
