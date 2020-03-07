@@ -2443,10 +2443,10 @@ struct segment{
 // O(1) or O(N) processing, O(log L) or O(log N) per query
 template<typename B, typename T, typename LOP, typename QOP, typename AOP, typename INIT = function<T(B, B)>>
 struct segment{
-	LOP lop;              // lop(low, high, lazy, ql, qr, x): apply query to the lazy
-	QOP qop;              // qop(low, high, lval, rval): merge the value
-	AOP aop;              // aop(low, high, val, ql, qr, x): apply query to the val
-	INIT init;            // init(low, high): initialize node representing (low, high)
+	LOP lop;              // lop(low, high, lazy, ql, qr, x): apply update to lazy
+	QOP qop;              // qop(low, high, lval, rval): merge vals
+	AOP aop;              // aop(low, high, val, ql, qr, x): apply update to val
+	INIT init;            // init(low, high): init the node representing (low, high)
 	const array<T, 2> id; // lazy id, query id
 	segment *l = 0, *r = 0;
 	B low, high;
