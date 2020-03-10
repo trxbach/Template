@@ -233,6 +233,22 @@ long long modgeo(long long b, long long e, const long long &mod){
 	}
 	return res;
 }
+template<typename T>
+T binexp(T b, long long e){
+	T res = 1;
+	for(; e; b *= b, e >>= 1) if(e & 1) res *= b;
+	return res;
+}
+template<typename T>
+T bingeo(const T &b, long long e){
+	if(e < 2) return e;
+	T res = 1, p = 1;
+	for(long long bit = 1 << 30 - __builtin_clz(e); bit; bit >>= 1){
+		res *= 1 + p * b, p *= p * b;
+		if(bit & e) res += (p *= b);
+	}
+	return res;
+}
 template<typename T, typename BO>
 T binexp(T b, long long e, BO bin_op, const T &id){
 	T res = id;
@@ -2443,10 +2459,10 @@ struct segment{
 // O(1) or O(N) processing, O(log L) or O(log N) per query
 template<typename B, typename T, typename LOP, typename QOP, typename AOP, typename INIT = function<T(B, B)>>
 struct segment{
-	LOP lop;              // lop(low, high, lazy, ql, qr, x): apply update to lazy
-	QOP qop;              // qop(low, high, lval, rval): merge vals
-	AOP aop;              // aop(low, high, val, ql, qr, x): apply update to val
-	INIT init;            // init(low, high): init the node representing (low, high)
+	LOP lop;              // lop(low, high, lazy, ql, qr, x): apply query to the lazy
+	QOP qop;              // qop(low, high, lval, rval): merge the value
+	AOP aop;              // aop(low, high, val, ql, qr, x): apply query to the val
+	INIT init;            // init(low, high): initialize node representing (low, high)
 	const array<T, 2> id; // lazy id, query id
 	segment *l = 0, *r = 0;
 	B low, high;
@@ -2460,7 +2476,7 @@ struct segment{
 			B mid = low + (high - low >> 1);
 			l = new segment(lop, qop, aop, id, low, mid, begin, inter);
 			r = new segment(lop, qop, aop, id, mid, high, inter, end);
-			val = qop(low, high, l->val, r->val);
+			val = qop(low, mid, high, l->val, r->val);
 		}
 		else val = *begin;
 	}
@@ -2486,47 +2502,47 @@ struct segment{
 			push();
 			l->update(ql, qr, x);
 			r->update(ql, qr, x);
-			val = qop(low, high, l->val, r->val);
+			val = qop(low, low + (high - low >> 1), high, l->val, r->val);
 		}
 	}
 	T query(B ql, B qr){
 		if(qr <= low || high <= ql) return id[1];
 		if(ql <= low && high <= qr) return val;
 		push();
-		return qop(low, high, l->query(ql, qr), r->query(ql, qr));
+		return qop(max(low, ql), clamp(low + (high - low >> 1), ql, qr), min(high, qr), l->query(ql, qr), r->query(ql, qr));
 	}
 	// Below assumes T is an ordered field and node stores positive values
-	template<typename IO>
-	int plb(T x, IO inv_op){
+	template<typename Compare = less<T>, typename IO = minus<T>>
+	int plb(T x, Compare cmp = less<T>(), IO inv_op = minus<T>()){
 		if(low + 1 == high) return high;
 		push();
-		if(l->val < x) return r->plb(inv_op(x, l->val), inv_op);
-		else return l->plb(x, inv_op);
+		if(cmp(l->val, x)) return r->plb(inv_op(x, l->val), cmp, inv_op);
+		else return l->plb(x, cmp, inv_op);
 	}
-	template<typename IO>
-	int lower_bound(T x, IO inv_op){ // min i such that query[0, i) >= x
-		if(val < x) return high + 1;
-		else return plb(x, inv_op);
+	template<typename Compare = less<T>, typename IO = minus<T>>
+	int lower_bound(T x, Compare cmp = less<T>(), IO inv_op = minus<T>()){ // min i such that query[0, i) >= x
+		if(cmp(val, x)) return high + 1;
+		else return plb(x, cmp, inv_op);
 	}
-	template<typename IO>
-	int lower_bound(int i, T x, IO inv_op){
-		return lower_bound(qop(low, high, x, query(low, min(i, high))), inv_op);
+	template<typename Compare = less<T>, typename IO = minus<T>>
+	int lower_bound(int i, T x, Compare cmp = less<T>(), IO inv_op = minus<T>()){
+		return max(i, lower_bound(qop(low, low + (high - low >> 1), high, x, query(low, min(i, high))), cmp, inv_op));
 	}
-	template<typename IO>
-	int pub(T x, IO inv_op){
+	template<typename Compare = less<T>, typename IO = minus<T>>
+	int pub(T x, Compare cmp = less<T>(), IO inv_op = minus<T>()){
 		if(low + 1 == high) return high;
 		push();
-		if(x < l->val) return l->pub(x, inv_op);
-		else return r->pub(inv_op(x, l->val), inv_op);
+		if(cmp(x, l->val)) return l->pub(x, cmp, inv_op);
+		else return r->pub(inv_op(x, l->val), cmp, inv_op);
 	}
-	template<typename IO>
-	int upper_bound(T x, IO inv_op){ // min i such that query[0, i) > val
-		if(x < val) return pub(x, inv_op);
+	template<typename Compare = less<T>, typename IO = minus<T>>
+	int upper_bound(T x, Compare cmp = less<T>(), IO inv_op = minus<T>()){ // min i such that query[0, i) > val
+		if(cmp(x, val)) return pub(x, cmp, inv_op);
 		else return high + 1;
 	}
-	template<typename IO>
-	int upper_bound(int i, T x, IO inv_op){
-		return upper_bound(qop(low, high, x, query(low, min(i, high))), inv_op);
+	template<typename Compare = less<T>, typename IO = minus<T>>
+	int upper_bound(int i, T x, Compare cmp = less<T>(), IO inv_op = minus<T>()){
+		return max(i, upper_bound(qop(low, low + (high - low >> 1), high, x, query(low, min(i, high))), cmp, inv_op));
 	}
 };
 
@@ -3485,7 +3501,7 @@ struct segment{
 			B mid = low + (high - low >> 1);
 			l = new segment(lop, qop, aop, id, low, mid, begin, inter);
 			r = new segment(lop, qop, aop, id, mid, high, inter, end);
-			val = qop(low, high, l->val, r->val);
+			val = qop(low, mid, high, l->val, r->val);
 		}
 		else val = *begin;
 	}
@@ -3511,47 +3527,47 @@ struct segment{
 			push();
 			l->update(ql, qr, x);
 			r->update(ql, qr, x);
-			val = qop(low, high, l->val, r->val);
+			val = qop(low, low + (high - low >> 1), high, l->val, r->val);
 		}
 	}
 	T query(B ql, B qr){
 		if(qr <= low || high <= ql) return id[1];
 		if(ql <= low && high <= qr) return val;
 		push();
-		return qop(low, high, l->query(ql, qr), r->query(ql, qr));
+		return qop(max(low, ql), clamp(low + (high - low >> 1), ql, qr), min(high, qr), l->query(ql, qr), r->query(ql, qr));
 	}
 	// Below assumes T is an ordered field and node stores positive values
-	template<typename IO>
-	int plb(T x, IO inv_op){
+	template<typename Compare = less<T>, typename IO = minus<T>>
+	int plb(T x, Compare cmp = less<T>(), IO inv_op = minus<T>()){
 		if(low + 1 == high) return high;
 		push();
-		if(l->val < x) return r->plb(inv_op(x, l->val), inv_op);
-		else return l->plb(x, inv_op);
+		if(cmp(l->val, x)) return r->plb(inv_op(x, l->val), cmp, inv_op);
+		else return l->plb(x, cmp, inv_op);
 	}
-	template<typename IO>
-	int lower_bound(T x, IO inv_op){ // min i such that query[0, i) >= x
-		if(val < x) return high + 1;
-		else return plb(x, inv_op);
+	template<typename Compare = less<T>, typename IO = minus<T>>
+	int lower_bound(T x, Compare cmp = less<T>(), IO inv_op = minus<T>()){ // min i such that query[0, i) >= x
+		if(cmp(val, x)) return high + 1;
+		else return plb(x, cmp, inv_op);
 	}
-	template<typename IO>
-	int lower_bound(int i, T x, IO inv_op){
-		return lower_bound(qop(low, high, x, query(low, min(i, high))), inv_op);
+	template<typename Compare = less<T>, typename IO = minus<T>>
+	int lower_bound(int i, T x, Compare cmp = less<T>(), IO inv_op = minus<T>()){
+		return max(i, lower_bound(qop(low, low + (high - low >> 1), high, x, query(low, min(i, high))), cmp, inv_op));
 	}
-	template<typename IO>
-	int pub(T x, IO inv_op){
+	template<typename Compare = less<T>, typename IO = minus<T>>
+	int pub(T x, Compare cmp = less<T>(), IO inv_op = minus<T>()){
 		if(low + 1 == high) return high;
 		push();
-		if(x < l->val) return l->pub(x, inv_op);
-		else return r->pub(inv_op(x, l->val), inv_op);
+		if(cmp(x, l->val)) return l->pub(x, cmp, inv_op);
+		else return r->pub(inv_op(x, l->val), cmp, inv_op);
 	}
-	template<typename IO>
-	int upper_bound(T x, IO inv_op){ // min i such that query[0, i) > val
-		if(x < val) return pub(x, inv_op);
+	template<typename Compare = less<T>, typename IO = minus<T>>
+	int upper_bound(T x, Compare cmp = less<T>(), IO inv_op = minus<T>()){ // min i such that query[0, i) > val
+		if(cmp(x, val)) return pub(x, cmp, inv_op);
 		else return high + 1;
 	}
-	template<typename IO>
-	int upper_bound(int i, T x, IO inv_op){
-		return upper_bound(qop(low, high, x, query(low, min(i, high))), inv_op);
+	template<typename Compare = less<T>, typename IO = minus<T>>
+	int upper_bound(int i, T x, Compare cmp = less<T>(), IO inv_op = minus<T>()){
+		return max(i, upper_bound(qop(low, low + (high - low >> 1), high, x, query(low, min(i, high))), cmp, inv_op));
 	}
 };
 template<typename DS, typename BO, typename T, int VALS_IN_EDGES = 1>
@@ -4602,10 +4618,11 @@ struct double_polyhash{
 // O(log ALP_SIZE) per extend call
 template<typename Str>
 struct suffix_automaton{
+	typedef typename Str::value_type Char;
 	struct node{
 		int len = 0, link = -1, firstpos = -1;
 		bool isclone = false;
-		map<typename Str::value_type, int> next;
+		map<Char, int> next;
 		vector<int> invlink;
 		int cnt = -1;
 	};
@@ -4615,7 +4632,7 @@ struct suffix_automaton{
 		state.reserve(s.size());
 		for(auto c: s) insert(c);
 	}
-	void insert(typename Str::value_type c){
+	void insert(Char c){
 		int cur = state.size();
 		state.push_back({state[last].len + 1, -1, state[last].len});
 		int p = last;
@@ -4805,7 +4822,8 @@ Str lcs(vector<Str> a){
 // 2D Geometry Classes
 template<typename T = long long> struct point{
 	T x, y;
-	template<typename U> point(const point<U> &otr): x(otr.x), y(otr.y){ }
+	int ind;
+	template<typename U> point(const point<U> &otr): x(otr.x), y(otr.y), ind(otr.ind){ }
 	template<typename U, typename V> point(const pair<U, V> &p): x(p.first), y(p.second){ }
 	template<typename U = T, typename V = T> point(U x = 0, V y = 0): x(x), y(y){ }
 	template<typename U> explicit operator point<U>() const{ return point<U>(static_cast<U>(x), static_cast<U>(y)); }
@@ -4953,7 +4971,8 @@ template<typename It, typename P> void sort_by_angle(It first, It last, const P 
 // 3D Geometry Classes
 template<typename T = long long> struct point{
 	T x, y, z;
-	template<typename U> point(const point<U> &otr): x(otr.x), y(otr.y), z(otr.z){ }
+	int ind;
+	template<typename U> point(const point<U> &otr): x(otr.x), y(otr.y), z(otr.z), ind(otr.ind){ }
 	template<typename U, typename V, typename W> point(const tuple<U, V, W> &p): x(get<0>(p)), y(get<1>(p)), z(get<2>(p)){ }
 	template<typename U = T, typename V = T, typename W = T> point(U x = 0, V y = 0, W z = 0): x(x), y(y), z(z){ }
 	template<typename U> explicit operator point<U>() const{ return point<U>(static_cast<U>(x), static_cast<U>(y), static_cast<U>(z)); }
@@ -5044,9 +5063,8 @@ template<typename T> point<double> closest_point_on_segment(const point<T> &p, c
 // 156485479_6_2
 // Convex Hull and Minkowski Sum
 // O(n log n) construction, O(n) if sorted.
-template<typename Polygon>
-struct convex_hull: pair<Polygon, Polygon>{ // (Lower, Upper) type {0: both, 1: lower, 2: upper}
-	int type;
+template<typename Polygon, int type = 0> // type {0: both, 1: lower, 2: upper}
+struct convex_hull: pair<Polygon, Polygon>{ // (Lower, Upper)
 	convex_hull(Polygon arr = Polygon(), int type = 0, bool is_sorted = false): type(type){
 		if(!is_sorted) sort(arr.begin(), arr.end()), arr.resize(unique(arr.begin(), arr.end()) - arr.begin());
 #define ADDP(C, cmp) while(int(C.size()) > 1 && ori(C[int(C.size()) - 2], p, C.back()) cmp 0) C.pop_back(); C.push_back(p);
