@@ -2220,9 +2220,11 @@ template<typename T, typename BO>
 struct sparse_table{
 	int N;
 	BO bin_op;
+	const T id;
 	vector<vector<T>> val;
 	vector<int> bit;
-	sparse_table(const vector<T> &arr, BO bin_op): N(arr.size()), bin_op(bin_op), val(__lg(N) + 1, arr), bit(N + 1){
+	template<typename IT>
+	sparse_table(IT begin, IT end, BO bin_op, T id): N(distance(begin, end)), bin_op(bin_op), id(id), val(__lg(N) + 1, vector<T>(begin, end)), bit(N + 1){
 		for(int i = 1; i <= N; ++ i) bit[i] = __lg(i);
 		for(int i = 0; i < __lg(N); ++ i) for(int j = 0; j < N; ++ j){
 			val[i + 1][j] = bin_op(val[i][j], val[i][min(N - 1, j + (1 << i))]);
@@ -2230,7 +2232,7 @@ struct sparse_table{
 	}
 	sparse_table(){ }
 	T query(int l, int r){
-		assert(l < r);
+		if(l >= r) return id;
 		int d = bit[r - l];
 		return bin_op(val[d][l], val[d][r - (1 << d)]);
 	}
@@ -2271,10 +2273,12 @@ struct segment{
 	BO bin_op;
 	const T id;
 	vector<T> val;
-	segment(const vector<T> &arr, BO bin_op, T id): N(arr.size()), bin_op(bin_op), id(id), val(N << 1, id){
-		for(int i = 0; i < N; ++ i) val[i + N] = arr[i];
+	template<typename IT>
+	segment(IT begin, IT end, BO bin_op, T id): N(end - begin), bin_op(bin_op), id(id), val(N << 1, id){
+		for(int i = 0; i < N; ++ i) val[i + N] = *(begin ++);
 		for(int i = N - 1; i > 0; -- i) val[i] = bin_op(val[i << 1], val[i << 1 | 1]);
 	}
+	segment(int N, BO bin_op, T id): N(N), bin_op(bin_op), id(id), val(N << 1, id){ }
 	void set(int p, T x){
 		for(p += N, val[p] = x; p > 1; p >>= 1) val[p >> 1] = bin_op(val[p], val[p ^ 1]);
 	}
@@ -2301,9 +2305,11 @@ struct segment{
 	BO bin_op;
 	T id;
 	vector<T> val;
-	segment(const vector<T> &arr, BO bin_op, T id): N(arr.size()), bin_op(bin_op), id(id), val(N << 1, id){
-		for(int i = 0; i < N; ++ i) val[i + N] = arr[i];
+	template<typename IT>
+	segment(IT begin, IT end, BO bin_op, T id): N(end - begin), bin_op(bin_op), id(id), val(N << 1, id){
+		for(int i = 0; i < N; ++ i) val[i + N] = *(begin ++);
 	}
+	segment(int N, BO bin_op, T id): N(N), bin_op(bin_op), id(id), val(N << 1, id){ }
 	void update(int l, int r, T x){
 		for(l += N, r += N; l < r; l >>= 1, r >>= 1){
 			if(l & 1) val[l ++] = bin_op(val[l], x);
@@ -2513,35 +2519,35 @@ struct segment{
 	}
 	// Below assumes T is an ordered field and node stores positive values
 	template<typename Compare = less<T>, typename IO = minus<T>>
-	int plb(T x, Compare cmp = less<T>(), IO inv_op = minus<T>()){
+	B plb(T x, Compare cmp = less<T>(), IO inv_op = minus<T>()){
 		if(low + 1 == high) return high;
 		push();
 		if(cmp(l->val, x)) return r->plb(inv_op(x, l->val), cmp, inv_op);
 		else return l->plb(x, cmp, inv_op);
 	}
 	template<typename Compare = less<T>, typename IO = minus<T>>
-	int lower_bound(T x, Compare cmp = less<T>(), IO inv_op = minus<T>()){ // min i such that query[0, i) >= x
+	B lower_bound(T x, Compare cmp = less<T>(), IO inv_op = minus<T>()){ // min i such that query[0, i) >= x
 		if(cmp(val, x)) return high + 1;
 		else return plb(x, cmp, inv_op);
 	}
 	template<typename Compare = less<T>, typename IO = minus<T>>
-	int lower_bound(int i, T x, Compare cmp = less<T>(), IO inv_op = minus<T>()){
+	B lower_bound(B i, T x, Compare cmp = less<T>(), IO inv_op = minus<T>()){
 		return max(i, lower_bound(qop(low, low + (high - low >> 1), high, x, query(low, min(i, high))), cmp, inv_op));
 	}
 	template<typename Compare = less<T>, typename IO = minus<T>>
-	int pub(T x, Compare cmp = less<T>(), IO inv_op = minus<T>()){
+	B pub(T x, Compare cmp = less<T>(), IO inv_op = minus<T>()){
 		if(low + 1 == high) return high;
 		push();
 		if(cmp(x, l->val)) return l->pub(x, cmp, inv_op);
 		else return r->pub(inv_op(x, l->val), cmp, inv_op);
 	}
 	template<typename Compare = less<T>, typename IO = minus<T>>
-	int upper_bound(T x, Compare cmp = less<T>(), IO inv_op = minus<T>()){ // min i such that query[0, i) > val
+	B upper_bound(T x, Compare cmp = less<T>(), IO inv_op = minus<T>()){ // min i such that query[0, i) > val
 		if(cmp(x, val)) return pub(x, cmp, inv_op);
 		else return high + 1;
 	}
 	template<typename Compare = less<T>, typename IO = minus<T>>
-	int upper_bound(int i, T x, Compare cmp = less<T>(), IO inv_op = minus<T>()){
+	B upper_bound(B i, T x, Compare cmp = less<T>(), IO inv_op = minus<T>()){
 		return max(i, upper_bound(qop(low, low + (high - low >> 1), high, x, query(low, min(i, high))), cmp, inv_op));
 	}
 };
@@ -2636,9 +2642,11 @@ struct fenwick{
 	IO inv_op;
 	const T id;
 	vector<T> val;
-	fenwick(const vector<T> &arr, BO bin_op, IO inv_op, T id): N(arr.size()), bin_op(bin_op), inv_op(inv_op), id(id), val(N + 1, id){
-		for(int i = 0; i < N; ++ i) update(i, arr[i]);
+	template<typename IT>
+	fenwick(IT begin, IT end, BO bin_op, IO inv_op, T id): N(distance(begin, end)), bin_op(bin_op), inv_op(inv_op), id(id), val(N + 1, id){
+		for(int i = 0; i < N; ++ i) update(i, *(begin ++));
 	}
+	fenwick(IT begin, IT end, BO bin_op, IO inv_op, T id): N(N), bin_op(bin_op), inv_op(inv_op), id(id), val(N + 1, id){ }
 	void set(int p, T x){
 		for(x = inv_op(x, query(p, p + 1)), ++ p; p <= N; p += p & -p) val[p] = bin_op(val[p], x);
 	}
@@ -2665,9 +2673,11 @@ struct fenwick{
 	IO inv_op;
 	const T id;
 	vector<T> val;
-	fenwick(const vector<T> &arr, BO bin_op, IO inv_op, T id): N(arr.size()), bin_op(bin_op), inv_op(inv_op), id(id), val(N + 1, id){
-		for(int i = 0; i < N; ++ i) update(i, arr[i]);
+	template<typename IT>
+	fenwick(IT begin, IT end, BO bin_op, IO inv_op, T id): N(distance(begin, end)), bin_op(bin_op), inv_op(inv_op), id(id), val(N + 1, id){
+		for(int i = 0; i < N; ++ i) update(i, *(begin ++));
 	}
+	fenwick(int N, BO bin_op, IO inv_op, T id): N(N), bin_op(bin_op), inv_op(inv_op), id(id), val(N + 1, id){ }
 	void set(int p, T x){
 		for(x = inv_op(x, query(p, p + 1)), ++ p; p <= N; p += p & -p) val[p] = bin_op(val[p], x);
 	}
@@ -2863,9 +2873,11 @@ struct fenwick{
 	IO inv_op;
 	const T id;
 	vector<T> val;
-	fenwick(const vector<T> &arr, BO bin_op, IO inv_op, T id): N(arr.size()), bin_op(bin_op), inv_op(inv_op), id(id), val(N + 1, id){
-		for(int i = 0; i < N; ++ i) update(i, arr[i]);
+	template<typename IT>
+	fenwick(IT begin, IT end, BO bin_op, IO inv_op, T id): N(distance(begin, end)), bin_op(bin_op), inv_op(inv_op), id(id), val(N + 1, id){
+		for(int i = 0; i < N; ++ i) update(i, *(begin ++));
 	}
+	fenwick(int N, BO bin_op, IO inv_op, T id): N(N), bin_op(bin_op), inv_op(inv_op), id(id), val(N + 1, id){ }
 	void set(int p, T x){
 		for(x = inv_op(x, query(p, p + 1)), ++ p; p <= N; p += p & -p) val[p] = bin_op(val[p], x);
 	}
@@ -2886,15 +2898,16 @@ struct offline_less_than_k_query{
 	int N;
 	vector<pair<T, int>> event;
 	vector<tuple<T, int, int, int>> queries;
-	offline_less_than_k_query(const vector<T> &arr, bool IS_DVQ = true): N(arr.size()), event(N){
+	template<typename IT>
+	offline_less_than_k_query(IT begin, IT end, bool IS_DVQ = true): N(distance(begin, end)), event(N){
 		if(IS_DVQ){
 			map<T, int> q;
 			for(int i = 0; i < N; ++ i){
-				event[i] = {(q.count(arr[i]) ? q[arr[i]] : -1), i};
-				q[arr[i]] = i;
+				event[i] = {(q.count(*begin) ? q[*begin] : -1), i};
+				q[*(begin ++)] = i;
 			}
 		}
-		else for(int i = 0; i < N; ++ i) event[i] = {arr[i], i};
+		else for(int i = 0; i < N; ++ i) event[i] = {*(begin ++), i};
 	}
 	void query(int i, int ql, int qr){ // For distinct value query
 		queries.emplace_back(ql, ql, qr, i);
@@ -3343,9 +3356,11 @@ template<typename T, typename BO>
 struct sparse_table{
 	int N;
 	BO bin_op;
+	const T id;
 	vector<vector<T>> val;
 	vector<int> bit;
-	sparse_table(const vector<T> &arr, BO bin_op): N(arr.size()), bin_op(bin_op), val(__lg(N) + 1, arr), bit(N + 1){
+	template<typename IT>
+	sparse_table(IT begin, IT end, BO bin_op, T id): N(distance(begin, end)), bin_op(bin_op), id(id), val(__lg(N) + 1, vector<T>(begin, end)), bit(N + 1){
 		for(int i = 1; i <= N; ++ i) bit[i] = __lg(i);
 		for(int i = 0; i < __lg(N); ++ i) for(int j = 0; j < N; ++ j){
 			val[i + 1][j] = bin_op(val[i][j], val[i][min(N - 1, j + (1 << i))]);
@@ -3353,7 +3368,7 @@ struct sparse_table{
 	}
 	sparse_table(){ }
 	T query(int l, int r){
-		assert(l < r);
+		if(l >= r) return id;
 		int d = bit[r - l];
 		return bin_op(val[d][l], val[d][r - (1 << d)]);
 	}
@@ -3363,7 +3378,7 @@ struct LCA{
 	vector<long long> depth;
 	int root;
 	sparse_table<pair<int, int>, function<pair<int, int>(pair<int, int>, pair<int, int>)>> rmq;
-	LCA(vector<vector<pair<int, int>>> &adj, int root): root(root), time(adj.size(), -99), depth(adj.size()), rmq(dfs(adj), [](pair<int, int> x, pair<int, int> y){ return min(x, y); }){}
+	LCA(vector<vector<pair<int, int>>> &adj, int root): root(root), time(adj.size(), -99), depth(adj.size()), rmq(dfs(adj), [](pair<int, int> x, pair<int, int> y){ return min(x, y); }, numeric_limits<int>::max() / 2){}
 	vector<pair<int, int>> dfs(vector<vector<pair<int, int>>> &adj){
 		vector<tuple<int, int, int, long long>> q(1);
 		vector<pair<int, int>> res;
@@ -3538,35 +3553,35 @@ struct segment{
 	}
 	// Below assumes T is an ordered field and node stores positive values
 	template<typename Compare = less<T>, typename IO = minus<T>>
-	int plb(T x, Compare cmp = less<T>(), IO inv_op = minus<T>()){
+	B plb(T x, Compare cmp = less<T>(), IO inv_op = minus<T>()){
 		if(low + 1 == high) return high;
 		push();
 		if(cmp(l->val, x)) return r->plb(inv_op(x, l->val), cmp, inv_op);
 		else return l->plb(x, cmp, inv_op);
 	}
 	template<typename Compare = less<T>, typename IO = minus<T>>
-	int lower_bound(T x, Compare cmp = less<T>(), IO inv_op = minus<T>()){ // min i such that query[0, i) >= x
+	B lower_bound(T x, Compare cmp = less<T>(), IO inv_op = minus<T>()){ // min i such that query[0, i) >= x
 		if(cmp(val, x)) return high + 1;
 		else return plb(x, cmp, inv_op);
 	}
 	template<typename Compare = less<T>, typename IO = minus<T>>
-	int lower_bound(int i, T x, Compare cmp = less<T>(), IO inv_op = minus<T>()){
+	B lower_bound(B i, T x, Compare cmp = less<T>(), IO inv_op = minus<T>()){
 		return max(i, lower_bound(qop(low, low + (high - low >> 1), high, x, query(low, min(i, high))), cmp, inv_op));
 	}
 	template<typename Compare = less<T>, typename IO = minus<T>>
-	int pub(T x, Compare cmp = less<T>(), IO inv_op = minus<T>()){
+	B pub(T x, Compare cmp = less<T>(), IO inv_op = minus<T>()){
 		if(low + 1 == high) return high;
 		push();
 		if(cmp(x, l->val)) return l->pub(x, cmp, inv_op);
 		else return r->pub(inv_op(x, l->val), cmp, inv_op);
 	}
 	template<typename Compare = less<T>, typename IO = minus<T>>
-	int upper_bound(T x, Compare cmp = less<T>(), IO inv_op = minus<T>()){ // min i such that query[0, i) > val
+	B upper_bound(T x, Compare cmp = less<T>(), IO inv_op = minus<T>()){ // min i such that query[0, i) > val
 		if(cmp(x, val)) return pub(x, cmp, inv_op);
 		else return high + 1;
 	}
 	template<typename Compare = less<T>, typename IO = minus<T>>
-	int upper_bound(int i, T x, Compare cmp = less<T>(), IO inv_op = minus<T>()){
+	B upper_bound(B i, T x, Compare cmp = less<T>(), IO inv_op = minus<T>()){
 		return max(i, upper_bound(qop(low, low + (high - low >> 1), high, x, query(low, min(i, high))), cmp, inv_op));
 	}
 };
@@ -4350,9 +4365,11 @@ template<typename T, typename BO>
 struct sparse_table{
 	int N;
 	BO bin_op;
+	const T id;
 	vector<vector<T>> val;
 	vector<int> bit;
-	sparse_table(const vector<T> &arr, BO bin_op): N(arr.size()), bin_op(bin_op), val(__lg(N) + 1, arr), bit(N + 1){
+	template<typename IT>
+	sparse_table(IT begin, IT end, BO bin_op, T id): N(distance(begin, end)), bin_op(bin_op), id(id), val(__lg(N) + 1, vector<T>(begin, end)), bit(N + 1){
 		for(int i = 1; i <= N; ++ i) bit[i] = __lg(i);
 		for(int i = 0; i < __lg(N); ++ i) for(int j = 0; j < N; ++ j){
 			val[i + 1][j] = bin_op(val[i][j], val[i][min(N - 1, j + (1 << i))]);
@@ -4360,7 +4377,7 @@ struct sparse_table{
 	}
 	sparse_table(){ }
 	T query(int l, int r){
-		assert(l < r);
+		if(l >= r) return id;
 		int d = bit[r - l];
 		return bin_op(val[d][l], val[d][r - (1 << d)]);
 	}
@@ -4376,7 +4393,7 @@ struct suffix_array{
 		p.erase(p.begin());
 		for(int i = 0; i < N; ++ i) c[p[i]] = i;
 		l = get_lcp(p);
-		rmq = sparse_table<int, function<int(int, int)>>(l, [](int x, int y){ return min(x, y); });
+		rmq = sparse_table<int, function<int(int, int)>>(l, [](int x, int y){ return min(x, y); }, numeric_limits<int>::max() / 2);
 	}
 	vector<int> sort_cyclic_shifts(const Str &s){
 		int n = int(s.size());
@@ -4451,62 +4468,57 @@ vector<int> z_function(const Str &s){
 // 156485479_5_5
 // Aho Corasic Algorithm
 // O(W) preprocessing, O(L) per query
-template<int C>
+template<typename Str>
 struct aho_corasic{
+	typedef typename Str::value_type Char;
 	struct node{
 		int par, link = -1, elink = -1;
-		char cpar;
-		vector<int> next, go;
+		Char cpar;
+		map<Char, int> next, go;
 		bool isleaf = false;
 		int ind;
-		node(int par = -1, char pch = '$'): par(par), cpar(pch), next(C, -1), go(C, -1){}
+		node(int par = -1, Char pch = '$'): par(par), cpar(pch){ }
 	};
-	vector<node> arr;
-	function<int(char)> trans;
-	aho_corasic(function<int(char)> trans = [](char c){return c < 'Z' ? c - 'A' : c - 'a';}): arr(1), trans(trans){}
-	void insert(int ind, const string &s){
+	vector<node> state = vector<node>(1);
+	void insert(int ind, const Str &s){
 		int u = 0;
-		for(auto &ch: s){
-			int c = trans(ch);
-			if(arr[u].next[c] == -1){
-				arr[u].next[c] = arr.size();
-				arr.emplace_back(u, ch);
+		for(auto &c: s){
+			if(!state[u].next.count(c)){
+				state[u].next[c] = int(state.size());
+				state.emplace_back(u, c);
 			}
-			u = arr[u].next[c];
+			u = state[u].next[c];
 		}
-		arr[u].isleaf = true;
-		arr[u].ind = ind;
+		state[u].isleaf = true;
+		state[u].ind = ind;
 	}
 	int get_link(int u){
-		if(arr[u].link == -1){
-			if(!u || !arr[u].par) arr[u].link = 0;
-			else arr[u].link = go(get_link(arr[u].par), arr[u].cpar);
+		if(state[u].link == -1){
+			if(!u || !state[u].par) state[u].link = 0;
+			else state[u].link = go(get_link(state[u].par), state[u].cpar);
 		}
-		return arr[u].link;
+		return state[u].link;
 	}
 	int get_elink(int u){
-		if(arr[u].elink == -1){
-			if(!u || !get_link(u)) arr[u].elink = 0;
-			else if(arr[get_link(u)].isleaf) arr[u].elink = get_link(u);
-			else arr[u].elink = get_elink(get_link(u));
+		if(state[u].elink == -1){
+			if(!u || !get_link(u)) state[u].elink = 0;
+			else if(state[get_link(u)].isleaf) state[u].elink = get_link(u);
+			else state[u].elink = get_elink(get_link(u));
 		}
-		return arr[u].elink;
+		return state[u].elink;
 	}
-	int go(int u, char ch){
-		int c = trans(ch);
-		if(arr[u].go[c] == -1){
-			if(arr[u].next[c] != -1) arr[u].go[c] = arr[u].next[c];
-			else arr[u].go[c] = u == 0 ? 0 : go(get_link(u), ch);
+	int go(int u, Char c){
+		if(!state[u].go.count(c)){
+			if(state[u].next.count(c)) state[u].go[c] = state[u].next[c];
+			else state[u].go[c] = u ? go(get_link(u), c) : u;
 		}
-		return arr[u].go[c];
+		return state[u].go[c];
 	}
-	void print(int u, string s = ""){
-		cout << "Node " << u << ": par = " << arr[u].par << ", cpar = " << arr[u].cpar << ", string: " << s << "\n";
-		for(int i = 0; i < C; ++ i){
-			if(arr[u].next[i] != -1){
-				cout << u << " => ";
-				print(arr[u].next[i], s + string(1, i + 'a'));
-			}
+	void print(int u, Str s = ""){
+		cout << "Node " << u << ": par = " << state[u].par << ", cpar = " << state[u].cpar << ", string: " << s << "\n";
+		for(auto &[c, v]: state[u].next){
+			cout << u << " => ";
+			print(v, s + Str{c});
 		}
 	}
 };
