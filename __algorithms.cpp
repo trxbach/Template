@@ -2646,7 +2646,7 @@ struct fenwick{
 	fenwick(IT begin, IT end, BO bin_op, IO inv_op, T id): N(distance(begin, end)), bin_op(bin_op), inv_op(inv_op), id(id), val(N + 1, id){
 		for(int i = 0; i < N; ++ i) update(i, *(begin ++));
 	}
-	fenwick(IT begin, IT end, BO bin_op, IO inv_op, T id): N(N), bin_op(bin_op), inv_op(inv_op), id(id), val(N + 1, id){ }
+	fenwick(int N, BO bin_op, IO inv_op, T id): N(N), bin_op(bin_op), inv_op(inv_op), id(id), val(N + 1, id){ }
 	void set(int p, T x){
 		for(x = inv_op(x, query(p, p + 1)), ++ p; p <= N; p += p & -p) val[p] = bin_op(val[p], x);
 	}
@@ -2918,7 +2918,7 @@ struct offline_less_than_k_query{
 	template<typename Action>
 	void solve(Action ans){ // ans(index, answer)
 		sort(queries.begin(), queries.end()), sort(event.begin(), event.end(), greater<pair<T, int>>());
-		fenwick tr(vector<int>(N), plus<int>(), minus<int>(), 0);
+		fenwick tr(N, plus<int>(), minus<int>(), 0);
 		for(auto &[k, ql, qr, i]: queries){
 			while(!event.empty() && event.back().first < k){
 				tr.update(event.back().second, 1);
@@ -4365,7 +4365,7 @@ template<typename T, typename BO>
 struct sparse_table{
 	int N;
 	BO bin_op;
-	const T id;
+	T id;
 	vector<vector<T>> val;
 	vector<int> bit;
 	template<typename IT>
@@ -4385,15 +4385,14 @@ struct sparse_table{
 template<typename Str, int lim = 256>
 struct suffix_array{
 	int N;
-	Str s;
 	vector<int> p, c, l; // p[i]: starting index of i-th suffix in SA, c[i]: position of suffix of index i in SA
 	sparse_table<int, function<int(int, int)>> rmq;
-	suffix_array(const Str &s): N(s.size()), c(N), s(s){
-		p = sort_cyclic_shifts(s + "$");
+	suffix_array(const Str &s, typename Str::value_type delim = '$'): N(s.size()), c(N){
+		p = sort_cyclic_shifts(s + delim);
 		p.erase(p.begin());
 		for(int i = 0; i < N; ++ i) c[p[i]] = i;
-		l = get_lcp(p);
-		rmq = sparse_table<int, function<int(int, int)>>(l, [](int x, int y){ return min(x, y); }, numeric_limits<int>::max() / 2);
+		l = get_lcp(s, p);
+		rmq = sparse_table<int, function<int(int, int)>>(l.begin(), l.end(), [](int x, int y){ return min(x, y); }, numeric_limits<int>::max() / 2);
 	}
 	vector<int> sort_cyclic_shifts(const Str &s){
 		int n = int(s.size());
@@ -4427,7 +4426,7 @@ struct suffix_array{
 		}
 		return p;
 	}
-	vector<int> get_lcp(const vector<int> &p){
+	vector<int> get_lcp(const Str &s, const vector<int> &p){
 		int n = int(s.size());
 		vector<int> rank(n);
 		for(int i = 0; i < n; ++ i) rank[p[i]] = i;
