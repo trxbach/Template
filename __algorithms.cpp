@@ -128,6 +128,14 @@ Category
 		156485479_3_7
 	3.8. Mo's Algorithm
 		156485479_3_8
+	3.9. Treap
+		156485479_3_9
+	3.10. Splay Tree
+		156485479_3_10
+	3.11. Link Cut Tree
+		156485479_3_11
+	3.12. Unital Sorter
+		156485479_3_12
 
 
 4. Graph
@@ -2092,6 +2100,12 @@ struct bigint{
 // 156485479_2_9
 // Modular Arithmetics
 template<typename T>
+T binexp(T b, long long e){
+	T res = 1;
+	for(; e; b *= b, e >>= 1) if(e & 1) res *= b;
+	return res;
+}
+template<typename T>
 T modinv(T a, T m){
 	T u = 0, v = 1;
 	while(a){
@@ -2188,6 +2202,110 @@ template<typename T> istream &operator>>(istream &in, Z_p<T> &number){
 template<typename T> ostream &operator<<(ostream &out, const Z_p<T> &number){ return out << number(); }
 constexpr int mod = (int)1e9 + 7;
 using Zp = Z_p<integral_constant<decay<decltype(mod)>::type, mod>>;
+
+// Variable Mod
+template<typename T>
+T binexp(T b, long long e){
+	T res = 1;
+	for(; e; b *= b, e >>= 1) if(e & 1) res *= b;
+	return res;
+}
+template<typename T>
+T modinv(T a, T m){
+	T u = 0, v = 1;
+	while(a){
+		T t = m / a;
+		m -= t * a; swap(a, m);
+		u -= t * v; swap(u, v);
+	}
+	assert(m == 1);
+	return u;
+}
+int mod;
+template<typename T>
+struct Z_p{
+	using Type = int;
+	constexpr Z_p(): value(){ }
+	template<typename U> Z_p(const U &x){ value = normalize(x); }
+	template<typename U> static Type normalize(const U &x){
+		Type v;
+		if(-mod <= x && x < mod) v = static_cast<Type>(x);
+		else v = static_cast<Type>(x % mod);
+		if(v < 0) v += mod;
+		return v;
+	}
+	const Type& operator()() const{ return value; }
+	template<typename U> explicit operator U() const{ return static_cast<U>(value); }
+	Z_p &operator+=(const Z_p &otr){ if((value += otr.value) >= mod) value -= mod; return *this; }
+	Z_p &operator-=(const Z_p &otr){ if((value -= otr.value) < 0) value += mod; return *this; }
+	template<typename U> Z_p &operator+=(const U &otr){ return *this += Z_p(otr); }
+	template<typename U> Z_p &operator-=(const U &otr){ return *this -= Z_p(otr); }
+	Z_p &operator++(){ return *this += 1; }
+	Z_p &operator--(){ return *this -= 1; }
+	Z_p operator++(int){ Z_p result(*this); *this += 1; return result; }
+	Z_p operator--(int){ Z_p result(*this); *this -= 1; return result; }
+	Z_p operator-() const{ return Z_p(-value); }
+	template<typename U = T>
+	typename enable_if<is_same<typename Z_p<U>::Type, int>::value, Z_p>::type& operator*=(const Z_p& rhs){
+		#ifdef _WIN32
+		uint64_t x = static_cast<int64_t>(value) * static_cast<int64_t>(rhs.value);
+		uint32_t xh = static_cast<uint32_t>(x >> 32), xl = static_cast<uint32_t>(x), d, m;
+		asm(
+			"divl %4; \n\t"
+			: "=a" (d), "=d" (m)
+			: "d" (xh), "a" (xl), "r" (mod)
+		);
+		value = m;
+		#else
+		value = normalize(static_cast<int64_t>(value) * static_cast<int64_t>(rhs.value));
+		#endif
+		return *this;
+	}
+	template<typename U = T>
+	typename enable_if<is_same<typename Z_p<U>::Type, int64_t>::value, Z_p>::type& operator*=(const Z_p &rhs){
+		int64_t q = static_cast<int64_t>(static_cast<long double>(value) * rhs.value / mod);
+		value = normalize(value * rhs.value - q * mod);
+		return *this;
+	}
+	template<typename U = T>
+	typename enable_if<!is_integral<typename Z_p<U>::Type>::value, Z_p>::type& operator*=(const Z_p &rhs){
+		value = normalize(value * rhs.value);
+		return *this;
+	}
+	Z_p &operator/=(const Z_p &otr){ return *this *= Z_p(modinv(otr.value, mod)); }
+	template<typename U> friend const Z_p<U> &abs(const Z_p<U> &v){ return v; }
+	template<typename U> friend bool operator==(const Z_p<U> &lhs, const Z_p<U> &rhs);
+	template<typename U> friend bool operator<(const Z_p<U> &lhs, const Z_p<U> &rhs);
+	template<typename U> friend istream &operator>>(istream &in, Z_p<U> &number);
+	Type value;
+};
+template<typename T> bool operator==(const Z_p<T> &lhs, const Z_p<T> &rhs){ return lhs.value == rhs.value; }
+template<typename T, typename U> bool operator==(const Z_p<T>& lhs, U rhs){ return lhs == Z_p<T>(rhs); }
+template<typename T, typename U> bool operator==(U lhs, const Z_p<T> &rhs){ return Z_p<T>(lhs) == rhs; }
+template<typename T> bool operator!=(const Z_p<T> &lhs, const Z_p<T> &rhs){ return !(lhs == rhs); }
+template<typename T, typename U> bool operator!=(const Z_p<T> &lhs, U rhs){ return !(lhs == rhs); }
+template<typename T, typename U> bool operator!=(U lhs, const Z_p<T> &rhs){ return !(lhs == rhs); }
+template<typename T> bool operator<(const Z_p<T> &lhs, const Z_p<T> &rhs){ return lhs.value < rhs.value; }
+template<typename T> Z_p<T> operator+(const Z_p<T> &lhs, const Z_p<T> &rhs){ return Z_p<T>(lhs) += rhs; }
+template<typename T, typename U> Z_p<T> operator+(const Z_p<T> &lhs, U rhs){ return Z_p<T>(lhs) += rhs; }
+template<typename T, typename U> Z_p<T> operator+(U lhs, const Z_p<T> &rhs){ return Z_p<T>(lhs) += rhs; }
+template<typename T> Z_p<T> operator-(const Z_p<T> &lhs, const Z_p<T> &rhs){ return Z_p<T>(lhs) -= rhs; }
+template<typename T, typename U> Z_p<T> operator-(const Z_p<T>& lhs, U rhs){ return Z_p<T>(lhs) -= rhs; }
+template<typename T, typename U> Z_p<T> operator-(U lhs, const Z_p<T> &rhs){ return Z_p<T>(lhs) -= rhs; }
+template<typename T> Z_p<T> operator*(const Z_p<T> &lhs, const Z_p<T> &rhs){ return Z_p<T>(lhs) *= rhs; }
+template<typename T, typename U> Z_p<T> operator*(const Z_p<T>& lhs, U rhs){ return Z_p<T>(lhs) *= rhs; }
+template<typename T, typename U> Z_p<T> operator*(U lhs, const Z_p<T> &rhs){ return Z_p<T>(lhs) *= rhs; }
+template<typename T> Z_p<T> operator/(const Z_p<T> &lhs, const Z_p<T> &rhs) { return Z_p<T>(lhs) /= rhs; }
+template<typename T, typename U> Z_p<T> operator/(const Z_p<T>& lhs, U rhs) { return Z_p<T>(lhs) /= rhs; }
+template<typename T, typename U> Z_p<T> operator/(U lhs, const Z_p<T> &rhs) { return Z_p<T>(lhs) /= rhs; }
+template<typename T> istream &operator>>(istream &in, Z_p<T> &number){
+	typename common_type<typename Z_p<T>::Type, int64_t>::type x;
+	in >> x;
+	number.value = Z_p<T>::normalize(x);
+	return in;
+}
+template<typename T> ostream &operator<<(ostream &out, const Z_p<T> &number){ return out << number(); }
+using Zp = Z_p<int>;
 
 // 156485479_2_10
 // Discrete Log
@@ -2425,39 +2543,6 @@ struct segment{
 	void update(int ind, T x){
 		pu(1, 0, N, ind, x);
 	}
-	// Below assumes T is an ordered field and node stores positive values
-	template<typename IO>
-	int plb(int u, int left, int right, T x, IO inv_op){
-		if(left + 1 == right) return right;
-		int mid = left + right >> 1;
-		if(val[u << 1] < x) return plb(u << 1 ^ 1, mid, right, inv_op(x, val[u << 1]), inv_op);
-		else return plb(u << 1, left, mid, x, inv_op);
-	}
-	template<typename IO>
-	int lower_bound(T x, IO inv_op){ // min i such that query[0, i) >= x
-		if(val[1] < x) return N + 1;
-		else return plb(1, 0, N, x, inv_op);
-	}
-	template<typename IO>
-	int lower_bound(int i, T x, IO inv_op){
-		return lower_bound(bin_op(x, query(0, min(i, N))), inv_op);
-	}
-	template<typename IO>
-	int pub(int u, int left, int right, T x, IO inv_op){
-		if(left + 1 == right) return right;
-		int mid = left + right >> 1;
-		if(x < val[u << 1]) return pub(u << 1, left, mid, x, inv_op);
-		else return pub(u << 1 ^ 1, mid, right, inv_op(x, val[u << 1]), inv_op);
-	}
-	template<typename IO>
-	int upper_bound(T x, IO inv_op){ // min i such that query[0, i) > x
-		if(x < val[1]) return pub(1, 0, N, x, inv_op);
-		else return N + 1;
-	}
-	template<typename IO>
-	int upper_bound(int i, T x, IO inv_op){
-		return upper_bound(bin_op(x, query(0, min(i, N))), inv_op);
-	}
 };
 
 // 156485479_3_2_5
@@ -2517,39 +2602,6 @@ struct segment{
 		push();
 		return qop(max(low, ql), clamp(low + (high - low >> 1), ql, qr), min(high, qr), l->query(ql, qr), r->query(ql, qr));
 	}
-	// Below assumes T is an ordered field and node stores positive values
-	template<typename Compare = less<T>, typename IO = minus<T>>
-	B plb(T x, Compare cmp = less<T>(), IO inv_op = minus<T>()){
-		if(low + 1 == high) return high;
-		push();
-		if(cmp(l->val, x)) return r->plb(inv_op(x, l->val), cmp, inv_op);
-		else return l->plb(x, cmp, inv_op);
-	}
-	template<typename Compare = less<T>, typename IO = minus<T>>
-	B lower_bound(T x, Compare cmp = less<T>(), IO inv_op = minus<T>()){ // min i such that query[0, i) >= x
-		if(cmp(val, x)) return high + 1;
-		else return plb(x, cmp, inv_op);
-	}
-	template<typename Compare = less<T>, typename IO = minus<T>>
-	B lower_bound(B i, T x, Compare cmp = less<T>(), IO inv_op = minus<T>()){
-		return max(i, lower_bound(qop(low, low + (high - low >> 1), high, x, query(low, min(i, high))), cmp, inv_op));
-	}
-	template<typename Compare = less<T>, typename IO = minus<T>>
-	B pub(T x, Compare cmp = less<T>(), IO inv_op = minus<T>()){
-		if(low + 1 == high) return high;
-		push();
-		if(cmp(x, l->val)) return l->pub(x, cmp, inv_op);
-		else return r->pub(inv_op(x, l->val), cmp, inv_op);
-	}
-	template<typename Compare = less<T>, typename IO = minus<T>>
-	B upper_bound(T x, Compare cmp = less<T>(), IO inv_op = minus<T>()){ // min i such that query[0, i) > val
-		if(cmp(x, val)) return pub(x, cmp, inv_op);
-		else return high + 1;
-	}
-	template<typename Compare = less<T>, typename IO = minus<T>>
-	B upper_bound(B i, T x, Compare cmp = less<T>(), IO inv_op = minus<T>()){
-		return max(i, upper_bound(qop(low, low + (high - low >> 1), high, x, query(low, min(i, high))), cmp, inv_op));
-	}
 };
 
 // 156485479_3_2_6
@@ -2595,39 +2647,6 @@ struct segment: vector<node<T> *>{
 	}
 	void set(node<T> *u, int p, int x){
 		this->push_back(ps(u, 0, N, p, x));
-	}
-	// Below assumes T is an ordered field and node stores positive values
-	template<typename IO>
-	int plb(node<T> *u, int left, int right, T x, IO inv_op){
-		if(left + 1 == right) return right;
-		int mid = left + right >> 1;
-		if(u->l->val < x) return plb(u->r, mid, right, inv_op(x, u->l->val), inv_op);
-		else return plb(u->l, left, mid, x, inv_op);
-	}
-	template<typename IO>
-	int lower_bound(node<T> *u, T x, IO inv_op){ // min i such that query[0, i) >= x
-		if(u->val < x) return N + 1;
-		else return plb(u, 0, N, x, inv_op);
-	}
-	template<typename IO>
-	int lower_bound(node<T> *u, int i, T x, IO inv_op){
-		return lower_bound(u, bin_op(x, query(u, 0, min(i, N))), inv_op);
-	}
-	template<typename IO>
-	int pub(node<T> *u, int left, int right, T x, IO inv_op){
-		if(left + 1 == right) return right;
-		int mid = left + right >> 1;
-		if(x < u->l->val) return pub(u->l, left, mid, x, inv_op);
-		else return pub(u->r, mid, right, inv_op(x, u->l->val), inv_op);
-	}
-	template<typename IO>
-	int upper_bound(node<T> *u, T x, IO inv_op){ // min i such that query[0, i) > x
-		if(x < u->val) return pub(u, 0, N, x, inv_op);
-		else return N + 1;
-	}
-	template<typename IO>
-	int upper_bound(node<T> *u, int i, T x, IO inv_op){
-		return upper_bound(u, bin_op(x, query(u, 0, min(i, N))), inv_op);
 	}
 };
 
@@ -3055,27 +3074,161 @@ struct less_than_k_query{ // for less-than-k query, it only deals with numbers i
 // Mo's Algorithm
 // O((N + Q) sqrt(N) F) where F is the processing time of ins and del.
 template<int B>
-struct Query{
+struct query{
 	int l, r, ind;
-	bool operator<(const Query &otr) const{
+	bool operator<(const query &otr) const{
 		if(l / B != otr.l / B) return pair<int, int>(l, r) < pair<int, int>(otr.l, otr.r);
 		return (l / B & 1) ? (r < otr.r) : (r > otr.r);
 	}
 };
 template<typename T, typename Q, typename I, typename D, typename A>
-vector<T> answer_query_offline(const vector<T> &arr, vector<Q> query, I ins, D del, A ans){
+vector<T> answer_query_offline(vector<Q> query, I ins, D del, A ans){
 	sort(query.begin(), query.end());
 	vector<T> res(query.size());
-	l = 0, r = 0;
+	int l = 0, r = 0;
 	for(auto q: query){
 		while(l > q.l) ins(-- l);
 		while(r < q.r) ins(r ++);
 		while(l < q.l) del(l ++);
 		while(r > q.r) del(-- r);
-		res[q.ind] = ans();
+		res[q.ind] = ans(q);
 	}
 	return res;
 }
+/*
+	auto ins = [&](int i){
+		
+	};
+	auto del = [&](int i){
+		
+	};
+	auto ans = [&](const auto &q){
+		return 0;
+	};
+*/
+
+// 156485479_3_9
+// Treap
+// O(log N) per operation
+template<typename T>
+struct treap{
+	struct node{
+		node *l = 0, *r = 0;
+		T val;
+		int priority, sz = 1;
+		node(T val): val(val), priority(rng()){ }
+		void refresh(){
+			sz = (l ? l->sz : 0) + (r ? r->sz : 0) + 1;
+		}
+	};
+	node *root = 0;
+	int cnt(node *u){
+		return u ? u->sz : 0;
+	}
+	template<class F>
+	void each(node *u, F f){
+		if(u){
+			each(u->l, f);
+			f(u->val);
+			each(u->r, f);
+		}
+	}
+	pair<node *, node *> split(node* u, int k){
+		if(!u) return { };
+		if(cnt(u->l) >= k){ // "n->val >= k" for lower_bound(k)
+			auto [sl, sr] = split(u->l, k);
+			u->l = sr;
+			u->refresh();
+			return {sl, u};
+		}
+		else{
+			auto [sl, sr] = split(u->r, k - cnt(u->l) - 1); // and just "k"
+			u->r = sl;
+			u->refresh();
+			return {u, sr};
+		}
+	}
+	node *merge(node *l, node *r){
+		if(!l) return r;
+		if(!r) return l;
+		if(l->priority > r->priority){
+			l->r = merge(l->r, r);
+			l->refresh();
+			return l;
+		}
+		else{
+			r->l = merge(l, r->l);
+			r->refresh();
+			return r;
+		}
+	}
+	node *insert(node *u, node *t, int pos){
+		auto [sl, sr] = split(u, pos);
+		return merge(merge(sl, t), sr);
+	}
+	node *insert(node *t, int pos){
+		return root = root ? insert(root, t, pos) : t;
+	}
+	node *erase(node *&u, int pos){
+		node *a, *b, *c;
+		tie(a, b) = split(u, pos);
+		tie(b, c) = split(b, 1);
+		return u = merge(a, c);
+	}
+	node *erase(int pos){
+		return erase(root, pos);
+	}
+	// move the range [l, r) to index k
+	void move(node *&u, int l, int r, int k){
+		node *a, *b, *c;
+		tie(a, b) = split(u, l);
+		tie(b, c) = split(b, r - l);
+		if(k <= l) u = merge(insert(a, b, k), c);
+		else u = merge(a, insert(c, b, k - r));
+	}
+};
+
+// 156485479_3_10
+// Splay Tree
+
+// 156485479_3_11
+// Link Cut Tree
+
+// 156485479_3_12
+// Unital Sorter
+// O(1) per operation
+struct unital_sorter{
+	int N, M; // # of items, maximum possible cnt
+	vector<int> list, pos, cnt;
+	vector<pair<int, int>> bound;
+	unital_sorter(int N, int M): N(N), M(M), list(N), pos(N), cnt(N), bound(M + 1, {N, N}){
+		bound[0] = {0, N};
+		iota(list.begin(), list.end(), 0);
+		iota(pos.begin(), pos.end(), 0);
+	}
+	void insert(int x){
+		-- bound[cnt[x]].second;
+		-- bound[cnt[x] + 1].first;
+		int y = list[bound[cnt[x] ++].second];
+		swap(pos[x], pos[y]);
+		swap(list[pos[x]], list[pos[y]]);
+	}
+	void erase(int x){
+		int y = list[bound[cnt[x] - 1].second];
+		swap(pos[x], pos[y]);
+		swap(list[pos[x]], list[pos[y]]);
+		++ bound[cnt[x]].first;
+		++ bound[-- cnt[x]].second;
+	}
+	void print(int X, int Y){
+		cout << "List = ", copy(list.end() - X, list.end(), ostream_iterator<int>(cout, " ")), cout << "\n";
+		cout << "Pos = ", copy(pos.begin(), pos.begin() + X, ostream_iterator<int>(cout, " ")), cout << "\n";
+		cout << "Count = ", copy(cnt.begin(), cnt.begin() + X, ostream_iterator<int>(cout, " ")), cout << "\n";
+		cout << "Bound = ";
+		for(int i = 0; i < Y; ++ i) cout << "(" << bound[i].first << ", " << bound[i].second << ")";
+		cout << endl;
+	}
+};
 
 // 156485479_4_1
 // Strongly Connected Component ( Tarjan's Algorithm ) / Processes SCCs in reverse topological order
@@ -3551,39 +3704,6 @@ struct segment{
 		push();
 		return qop(max(low, ql), clamp(low + (high - low >> 1), ql, qr), min(high, qr), l->query(ql, qr), r->query(ql, qr));
 	}
-	// Below assumes T is an ordered field and node stores positive values
-	template<typename Compare = less<T>, typename IO = minus<T>>
-	B plb(T x, Compare cmp = less<T>(), IO inv_op = minus<T>()){
-		if(low + 1 == high) return high;
-		push();
-		if(cmp(l->val, x)) return r->plb(inv_op(x, l->val), cmp, inv_op);
-		else return l->plb(x, cmp, inv_op);
-	}
-	template<typename Compare = less<T>, typename IO = minus<T>>
-	B lower_bound(T x, Compare cmp = less<T>(), IO inv_op = minus<T>()){ // min i such that query[0, i) >= x
-		if(cmp(val, x)) return high + 1;
-		else return plb(x, cmp, inv_op);
-	}
-	template<typename Compare = less<T>, typename IO = minus<T>>
-	B lower_bound(B i, T x, Compare cmp = less<T>(), IO inv_op = minus<T>()){
-		return max(i, lower_bound(qop(low, low + (high - low >> 1), high, x, query(low, min(i, high))), cmp, inv_op));
-	}
-	template<typename Compare = less<T>, typename IO = minus<T>>
-	B pub(T x, Compare cmp = less<T>(), IO inv_op = minus<T>()){
-		if(low + 1 == high) return high;
-		push();
-		if(cmp(x, l->val)) return l->pub(x, cmp, inv_op);
-		else return r->pub(inv_op(x, l->val), cmp, inv_op);
-	}
-	template<typename Compare = less<T>, typename IO = minus<T>>
-	B upper_bound(T x, Compare cmp = less<T>(), IO inv_op = minus<T>()){ // min i such that query[0, i) > val
-		if(cmp(x, val)) return pub(x, cmp, inv_op);
-		else return high + 1;
-	}
-	template<typename Compare = less<T>, typename IO = minus<T>>
-	B upper_bound(B i, T x, Compare cmp = less<T>(), IO inv_op = minus<T>()){
-		return max(i, upper_bound(qop(low, low + (high - low >> 1), high, x, query(low, min(i, high))), cmp, inv_op));
-	}
 };
 template<typename DS, typename BO, typename T, int VALS_IN_EDGES = 1>
 struct heavy_light_decomposition{
@@ -3630,13 +3750,11 @@ struct heavy_light_decomposition{
 		if(depth[u] > depth[v]) swap(u, v);
 		act(pos[u] + VALS_IN_EDGES, pos[v] + 1);
 	}
-	void updatepath(int u, int v, T val, int is_update = true){
-		if(is_update) processpath(u, v, [this, &val](int l, int r){tr.update(l, r, val);});
-		else processpath(u, v, [this, &val](int l, int r){tr.set(l, r, val);});
+	void updatepath(int u, int v, T val){
+		processpath(u, v, [this, &val](int l, int r){ tr.update(l, r, val); });
 	}
-	void updatesubtree(int u, T val, int is_update = true){
-		if(is_update) tr.update(pos[u] + VALS_IN_EDGES, pos[u] + sz[u], val);
-		else tr.set(pos[u] + VALS_IN_EDGES, pos[u] + sz[u], val);
+	void updatesubtree(int u, T val){
+		tr.update(pos[u] + VALS_IN_EDGES, pos[u] + sz[u], val);
 	}
 	T querypath(int u, int v){
 		T res = id;
@@ -5276,4 +5394,4 @@ void *operator new(size_t s){
 	assert(s < i);
 	return (void *)&BUFF[i -= s];
 }
-void operator delete(void *){}
+void operator delete(void *){ }
