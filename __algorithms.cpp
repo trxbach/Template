@@ -5,6 +5,7 @@
 
 ****************************************************************************************************************
 
+
 Category
 
 
@@ -130,9 +131,9 @@ Category
 		156485479_3_8
 	3.9. Treap
 		156485479_3_9
-	3.10. Splay Tree
+	3.10. Splay Tree ( INCOMPLETE )
 		156485479_3_10
-	3.11. Link Cut Tree
+	3.11. Link Cut Tree ( INCOMPLETE )
 		156485479_3_11
 	3.12. Unital Sorter
 		156485479_3_12
@@ -375,6 +376,10 @@ struct combinatorics{
 		else return 0;
 	}
 };
+
+/*
+Parity of n choose k: (k & (n - k))^1
+*/
 
 // 156485479_1_5
 // Euler Totient Function
@@ -2100,7 +2105,7 @@ struct bigint{
 // 156485479_2_9
 // Modular Arithmetics
 template<typename T>
-T binexp(T b, long long e){
+T modexp(T b, long long e){
 	T res = 1;
 	for(; e; b *= b, e >>= 1) if(e & 1) res *= b;
 	return res;
@@ -2201,11 +2206,12 @@ template<typename T> istream &operator>>(istream &in, Z_p<T> &number){
 }
 template<typename T> ostream &operator<<(ostream &out, const Z_p<T> &number){ return out << number(); }
 constexpr int mod = (int)1e9 + 7;
+//constexpr int mod = 998244353;
 using Zp = Z_p<integral_constant<decay<decltype(mod)>::type, mod>>;
 
 // Variable Mod
 template<typename T>
-T binexp(T b, long long e){
+T modexp(T b, long long e){
 	T res = 1;
 	for(; e; b *= b, e >>= 1) if(e & 1) res *= b;
 	return res;
@@ -4436,45 +4442,23 @@ int min_rotation(string s){
 }
 
 // 156485479_5_2
-// All Palindromic Substrings ( Manachar's Algorithm )
+// All Palindromic Substrings ( Manacher's Algorithm )
 // O(N)
-struct manachar{
-	int N;
-	vector<int> o, e;
-	pair<int, int> build(const string &s){
-		N = int(s.size()), o.resize(N), e.resize(N);
-		int res = 0, resl, resr;
-		int l = 0, r = -1;
-		for(int i = 0; i < N; ++ i){
-			int k = (i > r) ? 1 : min(o[l + r - i], r - i) + 1;
-			while(i - k >= 0 && i + k < N && s[i - k] == s[i + k]) ++ k;
-			o[i] = -- k;
-			if(res < 2 * k + 1){
-				res = 2 * k + 1;
-				resl = i - k, resr = i + k + 1;
-			}
-			if(r < i + k){
-				l = i - k;
-				r = i + k;
-			}
+template<typename Str>
+array<vector<int>, 2> manacher(const Str &s){
+	int n = int(s.size());
+	array<vector<int>, 2> p = {vector<int>(n + 1), vector<int>(n)};
+	for(int z = 0; z < 2; ++ z){
+		for(int i = 0 ,l = 0 , r = 0; i < n; ++ i){
+			int t = r - i + !z;
+			if(i < r) p[z][i] = min(t, p[z][l + t]);
+			int L = i - p[z][i], R = i + p[z][i] - !z;
+			while(L >= 1 && R + 1 < n && s[L - 1] == s[R + 1]) ++ p[z][i], -- L, ++ R;
+			if(R > r) l = L, r = R;
 		}
-		l = 0; r = -1;
-		for(int i = 0; i < N; ++ i){
-			int k = (i > r) ? 1 : min(e[l + r - i + 1], r - i + 1) + 1;
-			while(i - k >= 0 && i + k - 1 < N && s[i - k] == s[i + k - 1]) ++ k;
-			e[i] = -- k;
-			if(res < 2 * k){
-				res = 2 * k;
-				resl = i - k, resr = i + k;
-			}
-			if(r < i + k - 1){
-				l = i - k;
-				r = i + k - 1;
-			}
-		}
-		return {resl, resr};
 	}
-};
+	return p;
+}
 
 // 156485479_5_3
 // Suffix Array and Kasai's Algorithm
@@ -4693,6 +4677,14 @@ struct polyhash: vector<vector<long long>>{
 		while(high - low > 1){
 			int mid = low + high >> 1;
 			query(posi, posi + mid, i) == query(posj, posj + mid, j) ? low = mid : high = mid;
+		}
+		return low;
+	}
+	int lcs(int i, int j, int posi, int posj){
+		int low = 0, high = min(posi, posj) + 1;
+		while(high - low > 1){
+			int mid = low + high >> 1;
+			query(posi - mid, posi, i) == query(posj - mid, posj, j) ? low = mid : high = mid;
 		}
 		return low;
 	}
