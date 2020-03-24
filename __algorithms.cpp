@@ -199,7 +199,7 @@ Category
 		156485479_5_8
 	5.9. Suffix Tree ( INCOMPLETE )
 		156485479_5_9
-	5.10. Palindrome Tree ( INCOMPLETE )
+	5.10. Palindrome Tree / Eertree ( INCOMPLETE )
 		156485479_5_10
 	5.11. Levenshtein Automaton ( INCOMPLETE )
 		156485479_5_11
@@ -4424,7 +4424,8 @@ pair<vector<int>, vector<int>> euler_walk(const vector<vector<pair<int, int>>> &
 // 156485479_5_1
 // Returns the starting position of the lexicographically minimal rotation
 // O(n)
-int min_rotation(string s){
+template<typename Str>
+int min_rotation(Str s){
 	int n = int(s.size());
 	s += s;
 	int a = 0;
@@ -4567,31 +4568,32 @@ vector<int> z_function(const Str &s){
 }
 
 // 156485479_5_5
-// Aho Corasic Algorithm
+// Aho Corasic Automaton
 // O(W) preprocessing, O(L) per query
-template<typename Str>
+template<typename Str, int lim = 128>
 struct aho_corasic{
 	typedef typename Str::value_type Char;
 	struct node{
 		int par, link = -1, elink = -1;
 		Char cpar;
-		map<Char, int> next, go;
+		vector<int> next, go;
 		bool isleaf = false;
-		int ind;
-		node(int par = -1, Char pch = '$'): par(par), cpar(pch){ }
+		node(int par = -1, Char pch = '$'): par(par), cpar(pch), next(128, -1), go(128, -1){ }
+		long long val = 0;
+		bool mark = false;
 	};
 	vector<node> state = vector<node>(1);
-	void insert(int ind, const Str &s){
+	int insert(const Str &s){
 		int u = 0;
 		for(auto &c: s){
-			if(!state[u].next.count(c)){
+			if(state[u].next[c] == -1){
 				state[u].next[c] = int(state.size());
 				state.emplace_back(u, c);
 			}
 			u = state[u].next[c];
 		}
 		state[u].isleaf = true;
-		state[u].ind = ind;
+		return u;
 	}
 	int get_link(int u){
 		if(state[u].link == -1){
@@ -4609,17 +4611,19 @@ struct aho_corasic{
 		return state[u].elink;
 	}
 	int go(int u, Char c){
-		if(!state[u].go.count(c)){
-			if(state[u].next.count(c)) state[u].go[c] = state[u].next[c];
+		if(state[u].go[c] == -1){
+			if(state[u].next[c] != -1) state[u].go[c] = state[u].next[c];
 			else state[u].go[c] = u ? go(get_link(u), c) : u;
 		}
 		return state[u].go[c];
 	}
 	void print(int u, Str s = ""){
 		cout << "Node " << u << ": par = " << state[u].par << ", cpar = " << state[u].cpar << ", string: " << s << "\n";
-		for(auto &[c, v]: state[u].next){
-			cout << u << " => ";
-			print(v, s + Str{c});
+		for(int c = 0; c < lim; ++ c){
+			if(state[u].next[c] != -1){
+				cout << u << " => ";
+				print(state[u].next[c], s + Str{c});
+			}
 		}
 	}
 };
@@ -4639,14 +4643,14 @@ vector<int> prefix_function(const Str &s){
 	}
 	return p;
 }
-template<typename Str, typename UO = function<char(int)>, int lim = 26>
-pair<vector<int>, vector<vector<int>>> prefix_automaton(const Str &s, UO trans = [](int c){return c + 'a';}){
+template<typename Str, int lim = 128>
+pair<vector<int>, vector<vector<int>>> prefix_automaton(const Str &s){
 	vector<int> p = prefix_function(s);
 	int n = int(s.size());
-	vector<vector<int>> aut(n, vector<int>(lim));
-	for(int i = 0; i < n; ++ i) for(int c = 0; c < lim; ++ c){
-		if(i > 0 && trans(c) != s[i]) aut[i][c] = aut[p[i - 1]][c];
-		else aut[i][c] = i + (trans(c) == s[i]);
+	vector<vector<int>> aut(n, vector<int>(lim + 1));
+	for(int i = 0; i < n; ++ i) for(int c = 0; c <= lim; ++ c){
+		if(i > 0 && c != s[i]) aut[i][c] = aut[p[i - 1]][c];
+		else aut[i][c] = i + (c == s[i]);
 	}
 	return {p, aut};
 }
