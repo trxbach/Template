@@ -2341,7 +2341,7 @@ using Zp = Z_p<int>;
 
 // 156485479_2_10
 // Subinterval Sum
-template<int K = 2, typename T = long long, typename BO = plus<>, typename IO = minus<T>>
+template<int K = 2, typename T = long long, typename BO = plus<>, typename IO = minus<>>
 struct subinterval{
 	const array<int, K> N;
 	BO bin_op;
@@ -2357,9 +2357,9 @@ struct subinterval{
 		return res;
 	}
 	template<typename INIT>
-	subinterval(const array<int, K> &N, INIT f, BO bin_op = plus<>{}, IO inv_op = minus<T>{}, T id = 0LL): N(N), bin_op(bin_op), inv_op(inv_op), id(id), val(accumulate(N.begin(), N.end(), 1, [&](int x, int y){ return x * (y + 1); }), id){
+	subinterval(const array<int, K> &N, INIT f, BO bin_op = plus<>{}, IO inv_op = minus<>{}, T id = 0LL): N(N), bin_op(bin_op), inv_op(inv_op), id(id), val(accumulate(N.begin(), N.end(), 1, [&](int x, int y){ return x * (y + 1); }), id){
 		array<int, K> cur, from;
-		fill(cur.begin(), cur.end(), 1);
+		cur.fill(1);
 		while(1){
 			T &c = val[pos(cur)];
 			for(int i = 0; i < K; ++ i) -- cur[i];
