@@ -2516,9 +2516,9 @@ struct segment{
 	const T id;
 	vector<vector<T>> val;
 	segment(const vector<vector<T>> &arr, BO bin_op, T id): N(arr.size()), M(arr[0].size()), bin_op(bin_op), id(id), val(N << 1, vector<T>(M << 1, id)){
-		for(int i = 0; i < N; ++ i) for(int j = 0; j < N; ++ j) val[i + N][j + N] = arr[i][j];
-		for(int i = N - 1; i > 0; -- i) for(int j = 0; j < N; ++ j) val[i][j + N] = bin_op(val[i << 1][j + N], val[i << 1 | 1][j + N]);
-		for(int i = 1; i < N << 1; ++ i) for(int j = N - 1; j > 0; -- j) val[i][j] = bin_op(val[i][j << 1], val[i][j << 1 | 1]);
+		for(int i = 0; i < N; ++ i) for(int j = 0; j < M; ++ j) val[i + N][j + M] = arr[i][j];
+		for(int i = N - 1; i > 0; -- i) for(int j = 0; j < M; ++ j) val[i][j + M] = bin_op(val[i << 1][j + M], val[i << 1 | 1][j + M]);
+		for(int i = 1; i < N << 1; ++ i) for(int j = M - 1; j > 0; -- j) val[i][j] = bin_op(val[i][j << 1], val[i][j << 1 | 1]);
 	}
 	void set(int p, int q, T x){
 		val[p += N][q += M] = x;
