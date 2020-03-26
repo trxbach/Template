@@ -32,6 +32,8 @@ Category
 		156485479_1_10
 	1.11. Polynomial Class
 		156485479_1_11
+	1.12. Discrete Log
+		156485479_1_12
 
 
 2. Numeric
@@ -92,7 +94,7 @@ Category
 		156485479_2_8
 	2.9. Modular Arithmetics
 		156485479_2_9
-	2.10. Discrete Log
+	2.10. Subinterval Sum
 		156485479_2_10
 
 
@@ -469,7 +471,7 @@ long long sqrt(long long a, long long p){
 	a %= p;
 	if(a < 0) a += p;
 	if(a == 0) return 0;
-	assert(modexp(a, (p - 1)/2, p) == 1);
+	assert(modexp(a, (p - 1) / 2, p) == 1);
 	if(p % 4 == 3) return modexp(a, (p+1)/4, p);
 	// a^(n+3)/8 or 2^(n+3)/8 * 2^(n-1)/4 works if p % 8 == 5
 	long long s = p - 1, n = 2;
@@ -1050,6 +1052,29 @@ namespace algebra {
 using namespace algebra;
 typedef poly<modular> polym;
 mod = 1e9 + 7;
+
+// 156485479_1_12
+// Discrete Log
+// O(sqrt(mod) log mod)
+// a and mod must be relatively prime
+long long modexp(long long b, long long e, const long long &mod){
+	long long res = 1;
+	for(; e; b = b * b % mod, e >>= 1) if(e & 1) res = res * b % mod;
+	return res;
+}
+int discrete_log(int a, int b, int mod){
+	int n = (int)sqrt(mod + .0) + 1;
+	map<int, int> q;
+	for(int p = n; p >= 1; -- p) q[modexp(a, p * n, mod)] = p;
+	for(int p = 0; p <= n; ++ p){
+		int cur = (modexp(a, p, mod) * b) % mod;
+		if(q.count(cur)){
+			int ans = q[cur] * n - p;
+			return ans;
+		}
+	}
+	return -1;
+}
 
 // 156485479_2_1
 // Linear Recurrence Relation Solver / Berlekamp - Massey Algorithm
@@ -2315,27 +2340,53 @@ template<typename T> ostream &operator<<(ostream &out, const Z_p<T> &number){ re
 using Zp = Z_p<int>;
 
 // 156485479_2_10
-// Discrete Log
-// O(sqrt(mod) log mod)
-// a and mod must be relatively prime
-long long modexp(long long b, long long e, const long long &mod){
-	long long res = 1;
-	for(; e; b = b * b % mod, e >>= 1) if(e & 1) res = res * b % mod;
-	return res;
-}
-int discrete_log(int a, int b, int mod){
-	int n = (int)sqrt(mod + .0) + 1;
-	map<int, int> q;
-	for(int p = n; p >= 1; -- p) q[modexp(a, p * n, mod)] = p;
-	for(int p = 0; p <= n; ++ p){
-		int cur = (modexp(a, p, mod) * b) % mod;
-		if(q.count(cur)){
-			int ans = q[cur] * n - p;
-			return ans;
+// Subinterval Sum
+template<int K = 2, typename T = long long, typename BO = plus<>, typename IO = minus<T>>
+struct subinterval{
+	const array<int, K> N;
+	BO bin_op;
+	IO inv_op;
+	const T id;
+	vector<T> val;
+	int pos(const array<int, K> &x){
+		int p = 1, res = 0;
+		for(int i = 0; i < K; ++ i){
+			res += p * x[i];
+			p *= N[i];
+		}
+		return res;
+	}
+	template<typename INIT>
+	subinterval(const array<int, K> &N, INIT f, BO bin_op = plus<>{}, IO inv_op = minus<T>{}, T id = 0LL): N(N), bin_op(bin_op), inv_op(inv_op), id(id), val(accumulate(N.begin(), N.end(), 1, [&](int x, int y){ return x * (y + 1); }), id){
+		array<int, K> cur, from;
+		fill(cur.begin(), cur.end(), 1);
+		while(1){
+			T &c = val[pos(cur)];
+			for(int i = 0; i < K; ++ i) -- cur[i];
+			c = f(cur);
+			for(int i = 0; i < K; ++ i) ++ cur[i];
+			for(int mask = 1; mask < 1 << K; ++ mask){
+				from = cur;
+				for(int bit = 0; bit < K; ++ bit) if(mask & 1 << bit) -- from[bit];
+				c = __builtin_popcount(mask) & 1 ? bin_op(c, val[pos(from)]) : inv_op(c, val[pos(from)]);
+			}
+			for(int i = 0; i < K; ++ i){
+				if(++ cur[i] <= N[i]) break;
+				if(i == K - 1) return;
+				cur[i] = 1;
+			}
 		}
 	}
-	return -1;
-}
+	T query(const array<int, K> &low, const array<int, K> &high){
+		T res = id;
+		array<int, K> cur;
+		for(int mask = 0; mask < 1 << K; ++ mask){
+			for(int bit = 0; bit < K; ++ bit) cur[bit] = mask & 1 << bit ? low[bit] : high[bit];
+			res = __builtin_popcount(mask) & 1 ? inv_op(res, val[pos(cur)]) : bin_op(res, val[pos(cur)]);
+		}
+		return res;
+	}
+};
 
 // 156485479_3_1
 // Sparse Table
@@ -2399,7 +2450,7 @@ struct segment{
 	const T id;
 	vector<T> val;
 	template<typename IT>
-	segment(IT begin, IT end, BO bin_op, T id): N(end - begin), bin_op(bin_op), id(id), val(N << 1, id){
+	segment(IT begin, IT end, BO bin_op, T id): N(distance(begin, end)), bin_op(bin_op), id(id), val(N << 1, id){
 		for(int i = 0; i < N; ++ i) val[i + N] = *(begin ++);
 		for(int i = N - 1; i > 0; -- i) val[i] = bin_op(val[i << 1], val[i << 1 | 1]);
 	}
@@ -2431,7 +2482,7 @@ struct segment{
 	T id;
 	vector<T> val;
 	template<typename IT>
-	segment(IT begin, IT end, BO bin_op, T id): N(end - begin), bin_op(bin_op), id(id), val(N << 1, id){
+	segment(IT begin, IT end, BO bin_op, T id): N(distance(begin, end)), bin_op(bin_op), id(id), val(N << 1, id){
 		for(int i = 0; i < N; ++ i) val[i + N] = *(begin ++);
 	}
 	segment(int N, BO bin_op, T id): N(N), bin_op(bin_op), id(id), val(N << 1, id){ }
