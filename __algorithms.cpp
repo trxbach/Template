@@ -1628,8 +1628,8 @@ struct line{
 };
 template<bool GET_MAX = true>
 struct sorted_line_container: deque<line>{
-	// (for doubles, use inf = 1/.0, div(a,b) = a/b)
 	static constexpr long long inf = numeric_limits<long long>::max();
+	// (for doubles, use inf = 1/.0, div(a,b) = a/b)
 	long long div(long long a, long long b){ return a / b - ((a ^ b) < 0 && a % b); }
 	bool isect_front(iterator x, iterator y){
 		if(y == end()){ x->p = inf; return false; }
@@ -2347,18 +2347,16 @@ struct subinterval{
 	BO bin_op;
 	IO inv_op;
 	const T id;
-	vector<T> val;
+	vector<T> val, p;
 	int pos(const array<int, K> &x){
-		int p = 1, res = 0;
-		for(int i = 0; i < K; ++ i){
-			res += p * x[i];
-			p *= N[i];
-		}
+		int res = 0;
+		for(int i = 0; i < K; ++ i) res += p[i] * x[i];
 		return res;
 	}
 	template<typename INIT>
-	subinterval(const array<int, K> &N, INIT f, BO bin_op = plus<>{}, IO inv_op = minus<>{}, T id = 0LL): N(N), bin_op(bin_op), inv_op(inv_op), id(id), val(accumulate(N.begin(), N.end(), 1, [&](int x, int y){ return x * (y + 1); }), id){
+	subinterval(const array<int, K> &N, INIT f, BO bin_op = plus<>{}, IO inv_op = minus<>{}, T id = 0LL): N(N), bin_op(bin_op), inv_op(inv_op), id(id), val(accumulate(N.begin(), N.end(), 1, [&](int x, int y){ return x * (y + 1); }), id), p(K + 1, 1){
 		array<int, K> cur, from;
+		partial_sum(N.begin(), N.end(), p.begin() + 1, multiplies<>{});
 		cur.fill(1);
 		while(1){
 			T &c = val[pos(cur)];
@@ -2385,6 +2383,9 @@ struct subinterval{
 			res = __builtin_popcount(mask) & 1 ? inv_op(res, val[pos(cur)]) : bin_op(res, val[pos(cur)]);
 		}
 		return res;
+	}
+	T query(const array<int, K> &high){
+		return val[pos(high)];
 	}
 };
 
