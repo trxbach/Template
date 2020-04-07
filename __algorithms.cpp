@@ -1432,9 +1432,8 @@ long long modinv(long long a, const long long &mod){
 	return modexp(a, mod - 2, mod);
 }
 const long long mod = 998244353, root = 15311432, root_pw = 1 << 23, root_1 = modinv(root, mod);
-vector<long long> ntt(const vector<long long> &arr, bool invert){
-    int n = int(arr.size());
-    vector<long long> a{arr};
+void ntt(vector<long long> &a, bool invert){
+    int n = int(a.size());
     for(int i = 1, j = 0; i < n; ++ i){
         int bit = n >> 1;
         for(; j & bit; bit >>= 1) j ^= bit;
@@ -1458,7 +1457,6 @@ vector<long long> ntt(const vector<long long> &arr, bool invert){
         long long n_1 = modinv(n, mod);
         for(auto &x: a) x = x * n_1 % mod;
     }
-    return a;
 }
 
 // 156485479_2_4_1_2
@@ -1468,8 +1466,7 @@ vector<long long> ntt(const vector<long long> &arr, bool invert){
 //     Matrix       1 -1      Matrix     1 -1   TIMES  1/2
 // O(n log n)
 template<typename T>
-vector<T> xort(const vector<T> &P, bool inverse){
-	vector<T> p(P);
+void xort(vector<T> &p, bool inverse){
 	int n = int(p.size());
 	for(int len = 1; 2 * len <= n; len <<= 1){
 		for(int i = 0; i < n; i += 2 * len){
@@ -1490,8 +1487,7 @@ vector<T> xort(const vector<T> &P, bool inverse){
 //     Matrix       1  1      Matrix      1  0
 // O(n log n)
 template<typename T>
-vector<T> andt(const vector<T> &P, bool inverse){
-	vector<T> p(P);
+void andt(vector<T> &p, bool inverse){
 	int n = int(p.size());
 	for(int len = 1; 2 * len <= n; len <<= 1){
 		for(int i = 0; i < n; i += 2 * len){
@@ -1502,7 +1498,6 @@ vector<T> andt(const vector<T> &P, bool inverse){
 			}
 		}
 	}
-	return p;
 }
 
 // 156485479_2_4_1_4
@@ -1512,8 +1507,7 @@ vector<T> andt(const vector<T> &P, bool inverse){
 //     Matrix       1  0      Matrix      1 -1
 // O(n log n)
 template<typename T>
-vector<T> ort(const vector<T> &P, bool inverse){
-	vector<T> p(P);
+void ort(vector<T> &p, bool inverse){
 	int n = int(p.size());
 	for(int len = 1; 2 * len <= n; len <<= 1){
 		for(int i = 0; i < n; i += 2 * len){
@@ -1524,7 +1518,6 @@ vector<T> ort(const vector<T> &P, bool inverse){
 			}
 		}
 	}
-	return p;
 }
 
 // 156485479_2_4_2_1_1
@@ -2411,13 +2404,13 @@ void for_each_q(T n, Process f){
 // Credit: tfg ( https://github.com/tfg50/Competitive-Programming/blob/master/Biblioteca/Math/MatroidIntersection.cpp )
 // Prototype of a matroid for the slower version
 struct Matroid{
-	int rank = 0;
 	bool independent_with(/*an element*/){ }
-	void insert(/*an element*/){ /*increase rank if inserted*/ }
-	void clear(){ rank = 0; }
+	void insert(/*an element*/){ }
+	void clear(){ }
 };
 // to get answer just call Matroid_Intersection<M1, M2, T>(m1, m2, obj).solve()
-// slow but smaller O(r^2 * n) oracle calls with good constant
+// O(r) rebuild() calls. rebuild() = O(r^2) insert calls
+// O(r*n) test() calls. test() = O(1) independent_with calls
 template<class M1, class M2, class T>
 struct Matroid_Intersection{
 	Matroid_Intersection(M1 m1, M2 m2, const std::vector<T> &ground): n((int) ground.size()), m1(m1), m2(m2), ground(ground), present(ground.size()), except1(n, m1), except2(n, m2){
@@ -2461,10 +2454,12 @@ struct Matroid_Intersection{
 			}
 		}
 		for(int u = 0; u < n; ++ u){
-			except1[u].clear(), except2[u].clear();
-			for(int v = 0; v < n; ++ v){
-				if(v != u && present[v]){
-					except1[u].insert(ground[v]), except2[u].insert(ground[v]);
+			if(present[u]){
+				except1[u].clear(), except2[u].clear();
+				for(int v = 0; v < n; ++ v){
+					if(v != u && present[v]){
+						except1[u].insert(ground[v]), except2[u].insert(ground[v]);
+					}
 				}
 			}
 		}
@@ -2508,7 +2503,7 @@ struct Matroid{
 	bool is_independent(/*a set of ground elements*/){ }
 	int get_rank(/*a set of ground elements*/){ }
 };
-// fast O(N*R^1.5*logN) * oracle
+// O(n * r^1.5 * log n) oracle calls
 // implementation of https://arxiv.org/pdf/1911.10765.pdf
 template<class M1, class M2, class T>
 struct Matroid_Intersection{
