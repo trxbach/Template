@@ -96,6 +96,13 @@ Category
 		156485479_2_9
 	2.10. Subinterval Sum
 		156485479_2_10
+	2.11. Divisor Iterator
+		156485479_2_11
+	2.12. Matroid
+		2.12.1. Matroid Intersection
+			156485479_2_12_1
+		2.12.2. Matroid Union
+			156485479_2_12_2
 
 
 3. Data Structure
@@ -153,6 +160,12 @@ Category
 			156485479_4_4_1
 		4.4.2. Minimum Cost Maximum Flow Algorithm
 			156485479_4_4_2
+		4.4.3. Simple DFS Matching
+			156485479_4_4_3
+		4.4.4. Hopcroft Karp Algorithm
+			156485479_4_4_4
+		4.4.5. Hungarian Algorithm
+			156485479_4_4_5
 	4.5. Tree Algorithms
 		4.5.1. LCA
 			156485479_4_5_1
@@ -1170,55 +1183,11 @@ int solve_linear_equations(const vector<vector<double>> &AA, vector<double> &x, 
 	return rank;
 }
 
-// 156485479_2_2_2
-// Find a solution of the system of linear equations. Return -1 if no sol, rank otherwise.
-// O(n^2 m)
-long long modexp(long long b, long long e, const long long &mod){
-	long long res = 1;
-	for(; e; b = b * b % mod, e >>= 1) if(e & 1) res = res * b % mod;
-	return res;
-}
-long long modinv(long long a, const long long &mod){
-	return modexp(a, mod - 2, mod);
-}
-int solve_linear_equations(const vector<vector<long long>> &AA, vector<long long> &x, const vector<long long> &bb, long long mod){
-	auto A = AA;
-	auto b = bb;
-	int n = int(A.size()), m = int(A[0].size()), rank = 0, br, bc;
-	vector<int> col(m);
-	iota(col.begin(), col.end(), 0);
-	for(auto &x: A) for(auto &y: x) y %= mod;
-	for(int i = 0; i < n; ++ i){
-		long long v, bv = 0;
-		for(int r = i; r < n; ++ r) for(int c = i; c < m; ++ c) if((v = abs(A[r][c])) > bv) br = r, bc = c, bv = v;
-		if(!bv){
-			for(int j = i; j < n; ++ j) if(abs(b[j])) return -1;
-			break;
-		}
-		swap(A[i], A[br]), swap(b[i], b[br]), swap(col[i], col[bc]);
-		for(int j = 0; j < n; ++ j) swap(A[j][i], A[j][bc]);
-		bv = modinv(A[i][i], mod);
-		for(int j = i + 1; j < n; ++ j){
-			long long fac = A[j][i] * bv % mod;
-			b[j] = (b[j] - fac * b[i] % mod + mod) % mod;
-			for(int k = i + 1; k < m; ++ k) A[j][k] = (A[j][k] - fac * A[i][k] % mod + mod) % mod;
-		}
-		++ rank;
-	}
-	x.resize(m);
-	for(int i = rank; i --; ){
-		b[i] = b[i] * modinv(A[i][i], mod) % mod;
-		x[col[i]] = b[i];
-		for(int j = 0; j < i; ++ j) b[j] = (b[j] - A[j][i] * b[i] % mod + mod) % mod;
-	}
-	return rank;
-}
-
 // 156485479_2_2_3
-// Find a solution of the system of linear equations. Return -1 if no sol, rank otherwise.
+// Find a solution of the system of linear equations in Z2. Return -1 if no sol, rank otherwise.
 // O(n^2 m)
 typedef bitset<1000> bs;
-int solve_linear_equations(const vector<bs> &AA, bs& x, const vector<int> &bb, int m){
+int solve_linear_equations(const vector<bs> &AA, bs &x, const vector<int> &bb, int m){
 	vector<bs> A(AA);
 	vector<int> b(bb);
 	int n = int(A.size()), rank = 0, br;
@@ -1226,7 +1195,7 @@ int solve_linear_equations(const vector<bs> &AA, bs& x, const vector<int> &bb, i
 	iota(col.begin(), col.end(), 0);
 	for(int i = 0; i < n; ++ i){
 		for(br = i; br < n; ++ br) if(A[br].any()) break;
-		if (br == n){
+		if(br == n){
 			for(int j = i; j < n; ++ j) if(b[j]) return -1;
 			break;
 		}
@@ -1239,7 +1208,43 @@ int solve_linear_equations(const vector<bs> &AA, bs& x, const vector<int> &bb, i
 		++ rank;
 	}
 	x = bs();
-	for (int i = rank; i --;){
+	for(int i = rank; i --; ){
+		if (!b[i]) continue;
+		x[col[i]] = 1;
+		for(int j = 0; j < i; ++ j) b[j] ^= A[j][i];
+	}
+	return rank;
+}
+// Dynamic size
+int solve_linear_equations(vector<vector<int>> A, vector<int>& x, vector<int> b){
+	int n = int(A.size()), m = int(A[0].size()), rank = 0, br;
+	vector<int> col(m);
+	iota(col.begin(), col.end(), 0);
+	for(int i = 0; i < n; ++ i){
+		for(br = i; br < n; ++ br) if(any_of(A[br].begin(), A[br].end(), [&](int x){ return x; })) break;
+		if(br == n){
+			for(int j = i; j < n; ++ j) if(b[j]) return -1;
+			break;
+		}
+		int bc = i;
+		for(; !A[br][bc]; ++ bc);
+		swap(A[i], A[br]);
+		swap(b[i], b[br]);
+		swap(col[i], col[bc]);
+		for(int j = 0; j < n; ++ j) if(A[j][i] != A[j][bc]){
+			A[j][i] = !A[j][i];
+			A[j][bc] = !A[j][bc];
+		}
+		for(int j = i + 1; j < n; ++ j) if(A[j][i]){
+			b[j] ^= b[i];
+			for(int k = 0; k < m; ++ k){
+				A[j][k] ^= A[i][k];
+			}
+		}
+		++ rank;
+	}
+	x = vector<int>(m);
+	for(int i = rank; i --; ){
 		if (!b[i]) continue;
 		x[col[i]] = 1;
 		for(int j = 0; j < i; ++ j) b[j] ^= A[j][i];
@@ -2389,6 +2394,307 @@ struct subinterval{
 	}
 };
 
+// 156485479_2_11
+// Divisor Iterator
+// Iterate over all maximal intervals [begin, end] such that n / begin == n / end ( both rounded down )
+// O(sqrt(n)) applications of f
+template<typename T, typename Process, bool DIVISOR_ONLY = true>
+void for_each_q(T n, Process f){
+	for(T begin = 1, end = 1; begin <= n; begin = end + 1){
+		end = n / (n / begin);
+		if(!DIVISOR_ONLY || !(n % end)) f(begin, end);
+	}
+}
+
+// 156485479_2_12_1
+// Matroid Intersection
+// Credit: tfg ( https://github.com/tfg50/Competitive-Programming/blob/master/Biblioteca/Math/MatroidIntersection.cpp )
+// Prototype of a matroid for the slower version
+struct Matroid{
+	int rank = 0;
+	bool independent_with(/*an element*/){ }
+	void insert(/*an element*/){ /*increase rank if inserted*/ }
+	void clear(){ rank = 0; }
+};
+// to get answer just call Matroid_Intersection<M1, M2, T>(m1, m2, obj).solve()
+// slow but smaller O(r^2 * n) oracle calls with good constant
+template<class M1, class M2, class T>
+struct Matroid_Intersection{
+	Matroid_Intersection(M1 m1, M2 m2, const std::vector<T> &ground): n((int) ground.size()), m1(m1), m2(m2), ground(ground), present(ground.size()), except1(n, m1), except2(n, m2){
+		// greedy step
+		for(int i = 0; i < n; ++ i){
+			if(test(m1, i) && test(m2, i)){
+				present[i] = true;
+				m1.insert(ground[i]), m2.insert(ground[i]);
+			}
+		}
+		rebuild();
+		// augment step
+		while(augment());
+	}
+	std::vector<T> solve(){
+		std::vector<T> ans;
+		for(int i = 0; i < n; ++ i){
+			if(present[i]){
+				ans.push_back(ground[i]);
+			}
+		}
+		return ans;
+	}
+	int n;
+	std::vector<T> ground;
+	std::vector<bool> present;
+	M1 m1;
+	M2 m2;
+	vector<M1> except1;
+	vector<M2> except2;
+	template<class M>
+	bool test(M &m, int add, int rem = -1){
+		if(present[add] || rem != -1 && !present[rem]) return false;
+		return m.independent_with(ground[add]);
+	}
+	void rebuild(){
+		m1.clear(), m2.clear();
+		for(int u = 0; u < n; ++ u){
+			if(present[u]){
+				m1.insert(ground[u]), m2.insert(ground[u]);
+			}
+		}
+		for(int u = 0; u < n; ++ u){
+			except1[u].clear(), except2[u].clear();
+			for(int v = 0; v < n; ++ v){
+				if(v != u && present[v]){
+					except1[u].insert(ground[v]), except2[u].insert(ground[v]);
+				}
+			}
+		}
+	}
+	bool augment(){
+		std::deque<int> q;
+		std::vector<int> dist(n, -1);
+		std::vector<int> frm(n, -1);
+		for(int i = 0; i < n; ++ i){
+			if(test(m1, i)){
+				q.push_back(i);
+				dist[i] = 0;
+			}
+		}
+		if(q.empty()){
+			return false;
+		}
+		while(!q.empty()){
+			int on = q.front();
+			q.pop_front();
+			for(int i = 0; i < n; ++ i){
+				if(dist[i] == -1 && (dist[on] % 2 == 0 ? test(except2[i], on, i) : test(except1[on], i, on))){
+					q.push_back(i);
+					dist[i] = dist[on] + 1;
+					frm[i] = on;
+					if(test(m2, i)){
+						for(int pos = i; pos != -1; pos = frm[pos]){
+							present[pos] = !present[pos];
+						}
+						rebuild();
+						return true;
+					}
+				}
+			}
+		}
+		return false;
+	}
+};
+// Prototype of a matroid for the faster version
+struct Matroid{
+	bool is_independent(/*a set of ground elements*/){ }
+	int get_rank(/*a set of ground elements*/){ }
+};
+// fast O(N*R^1.5*logN) * oracle
+// implementation of https://arxiv.org/pdf/1911.10765.pdf
+template<class M1, class M2, class T>
+struct Matroid_Intersection{
+	Matroid_Intersection(M1 m1, M2 m2, const std::vector<T> &ground): n((int) ground.size()), ground(ground), present(ground.size()){
+		// greedy step
+		for(int i = 0; i < n; ++ i){
+			if(test(m1, i) && test(m2, i)){
+				present[i] = true;
+				++ curAns;
+			}
+		}
+		// augment step
+		while(augment(m1, m2));
+	}
+	std::vector<T> solve(int o = -1){
+		std::vector<T> ans;
+		for(int i = 0; i < n; ++ i){
+			if(present[i] && i != o){
+				ans.push_back(ground[i]);
+			}
+		}
+		return ans;
+	}
+	int curAns = 0, n;
+	std::vector<T> ground;
+	std::vector<bool> present;
+	template<class M>
+	bool test(M &m, int add, int rem = -1){
+		if(present[add] || (rem != -1 && !present[rem])) return false;
+		auto st = solve(rem);
+		st.push_back(ground[add]);
+		return m.is_independent(st);
+	}
+	bool augment(M1 &m1, M2 &m2){
+		std::deque<int> q;
+		std::vector<int> dist(n, -1);
+		std::vector<int> frm(n, -1);
+		std::vector<std::vector<int>> layers;
+		for(int i = 0; i < n; ++ i){
+			if(test(m1, i)){
+				q.push_back(i);
+				dist[i] = 0;
+			}
+		}
+		if(q.empty()){
+			return false;
+		}
+		int limit = 1e9;
+		auto outArc = [&](int u, bool phase){
+			std::vector<T> st;
+			std::vector<int> others;
+			if(present[u]){
+				for(int i = 0; i < n; ++ i){
+					if(present[i] && i != u){
+						st.push_back(ground[i]);
+					}
+					else if(!present[i] && dist[i] == (phase ? dist[u] + 1 : -1)){
+						others.push_back(i);
+					}
+				}
+				auto _test = [&](int l, int r){
+					auto cur = st;
+					for(int i = l; i < r; ++ i){
+						cur.push_back(ground[others[i]]);
+					}
+					return m1.get_rank(cur) >= curAns;
+				};
+				int l = 0, r = (int)others.size();
+				if(l == r || !_test(l, r)) return -1;
+				while(l + 1 != r){
+					int mid = (l + r) / 2;
+					if(_test(l, mid)){
+						r = mid;
+					}
+					else{
+						l = mid;
+					}
+				}
+				return others[l];
+			}
+			else{
+				for(int i = 0; i < n; ++ i){
+					if(present[i] && dist[i] != (phase ? dist[u] + 1 : -1)){
+						st.push_back(ground[i]);
+					}
+					else if(present[i]){
+						others.push_back(i);
+					}
+				}
+				auto _test = [&](int l, int r){
+					auto cur = st;
+					for(int i = 0; i < l; ++ i){
+						cur.push_back(ground[others[i]]);
+					}
+					for(int i = r; i < (int) others.size(); ++ i){
+						cur.push_back(ground[others[i]]);
+					}
+					cur.push_back(ground[u]);
+					return m2.is_independent(cur);
+				};
+				int l = 0, r = (int)others.size();
+				if(l == r || !_test(l, r)) return -1;
+				while(l + 1 != r){
+					int mid = (l + r) / 2;
+					if(_test(l, mid)){
+						r = mid;
+					}
+					else{
+						l = mid;
+					}
+				}
+				return others[l];
+			}
+		};
+		while(!q.empty()){
+			int on = q.front();
+			q.pop_front();
+			if((int)layers.size() <= dist[on]) layers.emplace_back(0);
+			layers[dist[on]].push_back(on);
+			if(dist[on] == limit) continue;
+			for(int i = outArc(on, false); i != -1; i = outArc(on, false)){
+				assert(dist[i] == -1 && (dist[on] % 2 == 0 ? test(m2, on, i) : test(m1, i, on)));
+				q.push_back(i);
+				dist[i] = dist[on] + 1;
+				frm[i] = on;
+				if(limit > n && test(m2, i)){
+					limit = dist[i];
+					continue;
+					for(on = i; on != -1; on = frm[on]){
+						present[on] = !present[on];
+					}
+					++ curAns;
+					return true;
+				}
+			}
+		}
+		if(limit > n) return false;
+		auto rem = [&](int on){
+			assert(dist[on] != -1);
+			auto it = std::find(layers[dist[on]].begin(), layers[dist[on]].end(), on);
+			assert(it != layers[dist[on]].end());
+			layers[dist[on]].erase(it);
+			dist[on] = -1;
+		};
+		std::function<bool(int)> dfs = [&](int on){
+			if(dist[on] == 0 && !test(m1, on)){
+				rem(on);
+				return false;
+			}
+			if(dist[on] == limit){
+				rem(on);
+				if(test(m2, on)){
+					present[on] = !present[on];
+					return true;
+				}
+				else{
+					return false;
+				}
+			}
+			for(int to = outArc(on, true); to != -1; to = outArc(on, true)){
+				if(dfs(to)){
+					rem(on);
+					present[on] = !present[on];
+					return true;
+				}
+			}
+			rem(on);
+			return false;
+		};
+		bool got = false;
+		while(!layers[0].empty()){
+			if(dfs(layers[0].back())){
+				got = true;
+				assert(m1.is_independent(solve()) && m2.is_independent(solve()));
+				++ curAns;
+			}
+		}
+		assert(got);
+		return true;
+	}
+};
+
+// 156485479_2_12_2
+// Matroid Union
+
+
 // 156485479_3_1
 // Sparse Table
 // The binary operator must be idempotent and associative
@@ -2619,13 +2925,13 @@ struct segment{
 	T lazy, val;
 	segment(LOP lop, QOP qop, AOP aop, const array<T, 2> &id, B low, B high, INIT init): lop(lop), qop(qop), aop(aop), id(id), low(low), high(high), lazy(id[0]), init(init), val(init(low, high)){ }
 	template<typename IT>
-	segment(LOP lop, QOP qop, AOP aop, const array<T, 2> &id, B low, B high, IT begin, IT end): lop(lop), qop(qop), aop(aop), id(id), low(low), high(high), lazy(id[0]){
+	segment(IT begin, IT end, LOP lop, QOP qop, AOP aop, const array<T, 2> &id, B low, B high): lop(lop), qop(qop), aop(aop), id(id), low(low), high(high), lazy(id[0]){
 		assert(end - begin == high - low);
 		if(high - low > 1){
 			IT inter = begin + (end - begin >> 1);
 			B mid = low + (high - low >> 1);
-			l = new segment(lop, qop, aop, id, low, mid, begin, inter);
-			r = new segment(lop, qop, aop, id, mid, high, inter, end);
+			l = new segment(begin, inter, lop, qop, aop, id, low, mid);
+			r = new segment(inter, end, lop, qop, aop, id, mid, high);
 			val = qop(low, mid, high, l->val, r->val);
 		}
 		else val = *begin;
@@ -2888,29 +3194,60 @@ struct wavelet{
 struct disjoint{
 	int N;
 	vector<int> parent, size;
-	// vector<pair<int, int>> Log_parent, Log_size; // For persistency
-	disjoint(int N): N(N), parent(N), size(N, 1){ iota(parent.begin(), parent.end(), 0); }
+	disjoint(int N): N(N), parent(N), size(N, 1){
+		iota(parent.begin(), parent.end(), 0);
+	}
 	void expand(){
 		++ N;
 		parent.push_back(parent.size());
 		size.push_back(1);
 	}
 	int root(int u){
-		// Log_parent.emplace_back(u, parent[u]);
 		return parent[u] == u ? u : parent[u] = root(parent[u]);
 	}
 	bool merge(int u, int v){
 		u = root(u), v = root(v);
 		if(u == v) return false;
 		if(size[u] < size[v]) swap(u, v);
-		// Log_parent.emplace_back(v, parent[v]);
 		parent[v] = u;
-		// Log_size.emplace_back(u, size[u]);
 		size[u] += size[v];
 		return true;
 	}
-	bool share(int u, int v){ return root(parent[u]) == root(parent[v]); }
-	/*void reverse(int p, int s){
+	bool share(int u, int v){
+		return root(parent[u]) == root(parent[v]);
+	}
+};
+// Persistent Version
+struct disjoint{
+	int N;
+	vector<int> parent, size;
+	vector<pair<int, int>> Log_parent, Log_size;
+	disjoint(int N): N(N), parent(N), size(N, 1){
+		iota(parent.begin(), parent.end(), 0);
+	}
+	void expand(){
+		++ N;
+		parent.push_back(parent.size());
+		size.push_back(1);
+	}
+	int root(int u){
+		Log_parent.emplace_back(u, parent[u]);
+		return parent[u] == u ? u : parent[u] = root(parent[u]);
+	}
+	bool merge(int u, int v){
+		u = root(u), v = root(v);
+		if(u == v) return false;
+		if(size[u] < size[v]) swap(u, v);
+		Log_parent.emplace_back(v, parent[v]);
+		parent[v] = u;
+		Log_size.emplace_back(u, size[u]);
+		size[u] += size[v];
+		return true;
+	}
+	bool share(int u, int v){
+		return root(parent[u]) == root(parent[v]);
+	}
+	void reverse(int p, int s){
 		while(parent.size() != p) reverse_parent();
 		while(size.size() != s) reverse_size();
 	}
@@ -2923,7 +3260,7 @@ struct disjoint{
 		auto [u, s] = Log_size.back();
 		Log_size.pop_back();
 		size[u] = s;
-	}*/
+	}
 };
 
 // 156485479_3_6
@@ -3169,55 +3506,123 @@ vector<T> answer_query_offline(vector<Q> query, I ins, D del, A ans){
 // 156485479_3_9
 // Treap
 // O(log N) per operation
-template<typename T>
+template<typename T, typename P, typename R>
 struct treap{
 	struct node{
 		node *l = 0, *r = 0;
-		T val;
+		T val, subtr_val, lazy;
 		int priority, sz = 1;
-		node(T val): val(val), priority(rng()){ }
-		void refresh(){
-			sz = (l ? l->sz : 0) + (r ? r->sz : 0) + 1;
-		}
+		int ind;
+		node(T val, T lazy): val(val), subtr_val(val), lazy(lazy), priority(rng()){ }
+		node(T val, T lazy, int ind): val(val), subtr_val(val), lazy(lazy), ind(ind), priority(rng()){ }
 	};
 	node *root = 0;
-	int cnt(node *u){
-		return u ? u->sz : 0;
+	P push; // update Lazy to child val and subtr_val
+	R refresh; // Recalculate sz and subtr_val
+	treap(P push, R refresh): push(push), refresh(refresh){ }
+	template<typename IT>
+	treap(IT begin, IT end, P push, R refresh, T lazy): push(push), refresh(refresh){
+		root = build(begin, end, lazy);
+	}
+	treap(int N, T val, P push, R refresh, T lazy): push(push), refresh(refresh){
+		root = build(N, val, lazy);
+	}
+	void heapify(node *u){
+		if(u){
+			node *v = u;
+			if(u->l && u->l->priority > v->priority) v = u->l;
+			if(u->r && u->r->priority > v->priority) v = u->r;
+			if(u != v){
+				swap(u->priority, v->priority);
+				heapify(v);
+			}
+		}
+	}
+	template<typename IT>
+	node *build(IT begin, IT end, T lazy){
+		if(begin == end) return 0;
+		IT mid = begin + (end - begin >> 1);
+		node *c = new node(*mid, lazy);
+		c->l = build(begin, mid, lazy), c->r = build(mid + 1, end, lazy);
+		heapify(c);
+		refresh(c);
+		return c;
+	}
+	node *build(int N, T val, T lazy){
+		if(!N) return 0;
+		int M = N >> 1;
+		node *c = new node(val, lazy);
+		c->l = build(M, val, lazy), c->r = build(N - M - 1, val, lazy);
+		heapify(c);
+		refresh(c);
+		return c;
 	}
 	template<class F>
 	void each(node *u, F f){
 		if(u){
+			push(u);
 			each(u->l, f);
-			f(u->val);
+			f(u);
 			each(u->r, f);
 		}
 	}
+	template<class F>
+	void each(F f){
+		each(root, f);
+	}
+	void print(){
+		cout << "Cur treap: ";
+		each(root, [&](node *u){ cout << u->val << " "; });
+		cout << endl;
+	}
+	int get_cnt(node *u){
+		return u ? u->sz : 0;
+	}
 	pair<node *, node *> split(node* u, int k){
 		if(!u) return { };
-		if(cnt(u->l) >= k){ // "n->val >= k" for lower_bound(k)
+		push(u);
+		if(get_cnt(u->l) >= k){
 			auto [sl, sr] = split(u->l, k);
 			u->l = sr;
-			u->refresh();
+			refresh(u);
 			return {sl, u};
 		}
 		else{
-			auto [sl, sr] = split(u->r, k - cnt(u->l) - 1); // and just "k"
+			auto [sl, sr] = split(u->r, k - get_cnt(u->l) - 1);
 			u->r = sl;
-			u->refresh();
+			refresh(u);
+			return {u, sr};
+		}
+	}
+	template<typename Compare = less<T>>
+	pair<node *, node *> split_by_val(node* u, T k, Compare cmp = less<T>()){
+		if(!u) return { };
+		push(u);
+		if(!cmp(u->val, k)){
+			auto [sl, sr] = split_by_val(u->l, k, cmp);
+			u->l = sr;
+			refresh(u);
+			return {sl, u};
+		}
+		else{
+			auto [sl, sr] = split_by_val(u->r, k, cmp);
+			u->r = sl;
+			refresh(u);
 			return {u, sr};
 		}
 	}
 	node *merge(node *l, node *r){
 		if(!l) return r;
 		if(!r) return l;
+		push(l), push(r);
 		if(l->priority > r->priority){
 			l->r = merge(l->r, r);
-			l->refresh();
+			refresh(l);
 			return l;
 		}
 		else{
 			r->l = merge(l, r->l);
-			r->refresh();
+			refresh(r);
 			return r;
 		}
 	}
@@ -3245,7 +3650,31 @@ struct treap{
 		if(k <= l) u = merge(insert(a, b, k), c);
 		else u = merge(a, insert(c, b, k - r));
 	}
+	void move(int l, int r, int k){
+		move(root, l, r, k);
+	}
 };
+/*
+	auto push = [&](auto *u){
+		if(u && u->lazy){
+			if(u->l){
+				u->l->lazy += u->lazy;
+				u->l->val += u->lazy;
+				u->l->subtr_val += u->lazy * u->l->sz;
+			}
+			if(u->r){
+				u->r->lazy += u->lazy;
+				u->r->val += u->lazy;
+				u->r->subtr_val += u->lazy * u->r->sz;
+			}
+			u->lazy = 0;
+		}
+	};
+	auto refresh = [&](auto *u){
+		u->sz = (u->l ? u->l->sz : 0) + (u->r ? u->r->sz : 0) + 1;
+		u->subtr_val = (u->l ? u->l->subtr_val : 0) + (u->r ? u->r->subtr_val : 0) + u->val;
+	};
+*/
 
 // 156485479_3_10
 // Splay Tree
@@ -3479,7 +3908,7 @@ struct dinic{
 
 // 156485479_4_4_2
 // Minimum Cost Maximum Flow Algorithm
-// O(N^2 M^2)
+// O(Augmenting Paths) * O(SPFA)
 template<typename T, typename C>
 struct mcmf{
 	static constexpr T eps = (T) 1e-9;
@@ -3560,6 +3989,56 @@ struct mcmf{
 		return {flow, cost};
 	}
 };
+
+// 156485479_4_4_3
+// Simple DFS Matching
+// O(VE)
+struct matching{
+	vector<vector<int>> adj;
+	vector<int> pa, pb, cur;
+	int n, m, flow = 0, id = 0;
+	matching(int n, int m): n(n), m(m), pa(n, -1), pb(m, -1), cur(n), adj(n){ }
+	int insert(int from, int to){
+		adj[from].push_back(to);
+		return int(adj[from].size()) - 1;
+	}
+	bool dfs(int v){
+		cur[v] = id;
+		for(auto u: adj[v]){
+			if(pb[u] == -1){
+				pa[v] = u;
+				pb[u] = v;
+				return true;
+			}
+		}
+		for(auto u: adj[v]){
+			if(cur[pb[u]] != id && dfs(pb[u])){
+				pa[v] = u;
+				pb[u] = v;
+				return true;
+			}
+		}
+		return false;
+	}
+	int solve(){
+		while(true){
+			++ id;
+			int augment = 0;
+			for(int u = 0; u < n; ++ u) if(pa[u] == -1 && dfs(u)) ++ augment;
+			if(!augment) break;
+			flow += augment;
+		}
+		return flow;
+	}
+	int run_once(int v){
+		if(pa[v] != -1) return 0;
+		++ id;
+		return dfs(v);
+	}
+};
+
+// 156485479_4_4_4
+// Hopcroft Karp Algorithm
 
 // 156485479_4_5_1
 // LCA
@@ -3721,13 +4200,13 @@ struct segment{
 	T lazy, val;
 	segment(LOP lop, QOP qop, AOP aop, const array<T, 2> &id, B low, B high, INIT init): lop(lop), qop(qop), aop(aop), id(id), low(low), high(high), lazy(id[0]), init(init), val(init(low, high)){ }
 	template<typename IT>
-	segment(LOP lop, QOP qop, AOP aop, const array<T, 2> &id, B low, B high, IT begin, IT end): lop(lop), qop(qop), aop(aop), id(id), low(low), high(high), lazy(id[0]){
+	segment(IT begin, IT end, LOP lop, QOP qop, AOP aop, const array<T, 2> &id, B low, B high): lop(lop), qop(qop), aop(aop), id(id), low(low), high(high), lazy(id[0]){
 		assert(end - begin == high - low);
 		if(high - low > 1){
 			IT inter = begin + (end - begin >> 1);
 			B mid = low + (high - low >> 1);
-			l = new segment(lop, qop, aop, id, low, mid, begin, inter);
-			r = new segment(lop, qop, aop, id, mid, high, inter, end);
+			l = new segment(begin, inter, lop, qop, aop, id, low, mid);
+			r = new segment(inter, end, lop, qop, aop, id, mid, high);
 			val = qop(low, mid, high, l->val, r->val);
 		}
 		else val = *begin;
@@ -4373,7 +4852,7 @@ pair<bool, vector<int>> toposort(const Graph &adj){
 		res[u] = cnt ++;
 		for(auto v: adj[u]) if (!(-- indeg[v])) q.push_back(v);
 	}
-	return cnt == n;
+	return {cnt == n, res};
 }
 // Lexicographically Smallest Topological Sort / Return false if there's a cycle
 // O(V log V + E)
@@ -4391,7 +4870,7 @@ pair<bool, vector<int>> toposort(const Graph &adj){
 		res[u] = cnt ++;
 		for(auto v: adj[u]) if (!(-- indeg[v])) q.push(v);
 	}
-	return cnt == n;
+	return {cnt == n, res};
 }
 
 // 156485479_4_9
