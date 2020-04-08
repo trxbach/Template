@@ -2408,9 +2408,10 @@ struct Matroid{
 	void insert(/*an element*/){ }
 	void clear(){ }
 };
-// to get answer just call Matroid_Intersection<M1, M2, T>(m1, m2, obj).solve()
-// O(r) rebuild() calls. rebuild() = O(r^2) insert calls
-// O(r*n) test() calls. test() = O(1) independent_with calls
+// to get answer just call Matroid_Intersection<M1, M2, T>(m1, m2, ground).solve()
+// rebuild() = O(r^2) insert() and clear() calls
+// test() = O(1) independent_with() calls
+// O(r) rebuild() + O(r*n) test() = O(r^3) (insert() + clear()) + O(r*n) independent_with() calls in total
 template<class M1, class M2, class T>
 struct Matroid_Intersection{
 	Matroid_Intersection(M1 m1, M2 m2, const std::vector<T> &ground): n((int) ground.size()), m1(m1), m2(m2), ground(ground), present(ground.size()), except1(n, m1), except2(n, m2){
@@ -3354,13 +3355,23 @@ struct segment: vector<node<T> *>{
 	int N;
 	BO bin_op;
 	const T id;
-	segment(const vector<T> &arr, BO bin_op, T id): N(arr.size()), bin_op(bin_op), id(id){
-		this->push_back(build(arr, 0, N));
+	template<typename IT>
+	segment(IT begin, IT end, BO bin_op, T id): N(distance(begin, end)), bin_op(bin_op), id(id){
+		this->push_back(build(begin, end));
 	}
-	node<T> *build(const vector<T> &arr, int left, int right){
-		if(left + 1 == right) return new node<T>(arr[left]);
+	segment(int N, BO bin_op, T id): N(N), bin_op(bin_op), id(id){
+		this->push_back(build(0, N));
+	}
+	template<typename IT>
+	node<T> *build(IT begin, IT end){
+		if(begin + 1 == end) return new node<T>(*begin);
+		IT inter = begin + (end - begin >> 1);
+		return new node<T>(build(begin, inter), build(inter, end), bin_op, id);
+	}
+	node<T> *build(int left, int right){
+		if(left + 1 == right) return new node<T>(0);
 		int mid = left + right >> 1;
-		return new node<T>(build(arr, left, mid), build(arr, mid, right), bin_op, id);
+		return new node<T>(build(left, mid), build(mid, right), bin_op, id);
 	}
 	T pq(node<T> *u, int left, int right, int ql, int qr){
 		if(qr <= left || right <= ql) return id;
@@ -3414,21 +3425,29 @@ struct segment: vector<node<T> *>{
 		return upper_bound(u, bin_op(x, query(u, 0, min(i, N))), inv_op);
 	}
 };
-template<typename T>
-struct less_than_k_query{ // for less-than-k query, it only deals with numbers in range [0, N)
+// TYPE: {0: distinct value query, 1: less-than-k query with numbers in range [0, N), 2: arbitrary range less-than-k query}
+template<typename T, int TYPE = 0>
+struct less_than_k_query{
 	int N;
 	vector<node<T> *> p;
 	segment<int, plus<int>> tr;
-	less_than_k_query(const vector<T> &arr, bool IS_DVQ = true): N(arr.size()), p(N + 1), tr(vector<int>(N), plus<int>{}, 0){
+	vector<T> compress;
+	template<typename IT>
+	less_than_k_query(IT begin, IT end): N(distance(begin, end)), p(N + 1), tr(N, plus<int>{}, 0){
 		vector<pair<T, int>> event(N);
-		if(IS_DVQ){
+		if(TYPE == 0){
 			map<T, int> q;
-			for(int i = 0; i < N; ++ i){
-				event[i] = {(q.count(arr[i]) ? q[arr[i]] : -1), i};
-				q[arr[i]] = i;
+			for(int i = 0; begin != end; ++ begin, ++ i){
+				event[i] = {(q.count(*begin) ? q[*begin] : -1), i};
+				q[*begin] = i;
 			}
 		}
-		else for(int i = 0; i < N; ++ i) event[i] = {arr[i], i};
+		else if(TYPE == 1) for(int i = 0; begin != end; ++ begin, ++ i) event[i] = {*begin, i};
+		else{
+			compress = {begin, end};
+			sort(compress.begin(), compress.end()), compress.resize(unique(compress.begin(), compress.end()) - compress.begin());
+			for(int i = 0; begin != end; ++ begin, ++ i) event[i] = {std::lower_bound(compress.begin(), compress.end(), *begin) - compress.begin(), i};
+		}
 		sort(event.begin(), event.end(), greater<pair<int, int>>{});
 		tr.reserve(N);
 		for(int i = 0; i <= N; ++ i){
@@ -3451,13 +3470,13 @@ struct less_than_k_query{ // for less-than-k query, it only deals with numbers i
 	}
 	// For less-than-k query
 	int query(int ql, int qr, int k){
-		return tr.query(p[k], ql, qr);
+		return tr.query(p[TYPE == 2 ? std::upper_bound(compress.begin(), compress.end(), k) - compress.begin() : k], ql, qr);
 	}
 	int lower_bound(int ql, int k, int cnt){ // min i such that ( # of elements < k in [l, l + i) ) >= cnt
-		return tr.lower_bound(p[k], ql, cnt, minus<int>());
+		return tr.lower_bound(p[TYPE == 2 ? std::upper_bound(compress.begin(), compress.end(), k) - compress.begin() : k], ql, cnt, minus<int>());
 	}
 	int upper_bound(int ql, int k, int cnt){ // min i such that ( # of elements < k in [l, l + i) ) > cnt
-		return tr.upper_bound(p[k], ql, cnt, minus<int>());
+		return tr.upper_bound(p[TYPE == 2 ? std::upper_bound(compress.begin(), compress.end(), k) - compress.begin() : k], ql, cnt, minus<int>());
 	}
 };
 
@@ -3764,7 +3783,7 @@ int bcc(const Graph &adj, Process_BCC f, Process_Bridge g = [](int u, int v, int
 					st.push_back(e);
 					f(vector<int>(st.begin() + si, st.end())); // Processes edgelist
 					st.resize(si);
-					ncomps ++;
+					++ ncomps;
 				}
 				else if(up < me) st.push_back(e);
 				else g(u, v, e);
