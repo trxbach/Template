@@ -2404,9 +2404,15 @@ void for_each_q(T n, Process f){
 // Credit: tfg ( https://github.com/tfg50/Competitive-Programming/blob/master/Biblioteca/Math/MatroidIntersection.cpp )
 // Prototype of a matroid for the slower version
 struct Matroid{
-	bool independent_with(/*an element*/){ }
-	void insert(/*an element*/){ }
-	void clear(){ }
+	bool independent_with(/*an element*/){
+
+	}
+	void insert(/*an element*/){
+
+	}
+	void clear(){
+
+	}
 };
 // to get answer just call Matroid_Intersection<M1, M2, T>(m1, m2, ground).solve()
 // rebuild() = O(r^2) insert() and clear() calls
@@ -2501,8 +2507,12 @@ struct Matroid_Intersection{
 };
 // Prototype of a matroid for the faster version
 struct Matroid{
-	bool is_independent(/*a set of ground elements*/){ }
-	int get_rank(/*a set of ground elements*/){ }
+	bool is_independent(/*a set of ground elements*/){
+
+	}
+	int get_rank(/*a set of ground elements*/){
+
+	}
 };
 // O(n * r^1.5 * log n) oracle calls
 // implementation of https://arxiv.org/pdf/1911.10765.pdf
@@ -3134,53 +3144,63 @@ struct fenwick{
 // 156485479_3_4
 // Wavelet Tree ( WARNING: NOT THOROUGHLY TESTED YET )
 // O(L log N) preprocessing, O(log N) per query
-struct node: vector<int>{
-	int N, low, high;
-	node *l = NULL, *r = NULL;
-	node(vector<int>::iterator bg, vector<int>::iterator ed, int low, int high, function<bool(int, int)> cmp):
-		N(ed - bg), low(low), high(high){
+template<typename T>
+struct node{
+	int N;
+	T low, high;
+	node *l = 0, *r = 0;
+	vector<int> freq;
+	template<typename IT, typename Compare>
+	node(IT begin, IT end, T low, T high, Compare cmp): N(distance(begin, end)), low(low), high(high){
 		if(!N) return;
-		if(low + 1 == high){
-			this->resize(N + 1);
-			iota(this->begin(), this->end(), 0);
-			return;
-		}
-		int mid = low + high >> 1;
-		auto pred = [&](int x){return cmp(x, mid);};
-		this->reserve(N + 1);
-		this->push_back(0);
-		for(auto it = bg; it != ed; it ++){
-			this->push_back(this->back() + pred(*it));
-		}
-		auto p = stable_partition(bg, ed, pred);
-		l = new node(bg, p, low, mid, cmp);
-		r = new node(p, ed, mid, high, cmp);
+		if(low + 1 == high) return;
+		T mid = low + (high - low >> 1);
+		auto pred = [&](T x){ return cmp(x, mid); };
+		freq.reserve(N + 1);
+		freq.push_back(0);
+		for(auto it = begin; it != end; ++ it) freq.push_back(freq.back() + pred(*it));
+		auto inter = stable_partition(begin, end, pred);
+		l = new node(begin, inter, low, mid, cmp);
+		r = new node(inter, end, mid, high, cmp);
 	}
 };
+template<typename T, typename Compare = less<>>
 struct wavelet{
 	int N;
-	node *root;
-	function<bool(int, int)> cmp;
-	vector<int> arr;
-	wavelet(const vector<int> &other, function<bool(int, int)> cmp = less<int>()):
-		N(other.size()), arr(other), cmp(cmp){
-		root = new node(arr.begin(), arr.end(), *min_element(arr.begin(), arr.end(), cmp), *max_element(arr.begin(), arr.end(), cmp) + 1, cmp);
+	node<T> *root;
+	Compare cmp;
+	template<typename IT>
+	wavelet(IT begin, IT end, Compare cmp = less<>()): N(distance(begin, end)), cmp(cmp){
+		root = new node<T>(begin, end, *min_element(begin, end, cmp), *max_element(begin, end, cmp) + 1, cmp);
 	}
-	//Count elements less than val in the range [l, r)
-	int count(node *node, int ql, int qr, int val){
-		if(ql >= qr || !cmp(node->low, val)) return 0;
-		if(!cmp(val, node->high)) return qr - ql;
-		int Lcnt = (*node)[ql], Rcnt = (*node)[qr];
-		return count(node->l, Lcnt, Rcnt, val) + count(node->r, ql - Lcnt, qr - Rcnt, val);
+	// Return the # of elements less than x in the range [ql, qr)
+	int count(node<T> *u, int ql, int qr, T x){
+		if(ql >= qr || !cmp(u->low, x)) return 0;
+		if(!cmp(x, u->high)) return qr - ql;
+		int lcnt = u->freq[ql], rcnt = u->freq[qr];
+		return count(u->l, lcnt, rcnt, x) + count(u->r, ql - lcnt, qr - rcnt, x);
 	}
-	//Find the kth element in the range [l, r)
-	int kth(node *node, int ql, int qr, int k){
-		if(k > node->N) return node->high;
-		if(k <= 0) return node->low - 1;
-		if(node->low + 1 == node->high) return node->low;
-		int Lcnt = (*node)[ql], Rcnt = (*node)[qr];
-		if(k <= node->l->N) return kth(node->l, Lcnt, Rcnt, k);
-		else return kth(node->r, ql - Lcnt, qr - Rcnt, k - node->l->N);
+	//Find the k-th element in the range [ql, qr) ( 0-indexed )
+	T k_th(node<T> *u, int ql, int qr, int k){
+		assert(0 <= k && k < u->N);
+		if(u->low + 1 == u->high) return u->low;
+		int lcnt = u->freq[ql], rcnt = u->freq[qr];
+		if(k < rcnt - lcnt) return k_th(u->l, lcnt, rcnt, k);
+		else return k_th(u->r, ql - lcnt, qr - rcnt, k - (rcnt - lcnt));
+	}
+	void print(){
+		deque<node<T> *> q{root};
+		while(!q.empty()){
+			auto u = q.front();
+			q.pop_front();
+			cout << "range = [" << u->low << ", " << u->high << "), frequency: ";
+			for(auto x: u->freq){
+				cout << x << " ";
+			}
+			cout << "\n";
+			if(u->l) q.push_back(u->l);
+			if(u->r) q.push_back(u->r);
+		}
 	}
 };
 
