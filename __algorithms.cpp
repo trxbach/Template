@@ -129,7 +129,7 @@ Category
 		3.3.3. 2D Fenwick Tree
 			156485479_3_3_3
 	3.4. Wavelet Tree
-		156485479_3_4 ( NOT THROUGHLY TESTED YET )
+		156485479_3_4
 	3.5. Disjoint Set
 		156485479_3_5
 	3.6. Monotone Stack
@@ -3142,7 +3142,7 @@ struct fenwick{
 };
 
 // 156485479_3_4
-// Wavelet Tree ( WARNING: NOT THOROUGHLY TESTED YET )
+// Wavelet Tree
 // O(L log N) preprocessing, O(log N) per query
 template<typename T>
 struct node{
