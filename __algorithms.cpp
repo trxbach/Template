@@ -2505,6 +2505,10 @@ struct Matroid_Intersection{
 		return false;
 	}
 };
+/*
+Todo: make a weighted version
+bellman ford, cost is (actual cost, number of edges in path), break ties by length
+*/
 // Prototype of a matroid for the faster version
 struct Matroid{
 	bool is_independent(/*a set of ground elements*/){
@@ -3295,7 +3299,7 @@ struct monotone_stack: vector<T>{
 };
 
 // 156485479_3_7
-// Less-than-k Query, Distinct Value Query (Offline, Online)
+// Distinct Value Query, Less-than-k Query (Offline, Online)
 // O(N log N) processing
 template<typename T, typename BO, typename IO>
 struct fenwick{
@@ -3324,27 +3328,34 @@ struct fenwick{
 		return inv_op(sum(r - 1), sum(l - 1));
 	}
 };
-template<typename T>
+// TYPE: {0: distinct value query, 1: less-than-k query with numbers in range [0, N), 2: arbitrary range less-than-k query}
+template<typename T, int TYPE = 0>
 struct offline_less_than_k_query{
 	int N;
 	vector<pair<T, int>> event;
 	vector<tuple<T, int, int, int>> queries;
+	vector<T> compress;
 	template<typename IT>
-	offline_less_than_k_query(IT begin, IT end, bool IS_DVQ = true): N(distance(begin, end)), event(N){
-		if(IS_DVQ){
+	offline_less_than_k_query(IT begin, IT end): N(distance(begin, end)), event(N){
+		if(TYPE == 0){
 			map<T, int> q;
-			for(int i = 0; i < N; ++ i){
+			for(int i = 0; begin != end; ++ begin, ++ i){
 				event[i] = {(q.count(*begin) ? q[*begin] : -1), i};
-				q[*(begin ++)] = i;
+				q[*begin] = i;
 			}
 		}
-		else for(int i = 0; i < N; ++ i) event[i] = {*(begin ++), i};
+		else if(TYPE == 1) for(int i = 0; begin != end; ++ begin, ++ i) event[i] = {*begin, i};
+		else{
+			compress = {begin, end};
+			sort(compress.begin(), compress.end()), compress.resize(unique(compress.begin(), compress.end()) - compress.begin());
+			for(int i = 0; begin != end; ++ begin, ++ i) event[i] = {std::lower_bound(compress.begin(), compress.end(), *begin) - compress.begin(), i};
+		}
 	}
 	void query(int i, int ql, int qr){ // For distinct value query
 		queries.emplace_back(ql, ql, qr, i);
 	}
 	void query(int i, int ql, int qr, T k){ // For less-than-k query
-		queries.emplace_back(k, ql, qr, i);
+		queries.emplace_back(TYPE == 2 ? std::lower_bound(compress.begin(), compress.end(), k) - compress.begin() : k, ql, qr, i);
 	}
 	template<typename Action>
 	void solve(Action ans){ // ans(index, answer)
@@ -3490,13 +3501,13 @@ struct less_than_k_query{
 	}
 	// For less-than-k query
 	int query(int ql, int qr, int k){
-		return tr.query(p[TYPE == 2 ? std::upper_bound(compress.begin(), compress.end(), k) - compress.begin() : k], ql, qr);
+		return tr.query(p[TYPE == 2 ? std::lower_bound(compress.begin(), compress.end(), k) - compress.begin() : k], ql, qr);
 	}
 	int lower_bound(int ql, int k, int cnt){ // min i such that ( # of elements < k in [l, l + i) ) >= cnt
-		return tr.lower_bound(p[TYPE == 2 ? std::upper_bound(compress.begin(), compress.end(), k) - compress.begin() : k], ql, cnt, minus<int>());
+		return tr.lower_bound(p[TYPE == 2 ? std::lower_bound(compress.begin(), compress.end(), k) - compress.begin() : k], ql, cnt, minus<int>());
 	}
 	int upper_bound(int ql, int k, int cnt){ // min i such that ( # of elements < k in [l, l + i) ) > cnt
-		return tr.upper_bound(p[TYPE == 2 ? std::upper_bound(compress.begin(), compress.end(), k) - compress.begin() : k], ql, cnt, minus<int>());
+		return tr.upper_bound(p[TYPE == 2 ? std::lower_bound(compress.begin(), compress.end(), k) - compress.begin() : k], ql, cnt, minus<int>());
 	}
 };
 
@@ -3760,7 +3771,7 @@ int scc(const Graph &adj, Process_SCC f){
 	int n = int(adj.size());
 	vector<int> val(n), comp(n, -1), z, cur;
 	int timer = 0, ncomps = 0;
-	function<void(int)> dfs = [&](int u){
+	function<int(int)> dfs = [&](int u){
 		int low = val[u] = ++ timer, v;
 		z.push_back(u);
 		for(auto v: adj[u]) if(comp[v] < 0) low = min(low, val[v] ?: dfs(v));
@@ -4990,7 +5001,7 @@ pair<vector<int>, vector<int>> euler_walk(const vector<vector<pair<int, int>>> &
 // 156485479_5_1
 // Returns the starting position of the lexicographically minimal rotation
 // O(n)
-template<typename Str>
+template<typename Str = string>
 int min_rotation(Str s){
 	int n = int(s.size());
 	s += s;
@@ -5011,7 +5022,7 @@ int min_rotation(Str s){
 // 156485479_5_2
 // All Palindromic Substrings ( Manacher's Algorithm )
 // O(N)
-template<typename Str>
+template<typename Str = string>
 array<vector<int>, 2> manacher(const Str &s){
 	int n = int(s.size());
 	array<vector<int>, 2> p = {vector<int>(n + 1), vector<int>(n)};
@@ -5051,7 +5062,7 @@ struct sparse_table{
 		return bin_op(val[d][l], val[d][r - (1 << d)]);
 	}
 };
-template<typename Str, int lim = 256>
+template<typename Str = string, int lim = 256>
 struct suffix_array{
 	int N;
 	vector<int> p, c, l; // p[i]: starting index of i-th suffix in SA, c[i]: position of suffix of index i in SA
@@ -5121,7 +5132,7 @@ struct suffix_array{
 // 156485479_5_4
 // Z Function / for each position i > 0, returns the length of the longest prefix which is also a prefix starting at i
 // O(n)
-template<typename Str>
+template<typename Str = string>
 vector<int> z_function(const Str &s){
 	int n = int(s.size());
 	vector<int> z(n);
@@ -5136,7 +5147,7 @@ vector<int> z_function(const Str &s){
 // 156485479_5_5
 // Aho Corasic Automaton
 // O(W) preprocessing, O(L) per query
-template<typename Str, int lim = 128>
+template<typename Str = string, int lim = 128>
 struct aho_corasic{
 	typedef typename Str::value_type Char;
 	struct node{
@@ -5197,7 +5208,7 @@ struct aho_corasic{
 // 156485479_5_6
 // Prefix Function / Prefix Automaton
 // O(N) each
-template<typename Str>
+template<typename Str = string>
 vector<int> prefix_function(const Str &s){
 	int n = int(s.size());
 	vector<int> p(n);
@@ -5209,7 +5220,7 @@ vector<int> prefix_function(const Str &s){
 	}
 	return p;
 }
-template<typename Str, int lim = 128>
+template<typename Str = string, int lim = 128>
 pair<vector<int>, vector<vector<int>>> prefix_automaton(const Str &s){
 	vector<int> p = prefix_function(s);
 	int n = int(s.size());
@@ -5224,7 +5235,7 @@ pair<vector<int>, vector<vector<int>>> prefix_automaton(const Str &s){
 // 156485479_5_7
 // Polynomial Hash
 // O(n) processing, O(log n) for lcp, O(n) for search, O(1) for query
-template<typename Str>
+template<typename Str = string>
 struct polyhash: vector<vector<long long>>{
 	const int lim;
 	const long long base, mod;
@@ -5270,7 +5281,7 @@ struct polyhash: vector<vector<long long>>{
 		return res;
 	}
 };
-template<typename Str>
+template<typename Str = string>
 struct double_polyhash{
 	pair<polyhash<Str>, polyhash<Str>> h;
 	double_polyhash(int N, long long mod): h{polyhash<Str>(N, mod), polyhash<Str>(N, mod)}{ }
@@ -5307,7 +5318,7 @@ struct double_polyhash{
 // 156485479_5_8
 // Suffix Automaton
 // O(log ALP_SIZE) per extend call
-template<typename Str>
+template<typename Str = string>
 struct suffix_automaton{
 	typedef typename Str::value_type Char;
 	struct node{
@@ -5504,7 +5515,38 @@ Str lcs(vector<Str> a){
 // Suffix Tree
 	
 // 156485479_5_10
-// Palindrome Tree
+// Palindrome Automaton
+// O(len)
+template<typename Str = string, int lim = 128>
+struct palindrome_automaton{
+	typedef typename Str::value_type Char;
+	struct node{
+		int len, link, cnt = 0;
+		vector<int> next;
+		node(int len, int link): len(len), link(link), next(lim){ };
+	};
+	vector<int> s = vector<int>{-1};
+	vector<node> state = vector<node>{{0, 1}, {-1, 0}};
+	int lps = 1; // node containing the longest palindromic suffix
+	palindrome_automaton(){ }
+	palindrome_automaton(const Str &s){
+		for(auto c: s) push_back(c);
+	}
+	int get_link(int u){
+		while(s[int(s.size()) - state[u].len - 2] != s.back()) u = state[u].link;
+		return u;
+	}
+	void push_back(Char c){
+		s.push_back(c);
+		lps = get_link(lps);
+		if(!state[lps].next[c]){
+			state.push_back({state[lps].len + 2, state[get_link(state[lps].link)].next[c]});
+			state.back().cnt = 1 + state[state.back().link].cnt;
+			state[lps].next[c] = int(state.size()) - 1;
+		}
+		lps = state[lps].next[c];
+	}
+};
 
 // 156485479_5_11
 // Levenshtein Automaton
