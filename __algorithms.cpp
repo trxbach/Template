@@ -214,7 +214,7 @@ Category
 		156485479_5_8
 	5.9. Suffix Tree ( INCOMPLETE )
 		156485479_5_9
-	5.10. Palindrome Tree / Eertree ( INCOMPLETE )
+	5.10. Palindrome Automaton / Eertree
 		156485479_5_10
 	5.11. Levenshtein Automaton ( INCOMPLETE )
 		156485479_5_11
@@ -411,7 +411,7 @@ long long phi(long long x){
 }
 // Calculate phi(x) for all 1 <= x <= n
 // O(n)
-pair<vector<int>, vector<int>> linearsieve(int n){
+array<vector<int>, 2> linearsieve(int n){
 	vector<int> lpf(n + 1), prime;
 	prime.reserve(n + 1);
 	for(int i = 2; i <= n; ++ i){
@@ -422,7 +422,7 @@ pair<vector<int>, vector<int>> linearsieve(int n){
 	}
 	return {lpf, prime};
 }
-tuple<vector<int>, vector<int>, vector<int>> process_phi(int n){
+array<vector<int>, 3> process_phi(int n){
 	auto [lpf, prime] = linearsieve(n);
 	vector<int> phi(n + 1, 1);
 	for(int i = 3; i <= n; ++ i) phi[i] = phi[i / lpf[i]] * (i / lpf[i] % lpf[i] ? lpf[i] - 1 : lpf[i]);
@@ -509,21 +509,22 @@ long long sqrt(long long a, long long p){
 // Chinese Remainder Theorem (Return a number x which satisfies x = a mod m & x = b mod n)
 // All the values has to be less than 2^30
 // O(log(m + n))
-long long euclid(long long x, long long y, long long &a, long long &b){
+typedef long long ll;
+ll euclid(ll x, ll y, ll &a, ll &b){
 	if(y){
-		long long d = euclid(y, x % y, b, a);
+		ll d = euclid(y, x % y, b, a);
 		return b -= x / y * a, d;
 	}
 	return a = 1, b = 0, x;
 }
-long long crt_coprime(long long a, long long m, long long b, long long n){
-	long long x, y; euclid(m, n, x, y);
-	long long res = a * (y + m) % m * n + b * (x + n) % n * m;
+ll crt_coprime(ll a, ll m, ll b, ll n){
+	ll x, y; euclid(m, n, x, y);
+	ll res = a * (y + m) % m * n + b * (x + n) % n * m;
 	if(res >= m * n) res -= m * n;
 	return res;
 }
-long long crt(long long a, long long m, long long b, long long n){
-	long long d = gcd(m, n);
+ll crt(ll a, ll m, ll b, ll n){
+	ll d = gcd(m, n);
 	if(((b -= a) %= n) < 0) b += n;
 	if(b % d) return -1; // No solution
 	return d * crt_coprime(0LL, m/d, b/d, n/d) + a;
@@ -553,7 +554,7 @@ long long primefactor(long long x){
 // 156485479_1_10
 // Mobius Function
 // O(n)
-pair<vector<int>, vector<int>> linearsieve(int n){
+array<vector<int>, 2> linearsieve(int n){
 	vector<int> lpf(n + 1), prime;
 	prime.reserve(n + 1);
 	for(int i = 2; i <= n; ++ i){
@@ -564,7 +565,7 @@ pair<vector<int>, vector<int>> linearsieve(int n){
 	}
 	return {lpf, prime};
 }
-tuple<vector<int>, vector<int>, vector<int>> process_mobius(int n){
+array<vector<int>, 3> process_mobius(int n){
 	auto [lpf, prime] = linearsieve(n);
 	vector<int> mobius(n + 1, 1);
 	for(int i = 2; i <= n; ++ i) mobius[i] = (i / lpf[i] % lpf[i] ? -mobius[i / lpf[i]] : 0);
@@ -2402,7 +2403,7 @@ void for_each_q(T n, Process f){
 // 156485479_2_12_1
 // Matroid Intersection
 // Credit: tfg ( https://github.com/tfg50/Competitive-Programming/blob/master/Biblioteca/Math/MatroidIntersection.cpp )
-// Prototype of a matroid for the slower version
+// Prototype of a matroid
 struct Matroid{
 	bool independent_with(/*an element*/){
 
@@ -2509,7 +2510,8 @@ struct Matroid_Intersection{
 Todo: make a weighted version
 bellman ford, cost is (actual cost, number of edges in path), break ties by length
 */
-// Prototype of a matroid for the faster version
+
+// Prototype of a matroid
 struct Matroid{
 	bool is_independent(/*a set of ground elements*/){
 
@@ -2519,6 +2521,7 @@ struct Matroid{
 	}
 };
 // O(n * r^1.5 * log n) oracle calls
+// Slower than the upper implementation
 // implementation of https://arxiv.org/pdf/1911.10765.pdf
 template<class M1, class M2, class T>
 struct Matroid_Intersection{
@@ -4145,19 +4148,22 @@ struct LCA{
 // 156485479_4_5_2_1
 // Binary Lifting for Unweighted Tree
 // O(N log N) preprocessing, O(log N) per lca query
-struct binary_lift: vector<vector<int>>{
+struct binary_lift{
 	int N, root, lg;
-	vector<vector<int>> up;
+	vector<vector<int>> adj, up;
 	vector<int> depth;
-	binary_lift(int N, int root): N(N), root(root), lg(ceil(log2(N))), depth(N), up(N, vector<int>(lg + 1)){
-		this->resize(N);
+	binary_lift(int N, int root): N(N), root(root), lg(__lg(N) + 1), depth(N), adj(N), up(N, vector<int>(lg + 1)){ }
+	void insert(int u, int v){
+		adj[u].push_back(v);
+		adj[v].push_back(u);
 	}
-	void insert(int u, int v){ (*this)[u].push_back(v), (*this)[v].push_back(u); }
-	void init(){ dfs(root, root); }
+	void init(){
+		dfs(root, root);
+	}
 	void dfs(int u, int p){
 		up[u][0] = p;
 		for(int i = 1; i <= lg; ++ i) up[u][i] = up[up[u][i - 1]][i - 1];
-		for(auto &v: (*this)[u]) if(v != p){
+		for(auto &v: adj[u]) if(v != p){
 			depth[v] = depth[u] + 1;
 			dfs(v, u);
 		}
@@ -4194,7 +4200,9 @@ struct binary_lift{
 		adj[u].emplace_back(v, w);
 		adj[v].emplace_back(u, w);
 	}
-	void init(){ dfs(root, root, id); }
+	void init(){
+		dfs(root, root, id);
+	}
 	void dfs(int u, int p, T w){
 		up[u][0] = {p, bin_op(val[u], w)};
 		for(int i = 1; i <= lg; ++ i) up[u][i] = {
@@ -5001,7 +5009,7 @@ pair<vector<int>, vector<int>> euler_walk(const vector<vector<pair<int, int>>> &
 // 156485479_5_1
 // Returns the starting position of the lexicographically minimal rotation
 // O(n)
-template<typename Str = string>
+template<typename Str>
 int min_rotation(Str s){
 	int n = int(s.size());
 	s += s;
@@ -5022,7 +5030,7 @@ int min_rotation(Str s){
 // 156485479_5_2
 // All Palindromic Substrings ( Manacher's Algorithm )
 // O(N)
-template<typename Str = string>
+template<typename Str>
 array<vector<int>, 2> manacher(const Str &s){
 	int n = int(s.size());
 	array<vector<int>, 2> p = {vector<int>(n + 1), vector<int>(n)};
@@ -5062,7 +5070,7 @@ struct sparse_table{
 		return bin_op(val[d][l], val[d][r - (1 << d)]);
 	}
 };
-template<typename Str = string, int lim = 256>
+template<typename Str, int lim = 256>
 struct suffix_array{
 	int N;
 	vector<int> p, c, l; // p[i]: starting index of i-th suffix in SA, c[i]: position of suffix of index i in SA
@@ -5132,7 +5140,7 @@ struct suffix_array{
 // 156485479_5_4
 // Z Function / for each position i > 0, returns the length of the longest prefix which is also a prefix starting at i
 // O(n)
-template<typename Str = string>
+template<typename Str>
 vector<int> z_function(const Str &s){
 	int n = int(s.size());
 	vector<int> z(n);
@@ -5147,7 +5155,7 @@ vector<int> z_function(const Str &s){
 // 156485479_5_5
 // Aho Corasic Automaton
 // O(W) preprocessing, O(L) per query
-template<typename Str = string, int lim = 128>
+template<typename Str, int lim = 128, typename Str::value_type PCH = '$'>
 struct aho_corasic{
 	typedef typename Str::value_type Char;
 	struct node{
@@ -5155,7 +5163,7 @@ struct aho_corasic{
 		Char cpar;
 		vector<int> next, go;
 		bool isleaf = false;
-		node(int par = -1, Char pch = '$'): par(par), cpar(pch), next(128, -1), go(128, -1){ }
+		node(int par = -1, Char pch = PCH): par(par), cpar(pch), next(lim, -1), go(lim, -1){ }
 		long long val = 0;
 		bool mark = false;
 	};
@@ -5208,7 +5216,7 @@ struct aho_corasic{
 // 156485479_5_6
 // Prefix Function / Prefix Automaton
 // O(N) each
-template<typename Str = string>
+template<typename Str>
 vector<int> prefix_function(const Str &s){
 	int n = int(s.size());
 	vector<int> p(n);
@@ -5220,7 +5228,7 @@ vector<int> prefix_function(const Str &s){
 	}
 	return p;
 }
-template<typename Str = string, int lim = 128>
+template<typename Str, int lim = 128>
 pair<vector<int>, vector<vector<int>>> prefix_automaton(const Str &s){
 	vector<int> p = prefix_function(s);
 	int n = int(s.size());
@@ -5235,7 +5243,7 @@ pair<vector<int>, vector<vector<int>>> prefix_automaton(const Str &s){
 // 156485479_5_7
 // Polynomial Hash
 // O(n) processing, O(log n) for lcp, O(n) for search, O(1) for query
-template<typename Str = string>
+template<typename Str>
 struct polyhash: vector<vector<long long>>{
 	const int lim;
 	const long long base, mod;
@@ -5281,7 +5289,7 @@ struct polyhash: vector<vector<long long>>{
 		return res;
 	}
 };
-template<typename Str = string>
+template<typename Str>
 struct double_polyhash{
 	pair<polyhash<Str>, polyhash<Str>> h;
 	double_polyhash(int N, long long mod): h{polyhash<Str>(N, mod), polyhash<Str>(N, mod)}{ }
@@ -5318,7 +5326,7 @@ struct double_polyhash{
 // 156485479_5_8
 // Suffix Automaton
 // O(log ALP_SIZE) per extend call
-template<typename Str = string>
+template<typename Str>
 struct suffix_automaton{
 	typedef typename Str::value_type Char;
 	struct node{
@@ -5515,9 +5523,9 @@ Str lcs(vector<Str> a){
 // Suffix Tree
 	
 // 156485479_5_10
-// Palindrome Automaton
+// Palindrome Automaton / Eertree
 // O(len)
-template<typename Str = string, int lim = 128>
+template<typename Str, int lim = 128>
 struct palindrome_automaton{
 	typedef typename Str::value_type Char;
 	struct node{
@@ -5545,6 +5553,29 @@ struct palindrome_automaton{
 			state[lps].next[c] = int(state.size()) - 1;
 		}
 		lps = state[lps].next[c];
+	}
+	void print(){
+		vector<pair<int, string>> q{{1, ""}, {0, ""}};
+		while(!q.empty()){
+			int u;
+			string s;
+			tie(u, s) = q.back();
+			q.pop_back();
+			auto m = state[u];
+			cout << "Node " << u << ", " << s << ": len = " << m.len << ", link = " << m.link << ", cnt = " << m.cnt << "\n";
+			cout << "next: ";
+			for(auto c = 0; c < lim; ++ c){
+				if(m.next[c]){
+					cout << "(" << char(c) << " -> " << m.next[c] << ") ";
+				}
+			}
+			cout << "\n\n";
+			for(auto c = lim - 1; c >= 0; -- c){
+				if(m.next[c]){
+					q.push_back({m.next[c], u == 1 ? string{char(c)} : char(c) + s + char(c)});
+				}
+			}
+		}
 	}
 };
 
