@@ -2468,8 +2468,7 @@ struct Matroid_Intersection{
 	}
 	bool augment(){
 		deque<int> q;
-		vector<int> dist(n, -1);
-		vector<int> frm(n, -1);
+		vector<int> dist(n, -1), frm(n, -1);
 		for(int i = 0; i < n; ++ i){
 			if(test(m1, i)){
 				q.push_back(i);
@@ -2548,8 +2547,7 @@ struct Matroid_Intersection{
 	}
 	bool augment(M1 &m1, M2 &m2){
 		deque<int> q;
-		vector<int> dist(n, -1);
-		vector<int> frm(n, -1);
+		vector<int> dist(n, -1), frm(n, -1);
 		vector<vector<int>> layers;
 		for(int i = 0; i < n; ++ i){
 			if(test(m1, i)){
