@@ -2416,12 +2416,18 @@ struct Matroid{
 	}
 };
 // to get answer just call Matroid_Intersection<M1, M2, T>(m1, m2, ground).solve()
-// rebuild() = O(r^2) insert() and clear() calls
-// test() = O(1) independent_with() calls
-// O(r) rebuild() + O(r*n) test() = O(r^3) (insert() + clear()) + O(r*n) independent_with() calls in total
+// rebuild() = O(r^2) insert() + O(r) clear() calls
+// O(r) rebuild() + O(r * n^2) test() = O(r^3) insert() + O(r^2) clear() + O(r^2 * n) independent_with() calls in total
 template<class M1, class M2, class T>
 struct Matroid_Intersection{
-	Matroid_Intersection(M1 m1, M2 m2, const std::vector<T> &ground): n((int) ground.size()), m1(m1), m2(m2), ground(ground), present(ground.size()), except1(n, m1), except2(n, m2){
+	int n;
+	vector<T> ground;
+	vector<bool> present;
+	M1 m1;
+	M2 m2;
+	vector<M1> except1;
+	vector<M2> except2;
+	Matroid_Intersection(M1 m1, M2 m2, const vector<T> &ground): n((int) ground.size()), m1(m1), m2(m2), ground(ground), present(ground.size()), except1(n, m1), except2(n, m2){
 		// greedy step
 		for(int i = 0; i < n; ++ i){
 			if(test(m1, i) && test(m2, i)){
@@ -2433,8 +2439,8 @@ struct Matroid_Intersection{
 		// augment step
 		while(augment());
 	}
-	std::vector<T> solve(){
-		std::vector<T> ans;
+	vector<T> solve(){
+		vector<T> ans;
 		for(int i = 0; i < n; ++ i){
 			if(present[i]){
 				ans.push_back(ground[i]);
@@ -2442,27 +2448,15 @@ struct Matroid_Intersection{
 		}
 		return ans;
 	}
-	int n;
-	std::vector<T> ground;
-	std::vector<bool> present;
-	M1 m1;
-	M2 m2;
-	vector<M1> except1;
-	vector<M2> except2;
 	template<class M>
 	bool test(M &m, int add, int rem = -1){
-		if(present[add] || rem != -1 && !present[rem]) return false;
-		return m.independent_with(ground[add]);
+		return !present[add] && (rem == -1 || present[rem]) && m.independent_with(ground[add]);
 	}
 	void rebuild(){
 		m1.clear(), m2.clear();
 		for(int u = 0; u < n; ++ u){
 			if(present[u]){
 				m1.insert(ground[u]), m2.insert(ground[u]);
-			}
-		}
-		for(int u = 0; u < n; ++ u){
-			if(present[u]){
 				except1[u].clear(), except2[u].clear();
 				for(int v = 0; v < n; ++ v){
 					if(v != u && present[v]){
@@ -2473,23 +2467,20 @@ struct Matroid_Intersection{
 		}
 	}
 	bool augment(){
-		std::deque<int> q;
-		std::vector<int> dist(n, -1);
-		std::vector<int> frm(n, -1);
+		deque<int> q;
+		vector<int> dist(n, -1);
+		vector<int> frm(n, -1);
 		for(int i = 0; i < n; ++ i){
 			if(test(m1, i)){
 				q.push_back(i);
 				dist[i] = 0;
 			}
 		}
-		if(q.empty()){
-			return false;
-		}
 		while(!q.empty()){
 			int on = q.front();
 			q.pop_front();
 			for(int i = 0; i < n; ++ i){
-				if(dist[i] == -1 && (dist[on] % 2 == 0 ? test(except2[i], on, i) : test(except1[on], i, on))){
+				if(dist[i] == -1 && (dist[on] & 1 ? test(except1[on], i, on) : test(except2[i], on, i))){
 					q.push_back(i);
 					dist[i] = dist[on] + 1;
 					frm[i] = on;
@@ -2525,7 +2516,10 @@ struct Matroid{
 // implementation of https://arxiv.org/pdf/1911.10765.pdf
 template<class M1, class M2, class T>
 struct Matroid_Intersection{
-	Matroid_Intersection(M1 m1, M2 m2, const std::vector<T> &ground): n((int) ground.size()), ground(ground), present(ground.size()){
+	int curAns = 0, n;
+	vector<T> ground;
+	vector<bool> present;
+	Matroid_Intersection(M1 m1, M2 m2, const vector<T> &ground): n((int) ground.size()), ground(ground), present(ground.size()){
 		// greedy step
 		for(int i = 0; i < n; ++ i){
 			if(test(m1, i) && test(m2, i)){
@@ -2536,8 +2530,8 @@ struct Matroid_Intersection{
 		// augment step
 		while(augment(m1, m2));
 	}
-	std::vector<T> solve(int o = -1){
-		std::vector<T> ans;
+	vector<T> solve(int o = -1){
+		vector<T> ans;
 		for(int i = 0; i < n; ++ i){
 			if(present[i] && i != o){
 				ans.push_back(ground[i]);
@@ -2545,9 +2539,6 @@ struct Matroid_Intersection{
 		}
 		return ans;
 	}
-	int curAns = 0, n;
-	std::vector<T> ground;
-	std::vector<bool> present;
 	template<class M>
 	bool test(M &m, int add, int rem = -1){
 		if(present[add] || (rem != -1 && !present[rem])) return false;
@@ -2556,10 +2547,10 @@ struct Matroid_Intersection{
 		return m.is_independent(st);
 	}
 	bool augment(M1 &m1, M2 &m2){
-		std::deque<int> q;
-		std::vector<int> dist(n, -1);
-		std::vector<int> frm(n, -1);
-		std::vector<std::vector<int>> layers;
+		deque<int> q;
+		vector<int> dist(n, -1);
+		vector<int> frm(n, -1);
+		vector<vector<int>> layers;
 		for(int i = 0; i < n; ++ i){
 			if(test(m1, i)){
 				q.push_back(i);
@@ -2571,8 +2562,8 @@ struct Matroid_Intersection{
 		}
 		int limit = 1e9;
 		auto outArc = [&](int u, bool phase){
-			std::vector<T> st;
-			std::vector<int> others;
+			vector<T> st;
+			vector<int> others;
 			if(present[u]){
 				for(int i = 0; i < n; ++ i){
 					if(present[i] && i != u){
@@ -2661,12 +2652,12 @@ struct Matroid_Intersection{
 		if(limit > n) return false;
 		auto rem = [&](int on){
 			assert(dist[on] != -1);
-			auto it = std::find(layers[dist[on]].begin(), layers[dist[on]].end(), on);
+			auto it = find(layers[dist[on]].begin(), layers[dist[on]].end(), on);
 			assert(it != layers[dist[on]].end());
 			layers[dist[on]].erase(it);
 			dist[on] = -1;
 		};
-		std::function<bool(int)> dfs = [&](int on){
+		function<bool(int)> dfs = [&](int on){
 			if(dist[on] == 0 && !test(m1, on)){
 				rem(on);
 				return false;
