@@ -2421,13 +2421,14 @@ struct Matroid{
 template<class M1, class M2, class T>
 struct Matroid_Intersection{
 	int n;
-	vector<T> ground;
+	const vector<T> &ground;
 	vector<bool> present;
 	M1 m1;
 	M2 m2;
 	vector<M1> except1;
 	vector<M2> except2;
-	Matroid_Intersection(M1 m1, M2 m2, const vector<T> &ground): n((int) ground.size()), m1(m1), m2(m2), ground(ground), present(ground.size()), except1(n, m1), except2(n, m2){
+	Matroid_Intersection(M1 m1, M2 m2, const vector<T> &ground): n((int) ground.size()), m1(m1), m2(m2), ground(ground), present(ground.size()), except1(n, m1), except2(n, m2){ }
+	vector<T> solve(){
 		// greedy step
 		for(int i = 0; i < n; ++ i){
 			if(test(m1, i) && test(m2, i)){
@@ -2438,14 +2439,8 @@ struct Matroid_Intersection{
 		rebuild();
 		// augment step
 		while(augment());
-	}
-	vector<T> solve(){
 		vector<T> ans;
-		for(int i = 0; i < n; ++ i){
-			if(present[i]){
-				ans.push_back(ground[i]);
-			}
-		}
+		for(int i = 0; i < n; ++ i) if(present[i]) ans.push_back(ground[i]);
 		return ans;
 	}
 	template<class M>
@@ -2705,12 +2700,10 @@ template<typename T, typename BO>
 struct sparse_table{
 	int N;
 	BO bin_op;
-	const T id;
+	T id;
 	vector<vector<T>> val;
-	vector<int> bit;
 	template<typename IT>
-	sparse_table(IT begin, IT end, BO bin_op, T id): N(distance(begin, end)), bin_op(bin_op), id(id), val(__lg(N) + 1, vector<T>(begin, end)), bit(N + 1){
-		for(int i = 1; i <= N; ++ i) bit[i] = __lg(i);
+	sparse_table(IT begin, IT end, BO bin_op, T id): N(distance(begin, end)), bin_op(bin_op), id(id), val(__lg(N) + 1, vector<T>(begin, end)){
 		for(int i = 0; i < __lg(N); ++ i) for(int j = 0; j < N; ++ j){
 			val[i + 1][j] = bin_op(val[i][j], val[i][min(N - 1, j + (1 << i))]);
 		}
@@ -2718,7 +2711,7 @@ struct sparse_table{
 	sparse_table(){ }
 	T query(int l, int r){
 		if(l >= r) return id;
-		int d = bit[r - l];
+		int d = __lg(r - l);
 		return bin_op(val[d][l], val[d][r - (1 << d)]);
 	}
 };
@@ -2730,9 +2723,7 @@ struct sparse_table{
 	int N, M;
 	BO bin_op;
 	vector<vector<vector<vector<T>>>> val;
-	vector<int> bit;
-	sparse_table(const vector<vector<T>> &arr, BO bin_op): N(arr.size()), M(arr[0].size()), bin_op(bin_op), val(__lg(N) + 1, vector<vector<vector<T>>>(__lg(M) + 1, arr)), bit(max(N, M) + 1){
-		for(int i = 1; i <= max(N, M); ++ i) bit[i] = 31 - __builtin_clz(i);
+	sparse_table(const vector<vector<T>> &arr, BO bin_op): N(arr.size()), M(arr[0].size()), bin_op(bin_op), val(__lg(N) + 1, vector<vector<vector<T>>>(__lg(M) + 1, arr)){
 		for(int ii = 0; ii < N; ++ ii) for(int jj = 0; jj < M; ++ jj){
 			for(int i = 0, j = 0; j < __lg(M); ++ j) val[i][j + 1][ii][jj] = bin_op(val[i][j][ii][jj], val[i][j][ii][min(M - 1, jj + (1 << j))]);
 		}
@@ -2744,7 +2735,7 @@ struct sparse_table{
 	}
 	T query(int pl, int ql, int pr, int qr){
 		assert(pl < pr && ql < qr);
-		int pd = bit[pr - pl], qd = bit[qr - ql];
+		int pd = __lg(pr - pl), qd = __lg(qr - ql);
 		return bin_op(bin_op(val[pd][qd][pl][ql], val[pd][qd][pl][qr - (1 << qd)]), bin_op(val[pd][qd][pr - (1 << pd)][ql], val[pd][qd][pr - (1 << pd)][qr - (1 << qd)]));
 	}
 };
@@ -3204,74 +3195,47 @@ struct wavelet{
 // Disjoint Set
 // O(alpha(n)) per query where alpha(n) is the inverse ackermann function
 struct disjoint{
-	int N;
-	vector<int> parent, size;
-	disjoint(int N): N(N), parent(N), size(N, 1){
-		iota(parent.begin(), parent.end(), 0);
-	}
-	void expand(){
-		++ N;
-		parent.push_back(parent.size());
-		size.push_back(1);
-	}
-	int root(int u){
-		return parent[u] == u ? u : parent[u] = root(parent[u]);
-	}
+	vector<int> p;
+	disjoint(int N): p(N, -1){ }
+	bool share(int a, int b){ return root(a) == root(b); }
+	int sz(int u){ return -p[root(u)]; }
+	int root(int u){ return p[u] < 0 ? u : p[u] = root(p[u]); }
 	bool merge(int u, int v){
 		u = root(u), v = root(v);
 		if(u == v) return false;
-		if(size[u] < size[v]) swap(u, v);
-		parent[v] = u;
-		size[u] += size[v];
+		if(p[u] > p[v]) swap(u, v);
+		p[u] += p[v];
+		p[v] = u;
 		return true;
-	}
-	bool share(int u, int v){
-		return root(parent[u]) == root(parent[v]);
 	}
 };
 // Persistent Version
 struct disjoint{
-	int N;
-	vector<int> parent, size;
-	vector<pair<int, int>> Log_parent, Log_size;
-	disjoint(int N): N(N), parent(N), size(N, 1){
-		iota(parent.begin(), parent.end(), 0);
-	}
-	void expand(){
-		++ N;
-		parent.push_back(parent.size());
-		size.push_back(1);
-	}
-	int root(int u){
-		Log_parent.emplace_back(u, parent[u]);
-		return parent[u] == u ? u : parent[u] = root(parent[u]);
-	}
+	vector<int> p;
+	vector<pair<int, int>> log;
+	disjoint(int N): p(N, -1){ }
+	bool share(int a, int b){ return root(a) == root(b); }
+	int sz(int u){ return -p[root(u)]; }
+	int root(int u){ return p[u] < 0 ? u : (log.emplace_back(u, p[u]), p[u] = root(p[u])); }
 	bool merge(int u, int v){
 		u = root(u), v = root(v);
 		if(u == v) return false;
-		if(size[u] < size[v]) swap(u, v);
-		Log_parent.emplace_back(v, parent[v]);
-		parent[v] = u;
-		Log_size.emplace_back(u, size[u]);
-		size[u] += size[v];
+		if(p[u] > p[v]) swap(u, v);
+		log.emplace_back(u, p[u]), log.emplace_back(v, p[v]);
+		p[u] += p[v];
+		p[v] = u;
 		return true;
 	}
-	bool share(int u, int v){
-		return root(parent[u]) == root(parent[v]);
+	void reverse(int n){
+		while(int(log.size()) > n){
+			auto [u, val] = log.back();
+			log.pop_back();
+			p[u] = val;
+		}
 	}
-	void reverse(int p, int s){
-		while(parent.size() != p) reverse_parent();
-		while(size.size() != s) reverse_size();
-	}
-	void reverse_parent(){
-		auto [u, p] = Log_parent.back();
-		Log_parent.pop_back();
-		parent[u] = p;
-	}
-	void reverse_size(){
-		auto [u, s] = Log_size.back();
-		Log_size.pop_back();
-		size[u] = s;
+	void clear(){
+		for(auto &[u, ignore]: log) p[u] = -1;
+		log.clear();
 	}
 };
 
@@ -4084,12 +4048,10 @@ template<typename T, typename BO>
 struct sparse_table{
 	int N;
 	BO bin_op;
-	const T id;
+	T id;
 	vector<vector<T>> val;
-	vector<int> bit;
 	template<typename IT>
-	sparse_table(IT begin, IT end, BO bin_op, T id): N(distance(begin, end)), bin_op(bin_op), id(id), val(__lg(N) + 1, vector<T>(begin, end)), bit(N + 1){
-		for(int i = 1; i <= N; ++ i) bit[i] = __lg(i);
+	sparse_table(IT begin, IT end, BO bin_op, T id): N(distance(begin, end)), bin_op(bin_op), id(id), val(__lg(N) + 1, vector<T>(begin, end)){
 		for(int i = 0; i < __lg(N); ++ i) for(int j = 0; j < N; ++ j){
 			val[i + 1][j] = bin_op(val[i][j], val[i][min(N - 1, j + (1 << i))]);
 		}
@@ -4097,7 +4059,7 @@ struct sparse_table{
 	sparse_table(){ }
 	T query(int l, int r){
 		if(l >= r) return id;
-		int d = bit[r - l];
+		int d = __lg(r - l);
 		return bin_op(val[d][l], val[d][r - (1 << d)]);
 	}
 };
@@ -4184,7 +4146,7 @@ struct binary_lift{
 	vector<T> val;
 	vector<vector<pair<int, T>>> adj, up;
 	vector<int> depth;
-	binary_lift(int N, int root, const vector<T> &val, BO bin_op, T id): N(N), root(root), bin_op(bin_op), id(id), lg(32 - __builtin_clz(N)), depth(N), val(val), adj(N), up(N, vector<pair<int, T>>(lg + 1)){ }
+	binary_lift(int N, int root, const vector<T> &val, BO bin_op, T id): N(N), root(root), bin_op(bin_op), id(id), lg(__lg(N) + 1), depth(N), val(val), adj(N), up(N, vector<pair<int, T>>(lg + 1)){ }
 	void insert(int u, int v, T w){
 		adj[u].emplace_back(v, w);
 		adj[v].emplace_back(u, w);
@@ -4744,46 +4706,19 @@ struct shortest_path_tree_dense{
 // Minimum Spanning Forest
 // O(M log N)
 struct disjoint{
-	int N;
-	vector<int> parent, size;
-	// vector<pair<int, int>> Log_parent, Log_size; // For persistency
-	disjoint(int N): N(N), parent(N), size(N, 1){ iota(parent.begin(), parent.end(), 0); }
-	void expand(){
-		++ N;
-		parent.push_back(parent.size());
-		size.push_back(1);
-	}
-	int root(int u){
-		// Log_parent.emplace_back(u, parent[u]);
-		return parent[u] == u ? u : parent[u] = root(parent[u]);
-	}
+	vector<int> p;
+	disjoint(int N): p(N, -1){ }
+	bool share(int a, int b){ return root(a) == root(b); }
+	int sz(int u){ return -p[root(u)]; }
+	int root(int u){ return p[u] < 0 ? u : p[u] = root(p[u]); }
 	bool merge(int u, int v){
 		u = root(u), v = root(v);
 		if(u == v) return false;
-		if(size[u] < size[v]) swap(u, v);
-		// Log_parent.emplace_back(v, parent[v]);
-		parent[v] = u;
-		// Log_size.emplace_back(u, size[u]);
-		size[u] += size[v];
+		if(p[u] > p[v]) swap(u, v);
+		p[u] += p[v];
+		p[v] = u;
 		return true;
 	}
-	bool share(int u, int v){
-		return root(parent[u]) == root(parent[v]);
-	}
-	/*void reverse(int p, int s){
-		while(parent.size() != p) reverse_parent();
-		while(size.size() != s) reverse_size();
-	}
-	void reverse_parent(){
-		auto [u, p] = Log_parent.back();
-		Log_parent.pop_back();
-		parent[u] = p;
-	}
-	void reverse_size(){
-		auto [u, s] = Log_size.back();
-		Log_size.pop_back();
-		size[u] = s;
-	}*/
 };
 template<typename T = long long>
 struct minimum_spanning_forest{
