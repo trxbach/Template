@@ -2345,46 +2345,57 @@ struct subinterval{
 	const array<int, K> N;
 	BO bin_op;
 	IO inv_op;
-	const T id;
+	T id;
 	vector<T> val, p;
-	int pos(const array<int, K> &x){
-		int res = 0;
-		for(int i = 0; i < K; ++ i) res += p[i] * x[i];
-		return res;
+	T &eval(const array<int, K> &x){
+		int pos = 0;
+		for(int i = 0; i < K; ++ i){
+			if(!x[i]) return id;
+			pos += p[i] * (x[i] - 1);
+		}
+		return val[pos];
 	}
 	template<typename INIT>
-	subinterval(const array<int, K> &N, INIT f, BO bin_op = plus<>{}, IO inv_op = minus<>{}, T id = 0LL): N(N), bin_op(bin_op), inv_op(inv_op), id(id), val(accumulate(N.begin(), N.end(), 1, [&](int x, int y){ return x * (y + 1); }), id), p(K + 1, 1){
+	subinterval(const array<int, K> &N, INIT f, BO bin_op = plus<>{}, IO inv_op = minus<>{}, T id = 0LL): N(N), bin_op(bin_op), inv_op(inv_op), id(id), val(accumulate(N.begin(), N.end(), 1, multiplies<>()), id), p(K + 1, 1){
 		array<int, K> cur, from;
-		partial_sum(N.begin(), N.end(), p.begin() + 1, multiplies<>{});
-		cur.fill(1);
-		while(1){
-			T &c = val[pos(cur)];
-			for(int i = 0; i < K; ++ i) -- cur[i];
-			c = f(cur);
-			for(int i = 0; i < K; ++ i) ++ cur[i];
-			for(int mask = 1; mask < 1 << K; ++ mask){
-				from = cur;
-				for(int bit = 0; bit < K; ++ bit) if(mask & 1 << bit) -- from[bit];
-				c = __builtin_popcount(mask) & 1 ? bin_op(c, val[pos(from)]) : inv_op(c, val[pos(from)]);
+		partial_sum(N.begin(), N.end(), p.begin() + 1, multiplies<>());
+		for(int t = 0; t < K; ++ t){
+			cur.fill(1), from.fill(1);
+			-- from[t];
+			while(1){
+				T &c = eval(cur);
+				if(!t){
+					for(int i = 0; i < K; ++ i) -- cur[i];
+					c = f(cur);
+					for(int i = 0; i < K; ++ i) ++ cur[i];
+				}
+				c = bin_op(c, eval(from));
+				for(int i = 0; i < K; ++ i){
+					if(++ from[i], ++ cur[i] <= N[i]) break;
+					if(i == K - 1) goto label;
+					cur[i] = 1, from[i] = i != t;
+				}
 			}
-			for(int i = 0; i < K; ++ i){
-				if(++ cur[i] <= N[i]) break;
-				if(i == K - 1) return;
-				cur[i] = 1;
-			}
+			label:;
 		}
 	}
 	T query(const array<int, K> &low, const array<int, K> &high){
 		T res = id;
 		array<int, K> cur;
 		for(int mask = 0; mask < 1 << K; ++ mask){
-			for(int bit = 0; bit < K; ++ bit) cur[bit] = mask & 1 << bit ? low[bit] : high[bit];
-			res = __builtin_popcount(mask) & 1 ? inv_op(res, val[pos(cur)]) : bin_op(res, val[pos(cur)]);
+			for(int bit = 0; bit < K; ++ bit){
+				if(mask & 1 << bit){
+					cur[bit] = low[bit];
+					break;
+				}
+				else cur[bit] = high[bit];
+			}
+			res = __builtin_popcount(mask) & 1 ? inv_op(res, eval(cur)) : bin_op(res, eval(cur));
 		}
 		return res;
 	}
-	T query(const array<int, K> &high){
-		return val[pos(high)];
+	T query(array<int, K> high){
+		return eval(high);
 	}
 };
 
@@ -2405,6 +2416,9 @@ void for_each_q(T n, Process f){
 // Credit: tfg ( https://github.com/tfg50/Competitive-Programming/blob/master/Biblioteca/Math/MatroidIntersection.cpp )
 // Prototype of a matroid
 struct Matroid{
+	Matroid(){
+		
+	}
 	bool independent_with(/*an element*/){
 
 	}
@@ -2498,6 +2512,9 @@ bellman ford, cost is (actual cost, number of edges in path), break ties by leng
 
 // Prototype of a matroid
 struct Matroid{
+	Matroid(){
+
+	}
 	bool is_independent(/*a set of ground elements*/){
 
 	}
@@ -2691,7 +2708,6 @@ struct Matroid_Intersection{
 // 156485479_2_12_2
 // Matroid Union
 
-
 // 156485479_3_1
 // Sparse Table
 // The binary operator must be idempotent and associative
@@ -2868,15 +2884,19 @@ struct segment{
 	BO bin_op;
 	const T id;
 	vector<T> val;
-	segment(const vector<T> &arr, BO bin_op, T id): N(arr.size()), bin_op(bin_op), id(id), val(N << 2, id){
-		build(arr, 1, 0, N);
+	template<typename IT>
+	segment(IT begin, IT end, BO bin_op, T id): N(distance(begin, end)), bin_op(bin_op), id(id), val(N << 2, id){
+		build(begin, end, 1, 0, N);
 	}
-	void build(const vector<T> &arr, int u, int left, int right){
-		if(left + 1 == right) val[u] = arr[left];
+	segment(int N, BO bin_op, T id): N(N), bin_op(bin_op), id(id), val(N << 2, id){ }
+	template<typename IT>
+	void build(IT begin, IT end, int u, int left, int right){
+		if(left + 1 == right) val[u] = *begin;
 		else{
 			int mid = left + right >> 1;
-			build(arr, u << 1, left, mid);
-			build(arr, u << 1 ^ 1, mid, right);
+			IT inter = begin + mid;
+			build(begin, inter, u << 1, left, mid);
+			build(inter, end, u << 1 ^ 1, mid, right);
 			val[u] = bin_op(val[u << 1], val[u << 1 ^ 1]);
 		}
 	}
@@ -4818,36 +4838,34 @@ struct minimum_spanning_forest_dense{
 template<class Graph>
 pair<bool, vector<int>> toposort(const Graph &adj){
 	int n = int(adj.size());
-	vector<int> indeg(n), res(n);
+	vector<int> indeg(n), res;
 	for(int u = 0; u < n; ++ u) for(auto v: adj[u]) ++ indeg[v];
 	deque<int> q;
 	for(int u = 0; u < n; ++ u) if (!indeg[u]) q.push_back(u);
-	int cnt = 0;
 	while(q.size() > 0){
 		int u = q.front();
 		q.pop_front();
-		res[u] = cnt ++;
+		res.push_back(u);
 		for(auto v: adj[u]) if (!(-- indeg[v])) q.push_back(v);
 	}
-	return {cnt == n, res};
+	return {int(res.size()) == n, res};
 }
 // Lexicographically Smallest Topological Sort / Return false if there's a cycle
 // O(V log V + E)
 template<class Graph>
-pair<bool, vector<int>> toposort(const Graph &adj){
-	int n = adj.size();
-	vector<int> indeg(n), res(n);
-	for(int u = 0; u < n; ++ u) for(auto v: adj[u]) ++ indeg[v];
+pair<bool, vector<int>> toposort(const Graph &radj){
+	int n = radj.size();
+	vector<int> indeg(n), res;
+	for(int u = 0; u < n; ++ u) for(auto v: radj[u]) ++ indeg[v];
 	priority_queue<int, vector<int>, greater<int>> q;
 	for(int u = 0; u < n; ++ u) if (!indeg[u]) q.push(u);
-	int cnt = 0;
 	while(q.size() > 0){
 		int u = q.top();
 		q.pop();
-		res[u] = cnt ++;
-		for(auto v: adj[u]) if (!(-- indeg[v])) q.push(v);
+		res.push_back(u);
+		for(auto v: radj[u]) if (!(-- indeg[v])) q.push(v);
 	}
-	return {cnt == n, res};
+	return {int(res.size()) == n, res};
 }
 
 // 156485479_4_9
