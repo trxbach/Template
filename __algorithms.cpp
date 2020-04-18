@@ -2394,7 +2394,7 @@ struct subinterval{
 		}
 		return res;
 	}
-	T query(array<int, K> high){
+	T query(const array<int, K> &high){
 		return eval(high);
 	}
 };
