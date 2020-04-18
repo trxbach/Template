@@ -2370,9 +2370,9 @@ struct subinterval{
 					for(int i = 0; i < K; ++ i) ++ cur[i];
 				}
 				c = bin_op(c, eval(from));
-				for(int i = 0; i < K; ++ i){
+				for(int i = K - 1; i >= 0; -- i){
 					if(++ from[i], ++ cur[i] <= N[i]) break;
-					if(i == K - 1) goto label;
+					if(!i) goto label;
 					cur[i] = 1, from[i] = i != t;
 				}
 			}
@@ -2394,7 +2394,7 @@ struct subinterval{
 		}
 		return res;
 	}
-	T query(const array<int, K> &high){
+	T query(array<int, K> high){
 		return eval(high);
 	}
 };
