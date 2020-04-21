@@ -94,14 +94,12 @@ Category
 		156485479_2_8
 	2.9. Modular Arithmetics
 		156485479_2_9
-	2.10. Subinterval Sum
+	2.10. K-Dimensional Prefix Sum
 		156485479_2_10
-	2.11. Divisor Iterator
-		156485479_2_11
-	2.12. Matroid
-		2.12.1. Matroid Intersection
+	2.11. Matroid
+		2.11.1. Matroid Intersection
 			156485479_2_12_1
-		2.12.2. Matroid Union
+		2.11.2. Matroid Union
 			156485479_2_12_2
 
 
@@ -2339,7 +2337,8 @@ template<typename T> ostream &operator<<(ostream &out, const Z_p<T> &number){ re
 using Zp = Z_p<int>;
 
 // 156485479_2_10
-// Subinterval Sum
+// K-Dimensional Prefix Sum
+// O(K * Product(N_i)) Processing, O(2^K) Per Query
 template<int K = 2, typename T = long long, typename BO = plus<>, typename IO = minus<>>
 struct subinterval{
 	const array<int, K> N;
@@ -2394,24 +2393,12 @@ struct subinterval{
 		}
 		return res;
 	}
-	T query(array<int, K> high){
+	T query(const array<int, K> &high){
 		return eval(high);
 	}
 };
 
-// 156485479_2_11
-// Divisor Iterator
-// Iterate over all maximal intervals [begin, end] such that n / begin == n / end ( both rounded down )
-// O(sqrt(n)) applications of f
-template<typename T, typename Process, bool DIVISOR_ONLY = true>
-void for_each_q(T n, Process f){
-	for(T begin = 1, end = 1; begin <= n; begin = end + 1){
-		end = n / (n / begin);
-		if(!DIVISOR_ONLY || !(n % end)) f(begin, end);
-	}
-}
-
-// 156485479_2_12_1
+// 156485479_2_11_1
 // Matroid Intersection
 // Credit: tfg ( https://github.com/tfg50/Competitive-Programming/blob/master/Biblioteca/Math/MatroidIntersection.cpp )
 // Prototype of a matroid
@@ -2705,7 +2692,7 @@ struct Matroid_Intersection{
 	}
 };
 
-// 156485479_2_12_2
+// 156485479_2_11_2
 // Matroid Union
 
 // 156485479_3_1
