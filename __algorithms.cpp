@@ -51,7 +51,7 @@ Category
 			156485479_2_3_1
 		2.3.2. Entries in some semiring
 			156485479_2_3_2
-		2.3.3. Matrix for a finite field of characteristic 2
+		2.3.3. Entries in a finite field of characteristic 2
 			156485479_2_3_3
 	2.4. Polynomial
 		2.4.1. Convolution
