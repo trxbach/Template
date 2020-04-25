@@ -51,6 +51,8 @@ Category
 			156485479_2_3_1
 		2.3.2. Entries in some semiring
 			156485479_2_3_2
+		2.3.3. Matrix for a finite field of characteristic 2
+			156485479_2_3_3
 	2.4. Polynomial
 		2.4.1. Convolution
 			2.4.1.1 Addition Convolution
@@ -1292,7 +1294,7 @@ struct matrix: vector<vector<long long>>{
 	matrix operator*(const matrix &otr) const{
 		assert(M == otr.N);
 		int L = otr.M;
-		matrix res(N, M, mod);
+		matrix res(N, L, mod);
 		for(int i = 0; i < N; ++ i) for(int j = 0; j < L; ++ j) for(int k = 0; k < M; ++ k) (res[i][j] += (*this)[i][k] * otr[k][j]) %= mod;
 		return res;
 	}
@@ -1365,7 +1367,7 @@ struct matrix: vector<vector<T>>{
 	matrix operator*(const matrix &otr) const{
 		assert(M == otr.N);
 		int L = otr.M;
-		matrix res(N, M, add_id, mul_id);
+		matrix res(N, L, add_id, mul_id);
 		for(int i = 0; i < N; ++ i) for(int j = 0; j < L; ++ j) for(int k = 0; k < M; ++ k) res[i][j] = res[i][j] + (*this)[i][k] * otr[k][j];
 		return res;
 	}
@@ -1375,6 +1377,62 @@ struct matrix: vector<vector<T>>{
 	matrix operator^(long long e) const{
 		assert(N == M);
 		matrix res(N, N, add_id, mul_id, true), b(*this);
+		for(; e; b *= b, e >>= 1) if(e & 1) res *= b;
+		return res;
+	}
+	matrix &operator^=(const long long e){
+		return *this = *this ^ e;
+	}
+};
+
+// 156485479_2_3_3
+// Matrix for a finite field of characteristic 2
+template<int SZ>
+struct matrix: vector<bitset<SZ>>{
+	int N, M;
+	matrix(int N, int M, bool is_id = false): N(N), M(M){
+		this->resize(N);
+		if(is_id) for(int i = 0; i < min(N, M); ++ i) (*this)[i].set(i);
+	}
+	template<typename Mat>
+	matrix(const Mat &arr): N(arr.size()), M(arr[0].size()){
+		this->resize(N);
+		for(int i = 0; i < N; ++ i) for(int j = 0; j < M; ++ j) if(arr[i][j]) (*this)[i].set(j);
+	}
+	bool operator==(const matrix &otr) const{
+		if(N != otr.N || M != otr.M) return false;
+		for(int i = 0; i < N; ++ i) for(int j = 0; j < M; ++ j) if((*this)[i][j] != otr[i][j]) return false;
+		return true;
+	}
+	matrix &operator=(const matrix &otr){
+		N = otr.N, M = otr.M;
+		this->resize(N);
+		for(int i = 0; i < N; ++ i) (*this)[i] = otr[i];
+		return *this;
+	}
+	matrix operator+(const matrix &otr) const{
+		matrix res(N, M);
+		for(int i = 0; i < N; ++ i) res[i] = (*this)[i] ^ otr[i];
+		return res;
+	}
+	matrix &operator+=(const matrix &otr){
+		return *this = *this + otr;
+	}
+	matrix operator*(const matrix &otr) const{
+		assert(M == otr.N);
+		int L = otr.M;
+		matrix res(N, L);
+		vector<bitset<SZ>> temp(L);
+		for(int i = 0; i < L; ++ i) for(int j = 0; j < M; ++ j) temp[i][j] = otr[j][i];
+		for(int i = 0; i < N; ++ i) for(int j = 0; j < L; ++ j) if(((*this)[i] & temp[j]).count() & 1) res[i].set(j);
+		return res;
+	}
+	matrix &operator*=(const matrix &otr){
+		return *this = *this * otr;
+	}
+	matrix operator^(long long e) const{
+		assert(N == M);
+		matrix res(N, N, true), b(*this);
 		for(; e; b *= b, e >>= 1) if(e & 1) res *= b;
 		return res;
 	}
