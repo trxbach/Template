@@ -138,7 +138,7 @@ Category
 		156485479_3_8
 	3.9. Treap
 		156485479_3_9
-	3.10. Splay Tree ( INCOMPLETE )
+	3.10. Splay Tree ( WARNING: UNTESTED )
 		156485479_3_10
 	3.11. Link Cut Tree ( INCOMPLETE )
 		156485479_3_11
@@ -153,17 +153,23 @@ Category
 		156485479_4_2
 	4.3. Articulation Points
 		156485479_4_3
-	4.4. Flow Network
+	4.4. Flow / Matching / Cut
 		4.4.1. Dinic's Maximum Flow Algorithm
 			156485479_4_4_1
 		4.4.2. Minimum Cost Maximum Flow Algorithm
 			156485479_4_4_2
 		4.4.3. Simple DFS Matching
 			156485479_4_4_3
-		4.4.4. Hopcroft Karp Algorithm
+		4.4.4. Hopcroft Karp Algorithm / Fast Bipartite Matching
 			156485479_4_4_4
-		4.4.5. Hungarian Algorithm
+		4.4.5. Hungarian Algorithm / Minimum Cost Maximum Matching ( WARNING: UNTESTED )
 			156485479_4_4_5
+		4.4.6. Global Min Cut ( WARNING: UNTESTED )
+			156485479_4_4_6
+		4.4.7. Gomory-Hu Tree ( INCOMPLETE )
+			156485479_4_4_7
+		4.4.8. General Matching ( INCOMPLETE )
+			156485479_4_4_8
 	4.5. Tree Algorithms
 		4.5.1. LCA
 			156485479_4_5_1
@@ -210,7 +216,7 @@ Category
 		156485479_5_7
 	5.8. Suffix Automaton
 		156485479_5_8
-	5.9. Suffix Tree ( INCOMPLETE )
+	5.9. Suffix Tree ( WARNING: UNTESTED )
 		156485479_5_9
 	5.10. Palindrome Automaton / Eertree
 		156485479_5_10
@@ -223,7 +229,7 @@ Category
 		156485479_6_1
 	6.2. Convex Hull and Minkowski Addition
 		156485479_6_2
-	6.3. KD Tree
+	6.3. KD Tree ( WARNING: UNTESTED )
 		156485479_6_3
 
 
@@ -1753,12 +1759,12 @@ struct lichao{
 // Must satisfy opt[j] <= opt[j + 1]
 // Special case: for all a<=b<=c<=d, C[a][c] + C[b][d] <= C[a][d] + C[b][d] ( C is a Monge array )
 // O(N log N)
-template<typename T>
-void DCDP(vector<T> &dp, vector<T> &dp_next, const vector<vector<T>> &C, int low, int high, int optl, int optr){
+template<typename T, typename Cost>
+void DCDP(vector<T> &dp, vector<T> &dp_next, const Cost &C, int low, int high, int optl, int optr){
 	if(low >= high) return;
 	int mid = low + high >> 1;
 	pair<T, int> res{numeric_limits<T>::max(), -1};
-	for(int i = optl; i < min(mid, optr); ++ i) res = min(res, {dp[i] + C[i][mid], i});
+	for(int i = optl; i < min(mid, optr); ++ i) res = min(res, {dp[i] + C(i, mid), i});
 	dp_next[mid] = res.first;
 	DCDP(dp, dp_next, C, low, mid, optl, res.second + 1);
 	DCDP(dp, dp_next, C, mid + 1, high, res.second, optr);
@@ -3507,7 +3513,7 @@ vector<T> answer_query_offline(vector<Q> query, I ins, D del, A ans){
 		
 	};
 	auto ans = [&](const auto &q){
-		return 0;
+
 	};
 */
 
@@ -4046,7 +4052,140 @@ struct matching{
 };
 
 // 156485479_4_4_4
-// Hopcroft Karp Algorithm
+// Hopcroft Karp Algorithm / Fast Bipartite Matching
+// O( sqrt(V) * E )
+struct hopcroft_karp{
+	int n, m, flow = 0;
+	vector<vector<int>> adj;
+	vector<int> pa, pb, A, B, cur, next;
+	hopcroft_karp(int n, int m): n(n), m(m), adj(n), pa(n, -1), pb(m, -1), A(n), B(m){ }
+	void insert(int from, int to){
+		adj[from].push_back(to);
+	}
+	bool bfs(){
+		fill(A.begin(), A.end(), 0), fill(B.begin(), B.end(), 0);
+		cur.clear();
+		// Find the starting nodes for BFS (i.e. layer 0).
+		for(auto a: pb) if(a != -1) A[a] = -1;
+		for(int a = 0; a < n; ++ a) if(!A[a]) cur.push_back(a);
+		// Find all layers using bfs.
+		for(int layer = 1; ; ++ layer){
+			bool islast = 0;
+			next.clear();
+			for(auto a: cur) for(auto b: adj[a]){
+				if(pb[b] == -1){
+					B[b] = layer;
+					islast = 1;
+				}
+				else if(pb[b] != a && !B[b]){
+					B[b] = layer;
+					next.push_back(pb[b]);
+				}
+			}
+			if(islast) return true;
+			if(next.empty()) return false;
+			for(auto a: next) A[a] = layer;
+			cur.swap(next);
+		}
+	}
+	bool dfs(int a, int L, vector<int>& A, vector<int>& B){
+		if(A[a] != L) return false;
+		A[a] = -1;
+		for(auto b: adj[a]) if(B[b] == L + 1){
+			B[b] = 0;
+			if(pb[b] == -1 || dfs(pb[b], L + 1, A, B)){
+				pa[a] = b;
+				pb[b] = a;
+				return true;
+			}
+		}
+		return false;
+	}
+	int solve(){
+		while(bfs()) for(int a = 0; a < n; ++ a) flow += dfs(a, 0, A, B);
+		return flow;
+	}
+};
+
+// 156485479_4_4_5
+// Hungarian Algorithm / Minimum Weight Maximum Matching ( WARNING: UNTESTED )
+// O(N^2 M)
+// Reads the adjacency matrix of the graph
+template<typename Graph>
+pair<long long, vector<int>> hungarian(const Graph &adj) {
+	if(adj.empty()) return {0, {}};
+	int n = int(adj.size()) + 1, m = int(adj[0].size()) + 1;
+	vector<long long> u(n), v(m);
+	vector<int> p(m), ans(n - 1);
+	for(int i = 1; i < n; ++ i){
+		p[0] = i;
+		int j0 = 0; // add "dummy" worker 0
+		vector<long long> dist(m, numeric_limits<long long>::max());
+		vector<int> pre(m, -1);
+		vector<bool> done(m + 1);
+		do{// dijkstra
+			done[j0] = true;
+			int i0 = p[j0], j1;
+			long long delta = numeric_limits<long long>::max();
+			for(int j = 1; j < m; ++ j) if(!done[j]){
+				auto cur = adj[i0 - 1][j - 1] - u[i0] - v[j];
+				if(cur < dist[j]) dist[j] = cur, pre[j] = j0;
+				if(dist[j] < delta) delta = dist[j], j1 = j;
+			}
+			for(int j = 0; j < m; ++ j){
+				if(done[j]) u[p[j]] += delta, v[j] -= delta;
+				else dist[j] -= delta;
+			}
+			j0 = j1;
+		}while(p[j0]);
+		while(j0){ // update alternating path
+			int j1 = pre[j0];
+			p[j0] = p[j1], j0 = j1;
+		}
+	}
+	for(int j = 1; j < m; ++ j) if(p[j]) ans[p[j] - 1] = j - 1;
+	return {-v[0], ans}; // min cost
+}
+
+// 156485479_4_4_6
+// Global Min Cut ( WARNING: UNTESTED )
+// O(V^3)
+template<typename Graph>
+pair<int, vector<int>> global_min_cut(Graph adj){
+	int N = int(adj.size());
+	vector<int> used(N), cut, best_cut;
+	int best_weight = -1;
+	for(int phase = N - 1; phase >= 0; -- phase){
+		vector<int> w = adj[0], added = used;
+		int prev, k = 0;
+		for(int i = 0; i < phase; ++ i){
+			prev = k;
+			k = -1;
+			for(int j = 1; j < N; ++ j) if(!added[j] && (k == -1 || w[j] > w[k])) k = j;
+			if(i == phase-1){
+				for(int j = 0; j < N; ++ j) adj[prev][j] += adj[k][j];
+				for(int j = 0; j < N; ++ j) adj[j][prev] = adj[prev][j];
+				used[k] = true;
+				cut.push_back(k);
+				if(best_weight == -1 || w[k] < best_weight){
+					best_cut = cut;
+					best_weight = w[k];
+				}
+			}
+			else{
+				for(int j = 0; j < N; ++ j) w[j] += adj[k][j];
+				added[k] = true;
+			}
+		}
+	}
+	return {best_weight, best_cut};
+}
+
+// 156485479_4_4_7
+// Gomory-Hu Tree
+
+// 156485479_4_4_8
+// General Matching
 
 // 156485479_4_5_1
 // LCA
@@ -4107,27 +4246,29 @@ struct LCA{
 // Binary Lifting for Unweighted Tree
 // O(N log N) preprocessing, O(log N) per lca query
 struct binary_lift{
-	int N, root, lg;
+	int N, lg;
 	vector<vector<int>> adj, up;
 	vector<int> depth;
-	binary_lift(int N, int root): N(N), root(root), lg(__lg(N) + 1), depth(N), adj(N), up(N, vector<int>(lg + 1)){ }
+	binary_lift(int N): N(N), lg(__lg(N) + 1), depth(N), adj(N), up(N, vector<int>(lg + 1)){ }
 	void insert(int u, int v){
 		adj[u].push_back(v);
 		adj[v].push_back(u);
 	}
 	void init(){
-		dfs(root, root);
-	}
-	void dfs(int u, int p){
-		up[u][0] = p;
-		for(int i = 1; i <= lg; ++ i) up[u][i] = up[up[u][i - 1]][i - 1];
-		for(auto &v: adj[u]) if(v != p){
-			depth[v] = depth[u] + 1;
-			dfs(v, u);
-		}
+		vector<int> visited(N);
+		function<void(int, int)> dfs = [&](int u, int p){
+			visited[u] = true;
+			up[u][0] = p;
+			for(int i = 1; i <= lg; ++ i) up[u][i] = up[up[u][i - 1]][i - 1];
+			for(auto &v: adj[u]) if(v != p){
+				depth[v] = depth[u] + 1;
+				dfs(v, u);
+			}
+		};
+		for(int u = 0; u < N; ++ u) if(!visited[u]) dfs(u, u);
 	}
 	int lca(int u, int v){
-		if(depth[u] < depth[v]) std::swap(u, v);
+		if(depth[u] < depth[v]) swap(u, v);
 		u = trace_up(u, depth[u] - depth[v]);
 		for(int d = lg; d >= 0; -- d) if(up[u][d] != up[v][d]) u = up[u][d], v = up[v][d];
 		return u == v ? u : up[u][0];
@@ -4136,7 +4277,7 @@ struct binary_lift{
 		return depth[u] + depth[v] - 2 * depth[lca(u, v)];
 	}
 	int trace_up(int u, int dist){
-		if(dist >= depth[u] - depth[root]) return root;
+		dist = min(dist, depth[u]);
 		for(int d = lg; d >= 0; -- d) if(dist & (1 << d)) u = up[u][d];
 		return u;
 	}
@@ -4147,34 +4288,37 @@ struct binary_lift{
 // O(N log N) processing, O(log N) per query
 template<typename T, typename BO>
 struct binary_lift{
-	int N, root, lg;
+	int N, lg;
 	BO bin_op;
-	const T id;
+	T id;
 	vector<T> val;
 	vector<vector<pair<int, T>>> adj, up;
 	vector<int> depth;
-	binary_lift(int N, int root, const vector<T> &val, BO bin_op, T id): N(N), root(root), bin_op(bin_op), id(id), lg(__lg(N) + 1), depth(N), val(val), adj(N), up(N, vector<pair<int, T>>(lg + 1)){ }
+	binary_lift(int N, const vector<T> &val, BO bin_op, T id): N(N), bin_op(bin_op), id(id), lg(__lg(N) + 1), depth(N), val(val), adj(N), up(N, vector<pair<int, T>>(lg + 1)){ }
+	binary_lift(int N, BO bin_op, T id): N(N), bin_op(bin_op), id(id), lg(__lg(N) + 1), depth(N), val(N, id), adj(N), up(N, vector<pair<int, T>>(lg + 1)){ }
 	void insert(int u, int v, T w){
 		adj[u].emplace_back(v, w);
 		adj[v].emplace_back(u, w);
 	}
 	void init(){
-		dfs(root, root, id);
-	}
-	void dfs(int u, int p, T w){
-		up[u][0] = {p, bin_op(val[u], w)};
-		for(int i = 1; i <= lg; ++ i) up[u][i] = {
-			up[up[u][i - 1].first][i - 1].first
-			, bin_op(up[u][i - 1].second, up[up[u][i - 1].first][i - 1].second)
+		vector<int> visited(N);
+		function<void(int, int, T)> dfs = [&](int u, int p, T w){
+			visited[u] = true;
+			up[u][0] = {p, bin_op(val[u], w)};
+			for(int i = 1; i <= lg; ++ i) up[u][i] = {
+				up[up[u][i - 1].first][i - 1].first
+				, bin_op(up[u][i - 1].second, up[up[u][i - 1].first][i - 1].second)
+			};
+			for(auto &[v, x]: adj[u]) if(v != p){
+				depth[v] = depth[u] + 1;
+				dfs(v, u, x);
+			}
 		};
-		for(auto &[v, x]: adj[u]) if(v != p){
-			depth[v] = depth[u] + 1;
-			dfs(v, u, x);
-		}
+		for(int u = 0; u < N; ++ u) if(!visited[u]) dfs(u, u, id);
 	}
-	pair<int, T> trace_up(int u, int dist){ // Node, Distance (Does not include weight of the node)
+	pair<int, T> trace_up(int u, int dist){ // Node, Distance (Does not include weight of the Node)
 		T res = id;
-		dist = min(dist, depth[u] - depth[root]);
+		dist = min(dist, depth[u]);
 		for(int d = lg; d >= 0; -- d) if(dist & (1 << d)){
 			res = bin_op(res, up[u][d].second), u = up[u][d].first;
 		}
