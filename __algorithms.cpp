@@ -370,38 +370,83 @@ pair<vector<int>, vector<int>> linearsieve(int n){
 
 // 156485479_1_4
 // Combinatorics
-// O(N) preprocessing, O(1) per query
+// O(N) preprocessing
+long long modexp(long long b, long long e, const long long &mod){
+	long long res = 1;
+	for(; e; b = b * b % mod, e >>= 1) if(e & 1) res = res * b % mod;
+	return res;
+}
+template<int SZ>
 struct combinatorics{
-	const long long N, mod;
+	const long long mod;
 	vector<long long> inv, fact, invfact;
-	combinatorics(long long N, long long mod): N(N), mod(mod), inv(N + 1), fact(N + 1), invfact(N + 1){
-		inv[1] = 1, fact[0] = fact[1] = invfact[0] = invfact[1] = 1;
-		for(long long i = 2; i <= N; ++ i){
+	vector<vector<long long>> stir1, stir2;
+	combinatorics(long long mod): mod(mod), inv(SZ + 1, 1), fact(SZ + 1, 1), invfact(SZ + 1, 1){
+		for(long long i = 2; i <= SZ; ++ i){
 			inv[i] = (mod - mod / i * inv[mod % i] % mod) % mod;
 			fact[i] = fact[i - 1] * i % mod;
 			invfact[i] = invfact[i - 1] * inv[i] % mod;
 		}
 	}
-	long long C(int n, int r){
-		return n < r ? 0 : fact[n] * invfact[r] % mod * invfact[n - r] % mod;
+	long long C(int n, int k){ return n < k ? 0 : fact[n] * invfact[k] % mod * invfact[n - k] % mod; }
+	long long P(int n, int k){ return n < k ? 0 : fact[n] * invfact[n - k] % mod; }
+	long long H(int n, int k){ return C(n + k - 1, k); }
+	long long naive_C(long long n, long long k){
+		if(n < k) return 0;
+		long long res = 1;
+		k = min(k, n - k);
+		for(int i = n; i > n - k; -- i) res = res * i % mod;
+		return res * invfact[k] % mod;
 	}
-	long long P(int n, int r){
-		return n < r ? 0 : fact[n] * invfact[n - r] % mod;
+	long long naive_P(long long n, int k){
+		if(n < k) return 0;
+		long long res = 1;
+		for(int i = n; i > n - k; -- i) res = res * i % mod;
+		return res;
 	}
-	long long H(int n, int r){
-		return C(n + r - 1, r);
-	}
-	long long Cat(int n, int k, int m){
+	long long naive_H(long long n, long long k){ return naive_C(n + k - 1, k); }
+	bool parity_C(long long n, long long k){ return n < k ? 0 : k & (n - k) ^ 1; }
+	// Catalan's Trapzoids
+	// # of bitstrings of n Xs and k Ys such that in each initial segment, (# of X) + m > (# of Y) 
+	long long Cat(int n, int k, int m = 1){
 		if(m <= 0) return 0;
 		else if(k >= 0 && k < m) return C(n + k, k);
 		else if(k < n + m) return (C(n + k, k) - C(n + k, k - m) + mod) % mod;
 		else return 0;
 	}
+	// Stirling number
+	// First kind (unsigned): # of n-permutations with k disjoint cycles
+	//                        Also the coefficient of x^k for x_n = x(x+1)...(x+n-1)
+	// Second kind: # of ways to partition a set of size n into r non-empty sets
+	//              Satisfies sum{k=0~n}(x_k) = x^n
+	array<bool, 2> pre{};
+	template<bool FIRST = true>
+	void precalc_stir(int N, int K){
+		auto &s = FIRST ? stir1 : stir2;
+		pre[!FIRST] = true;
+		s.resize(N + 1, vector<long long>(K + 1));
+		s[0][0] = 1;
+		for(int i = 1; i <= N; ++ i) for(int j = 1; j <= K; ++ j){
+			s[i][j] = ((FIRST ? i - 1 : j) * s[i - 1][j] + s[i - 1][j - 1]) % mod;
+		}
+	}
+	// unsigned
+	long long Stir1(int n, int k){
+		if(n < k) return 0;
+		assert(pre[0]);
+		return stir1[n][k];
+	}
+	long long Stir2(long long n, int k){
+		if(n < k) return 0;
+		if(pre[1] && n < int(stir2.size())) return stir2[n][k];
+		long long res = 0;
+		for(int i = 0, sign = 1; i <= k; ++ i, sign *= -1){
+			res = (res + sign * C(k, i) * modexp(k - i, n, mod) % mod + mod) % mod;
+		}
+		return res * invfact[k] % mod;
+	}
+	bool parity_Stir2(long long n, long long k){ return n < k ? 0 : k ? !((n - k) & (k - 1 >> 1)) : 0; }
 };
-
-/*
-Parity of n choose k: (k & (n - k))^1
-*/
 
 // 156485479_1_5
 // Euler Totient Function
@@ -1395,7 +1440,7 @@ struct matrix: vector<bitset<SZ>>{
 		if(is_id) for(int i = 0; i < min(N, M); ++ i) (*this)[i].set(i);
 	}
 	template<typename Mat>
-	matrix(const Mat &arr): N(arr.size()), M(arr[0].size()){
+	matrix(int N, int M, const Mat &arr): N(N), M(M){
 		this->resize(N);
 		for(int i = 0; i < N; ++ i) for(int j = 0; j < M; ++ j) if(arr[i][j]) (*this)[i].set(j);
 	}
@@ -3883,7 +3928,7 @@ void articulation_points(const Graph &adj, Process_Articulation_Point f){
 
 // 156485479_4_4_1
 // Dinic's Maximum Flow Algorithm
-// O(V^2E) ( O(sqrt(V) * E ) for unit network )
+// O(V^2E) ( O(E*min(V^2/3, E^1/2)) for unit network )
 template<typename T>
 struct flow_network{
 	static constexpr T eps = (T)1e-9;
