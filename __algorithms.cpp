@@ -3400,9 +3400,11 @@ struct offline_less_than_k_query{
 		}
 	}
 	void query(int i, int ql, int qr){ // For distinct value query
+		assert(!TYPE);
 		queries.emplace_back(ql, ql, qr, i);
 	}
 	void query(int i, int ql, int qr, T k){ // For less-than-k query
+		assert(TYPE);
 		queries.emplace_back(TYPE == 2 ? std::lower_bound(compress.begin(), compress.end(), k) - compress.begin() : k, ql, qr, i);
 	}
 	template<typename Action>
@@ -3539,22 +3541,28 @@ struct less_than_k_query{
 	}
 	// For distinct value query
 	int query(int ql, int qr){
+		assert(!TYPE);
 		return tr.query(p[ql], ql, qr);
 	}
 	int lower_bound(int ql, int cnt){ // min i such that # of distinct in [l, l + i) >= cnt
+		assert(!TYPE);
 		return tr.lower_bound(p[ql], ql, cnt, minus<int>());
 	}
 	int upper_bound(int ql, int cnt){ // min i such that # of distinct in [l, l + i) > cnt
+		assert(!TYPE);
 		return tr.upper_bound(p[ql], ql, cnt, minus<int>());
 	}
 	// For less-than-k query
 	int query(int ql, int qr, int k){
+		assert(TYPE);
 		return tr.query(p[TYPE == 2 ? std::lower_bound(compress.begin(), compress.end(), k) - compress.begin() : k], ql, qr);
 	}
 	int lower_bound(int ql, int k, int cnt){ // min i such that ( # of elements < k in [l, l + i) ) >= cnt
+		assert(TYPE);
 		return tr.lower_bound(p[TYPE == 2 ? std::lower_bound(compress.begin(), compress.end(), k) - compress.begin() : k], ql, cnt, minus<int>());
 	}
 	int upper_bound(int ql, int k, int cnt){ // min i such that ( # of elements < k in [l, l + i) ) > cnt
+		assert(TYPE);
 		return tr.upper_bound(p[TYPE == 2 ? std::lower_bound(compress.begin(), compress.end(), k) - compress.begin() : k], ql, cnt, minus<int>());
 	}
 };
@@ -3682,23 +3690,6 @@ struct treap{
 		}
 		else{
 			auto [sl, sr] = split(u->r, k - get_cnt(u->l) - 1);
-			u->r = sl;
-			refresh(u);
-			return {u, sr};
-		}
-	}
-	template<typename Compare = less<T>>
-	pair<node *, node *> split_by_val(node* u, T k, Compare cmp = less<T>()){
-		if(!u) return { };
-		push(u);
-		if(!cmp(u->val, k)){
-			auto [sl, sr] = split_by_val(u->l, k, cmp);
-			u->l = sr;
-			refresh(u);
-			return {sl, u};
-		}
-		else{
-			auto [sl, sr] = split_by_val(u->r, k, cmp);
 			u->r = sl;
 			refresh(u);
 			return {u, sr};
@@ -4329,6 +4320,7 @@ struct LCA{
 
 // 156485479_4_5_2_1
 // Binary Lifting for Unweighted Tree
+// Also works for graphs with outdegree 1 for all vertices.
 // O(N log N) preprocessing, O(log N) per lca query
 struct binary_lift{
 	int N, lg;
@@ -4362,7 +4354,6 @@ struct binary_lift{
 		return depth[u] + depth[v] - 2 * depth[lca(u, v)];
 	}
 	int trace_up(int u, int dist){
-		dist = min(dist, depth[u]);
 		for(int d = lg; d >= 0; -- d) if(dist & (1 << d)) u = up[u][d];
 		return u;
 	}
@@ -4370,6 +4361,7 @@ struct binary_lift{
 
 // 156485479_4_5_2_2
 // Binary Lifting for Weighted Tree Supporting Commutative Monoid Operations
+// Also works for graphs with outdegree 1 for all vertices.
 // O(N log N) processing, O(log N) per query
 template<typename T, typename BO>
 struct binary_lift{
@@ -4403,7 +4395,6 @@ struct binary_lift{
 	}
 	pair<int, T> trace_up(int u, int dist){ // Node, Distance (Does not include weight of the Node)
 		T res = id;
-		dist = min(dist, depth[u]);
 		for(int d = lg; d >= 0; -- d) if(dist & (1 << d)){
 			res = bin_op(res, up[u][d].second), u = up[u][d].first;
 		}
