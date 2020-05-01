@@ -86,6 +86,8 @@ Category
 			156485479_2_6_3
 		2.6.4. Lagrange ( Aliens Trick, Wqs Binary Search )
 			156485479_2_6_4
+		2.6.5. Monotone Queue
+			156485479_2_6_5
 	2.7. Kadane
 		156485479_2_7
 	2.8. BigInteger
@@ -1508,12 +1510,12 @@ void fft(IT begin, IT end, const bool invert = false){
 			}
 		}
 	}
-	if(invert) for(; begin != end; ++ begin) *begin /= n;
+	if(invert) for(auto it = begin; it != end; ++ it) *it /= n;
 }
 template<typename Poly>
 Poly polymul(const Poly &a, const Poly &b){
 	vector<cd> f(a.begin(), a.end()), g(b.begin(), b.end());
-	while(__builtin_popcount(f.size()) > 1) f.push_back(0), g.push_back(0);
+	f.resize(1 << __lg(a.size() + b.size()) + 1), g.resize(f.size());
 	fft(f.begin(), f.end()), fft(g.begin(), g.end());
 	for(int i = 0; i < n; ++ i) f[i] *= g[i];
 	fft(f.begin(), f.end(), true);
@@ -1810,24 +1812,24 @@ struct lichao{
 
 // 156485479_2_6_2
 // Divide and Conquer DP Optimization
-// Recurrence relation of form dp_next[i] = min{j in [0, i)} (dp[j] + C[j][i])
+// Recurrence relation of form dp_next[i] = min/max{j in [0, i)} (dp[j] + cost(j, i))
 // Must satisfy opt[j] <= opt[j + 1]
-// Special case: for all a<=b<=c<=d, C[a][c] + C[b][d] <= C[a][d] + C[b][d] ( C is a Monge array )
+// Special case: dp[j][i] must be a Monge array ( if one interval contains the other, it's better to resolve them )
 // O(N log N)
-template<typename T, typename Cost>
-void DCDP(vector<T> &dp, vector<T> &dp_next, const Cost &C, int low, int high, int optl, int optr){
+template<bool GET_MAX = true>
+void DCDP(vector<long long> &dp, vector<long long> &dp_next, auto cost, int low, int high, int opt_low, int opt_high){
 	if(low >= high) return;
 	int mid = low + high >> 1;
-	pair<T, int> res{numeric_limits<T>::max(), -1};
-	for(int i = optl; i < min(mid, optr); ++ i) res = min(res, {dp[i] + C(i, mid), i});
+	pair<long long, int> res{GET_MAX ? numeric_limits<long long>::min() : numeric_limits<long long>::max(), -1};
+	for(int i = opt_low; i < min(mid, opt_high); ++ i) res = GET_MAX ? max(res, {dp[i] + cost(i, mid), i}) : min(res, {dp[i] + cost(i, mid), i});
 	dp_next[mid] = res.first;
-	DCDP(dp, dp_next, C, low, mid, optl, res.second + 1);
-	DCDP(dp, dp_next, C, mid + 1, high, res.second, optr);
+	DCDP(dp, dp_next, cost, low, mid, opt_low, res.second + 1);
+	DCDP(dp, dp_next, cost, mid + 1, high, res.second, opt_high);
 }
 
 // 156485479_2_6_3
 // Knuth DP Optimization
-// Recurrence relation of form dp[i][j] = min{k in [i, j)} (dp[i][k] + dp[k][j] + C[i][j])
+// Recurrence relation of form dp[i][j] = min/max{k in [i, j)} (dp[i][k] + dp[k][j] + C[i][j])
 // Must satisfy C[a][c] + C[b][d] <= C[a][d] + C[b][d] (C is a monge array) and C[a][d] >= C[b][c] for all a<=b<=c<=d
 // It can be proved that opt[i][j - 1] <= opt[i][j] <= opt[i + 1][j]
 // Fill the dp table in increasing order of j - i.
@@ -1896,6 +1898,32 @@ pair<long long, vector<int>> LagrangeDP(int n, DP f, long long k, long long low,
 		for(int u = prevq[j]; u; ) path.push_back(u = prevq[u]);
 		return {res, path};
 	}
+}
+
+// 156485479_2_6_5
+// Monotone Queue DP Optimization
+// Recurrence relation of form dp[i] = min/max{j in [0, i)} (dp[j] + cost(j, i))
+// dp[j][i] must be a Monge array ( if one interval contains the other, it's better to resolve them )
+// O(n log n)
+template<bool GET_MAX = true>
+vector<long long> monotone_queue_dp(int n, long long init, auto cost){
+	vector<long long> dp(n, init);
+	auto cross = [&](int i, int j){
+		int l = j, r = n;
+		while(r - l > 1){
+			int mid = l + r >> 1;
+			(GET_MAX ? dp[i] + cost(i, mid) >= dp[j] + cost(j, mid) : dp[i] + cost(i, mid) <= dp[j] + cost(j, mid)) ? l = mid : r = mid;
+		}
+		return l;
+	};
+	deque<int> q{0};
+	for(auto i = 1; i < n; ++ i){
+		while(int(q.size()) > 1 && cross(*q.begin(), *next(q.begin())) < i) q.pop_front();
+		dp[i] = dp[q.front()] + cost(q.front(), i);
+		while(int(q.size()) > 1 && cross(*next(q.rbegin()), *q.rbegin()) >= cross(*q.rbegin(), i)) q.pop_back();
+		q.push_back(i);
+	}
+	return dp;
 }
 
 // 156485479_2_7
@@ -4057,6 +4085,8 @@ struct mcmf{
 
 // 156485479_4_4_3
 // Simple DFS Matching
+// u from the left vertex set is linked with p[u] on the right (-1 if not linked)
+// v from the right vertex set is linked with p[v] on the left (-1 if not linked)
 // O(VE)
 struct matching{
 	vector<vector<int>> adj;
@@ -4104,6 +4134,8 @@ struct matching{
 
 // 156485479_4_4_4
 // Hopcroft Karp Algorithm / Fast Bipartite Matching
+// u from the left vertex set is linked with p[u] on the right (-1 if not linked)
+// v from the right vertex set is linked with p[v] on the left (-1 if not linked)
 // O( sqrt(V) * E )
 struct hopcroft_karp{
 	int n, m, flow = 0;
