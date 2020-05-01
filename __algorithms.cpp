@@ -60,12 +60,8 @@ Category
 					156485479_2_4_1_1_1
 				2.4.1.1.2. Number Theoric Transform
 					156485479_2_4_1_1_2
-			2.4.1.2. Bitwise XOR Convolution ( Fast Walsh Hadamard Transform )
+			2.4.1.2. Bitwise Convolution ( Fast Walsh Hadamard Transform, FWHT )
 				156485479_2_4_1_2
-			2.4.1.3. Bitwise AND Convolution
-				156485479_2_4_1_3
-			2.4.1.4. Bitwise OR Convolution
-				156485479_2_4_1_4
 		2.4.2. Interpolation
 			2.4.2.1. Slow Interpolation
 				2.4.2.1.1.
@@ -100,9 +96,9 @@ Category
 		156485479_2_10
 	2.11. Matroid
 		2.11.1. Matroid Intersection
-			156485479_2_12_1
+			156485479_2_11_1
 		2.11.2. Matroid Union
-			156485479_2_12_2
+			156485479_2_11_2
 
 
 3. Data Structure
@@ -356,7 +352,7 @@ array<ll, 6> solve_linear_diophantine(ll a, ll b, ll c, ll xlow, ll xhigh, ll yl
 // 156485479_1_3
 // Run linear sieve up to n
 // O(n)
-pair<vector<int>, vector<int>> linearsieve(int n){
+array<vector<int>, 2> linearsieve(int n){
 	vector<int> lpf(n + 1), prime;
 	prime.reserve(n + 1);
 	for(int i = 2; i <= n; ++ i){
@@ -1143,7 +1139,7 @@ int discrete_log(int a, int b, int mod){
 
 // 156485479_2_1
 // Linear Recurrence Relation Solver / Berlekamp - Massey Algorithm
-// O(N^2 log n) / O(N^2)
+// O(N^2 log N) / O(N^2)
 long long modexp(long long b, long long e, const long long &mod){
 	long long res = 1;
 	for(; e; b = b * b % mod, e >>= 1) if(e & 1) res = res * b % mod;
@@ -1492,139 +1488,95 @@ struct matrix: vector<bitset<SZ>>{
 // O(n log n)
 typedef complex<double> cd;
 const double PI = acos(-1);
-void fft(vector<cd> &f, bool invert){
-	int n = int(f.size());
+template<typename IT>
+void fft(IT begin, IT end, const bool invert = false){
+	int n = distance(begin, end);
 	for(int i = 1, j = 0; i < n; ++ i){
 		int bit = n >> 1;
 		for(; j & bit; bit >>= 1) j ^= bit;
 		j ^= bit;
-		if(i < j) swap(f[i], f[j]);
+		if(i < j) swap(*(begin + i), *(begin + j));
 	}
-	for(int len = 2; len <= n; len <<= 1){
-		double theta = 2 * PI / len * (invert ? -1 : 1);
+	for(int len = 1; len < n; len <<= 1){
+		double theta = PI / len * (invert ? -1 : 1);
 		cd w(cos(theta), sin(theta));
-		for(int i = 0; i < n; i += len){
+		for(int i = 0; i < n; i += len << 1){
 			cd wj(1);
-			for(int j = 0; j < len / 2; ++ j, wj *= w){
-				cd u = f[i + j], v = wj * f[i + j + len / 2];
-				f[i + j] = u + v, f[i + j + len / 2] = u - v;
+			for(int j = 0; j < len; ++ j, wj *= w){
+				cd u = *(begin + i + j), v = wj * *(begin + i + j + len);
+				*(begin + i + j) = u + v, *(begin + i + j + len) = u - v;
 			}
 		}
 	}
-	if(invert) for(auto &c: f) c /= n;
+	if(invert) for(; begin != end; ++ begin) *begin /= n;
 }
-vector<long long> polymul(const vector<long long> &a, const vector<long long> &b){
+template<typename Poly>
+Poly polymul(const Poly &a, const Poly &b){
 	vector<cd> f(a.begin(), a.end()), g(b.begin(), b.end());
-	int n = 1;
-	while(n < int(a.size() + b.size())) n <<= 1;
-	f.resize(n), g.resize(n);
-	fft(f, false), fft(g, false);
+	while(__builtin_popcount(f.size()) > 1) f.push_back(0), g.push_back(0);
+	fft(f.begin(), f.end()), fft(g.begin(), g.end());
 	for(int i = 0; i < n; ++ i) f[i] *= g[i];
-	fft(f, true);
-	vector<long long> res(n);
+	fft(f.begin(), f.end(), true);
+	Poly res(n);
 	for(int i = 0; i < n; ++ i) res[i] = round(f[i].real());
 	while(!res.empty() && !res.back()) res.pop_back();
 	return res;
 }
 
 // 156485479_2_4_1_1_2
-// Number Theoric Transformation. Use (998244353, 15311432, 1 << 23) or (7340033, 5, 1 << 20)
+// Number Theoric Transformation
+// Use (998244353: 15311432, 1 << 23, 469870224) or (7340033: 5, 1 << 20, 4404020)
 // Size must be a power of two
 // O(n log n)
-long long modexp(long long b, long long e, const long long &mod){
-	long long res = 1;
-	for(; e; b = b * b % mod, e >>= 1) if(e & 1) res = res * b % mod;
-	return res;
-}
-long long modinv(long long a, const long long &mod){
-	return modexp(a, mod - 2, mod);
-}
-const long long mod = 998244353, root = 15311432, root_pw = 1 << 23, root_1 = modinv(root, mod);
-void ntt(vector<long long> &a, bool invert){
-    int n = int(a.size());
-    for(int i = 1, j = 0; i < n; ++ i){
-        int bit = n >> 1;
-        for(; j & bit; bit >>= 1) j ^= bit;
-        j ^= bit;
-        if(i < j) swap(a[i], a[j]);
-    }
-    for(int len = 2; len <= n; len <<= 1){
-        long long wlen = invert ? root_1 : root;
-        for(int i = len; i < root_pw; i <<= 1) wlen = wlen * wlen % mod;
-        for(int i = 0; i < n; i += len){
-            long long w = 1;
-            for(int j = 0; j < len / 2; ++ j){
-                long long u = a[i + j], v = a[i + j + len / 2] * w % mod;
-                a[i + j] = u + v < mod ? u + v : u + v - mod;
-                a[i + j + len / 2] = u - v >= 0 ? u - v : u - v + mod;
-                w = w * wlen % mod;
-            }
-        }
-    }
-    if(invert){
-        long long n_1 = modinv(n, mod);
-        for(auto &x: a) x = x * n_1 % mod;
-    }
+template<int root = 15311432, int root_pw = 1 << 23, int inv_root = 469870224, typename IT = vector<Zp>::iterator>
+void ntt(IT begin, IT end, const bool invert = false){
+	int n = distance(begin, end);
+	for(int i = 1, j = 0; i < n; ++ i){
+		int bit = n >> 1;
+		for(; j & bit; bit >>= 1) j ^= bit;
+		j ^= bit;
+		if(i < j) swap(*(begin + i), *(begin + j));
+	}
+	for(int len = 1; len < n; len <<= 1){
+		typename iterator_traits<IT>::value_type wlen = invert ? inv_root : root;
+		for(int i = len << 1; i < root_pw; i <<= 1) wlen *= wlen;
+		for(int i = 0; i < n; i += len << 1){
+			typename iterator_traits<IT>::value_type w = 1;
+			for(int j = 0; j < len; ++ j){
+				auto u = *(begin + i + j), v = *(begin + i + j + len) * w;
+				*(begin + i + j) = u + v;
+				*(begin + i + j + len) = u - v;
+				w *= wlen;
+			}
+		}
+	}
+	if(invert){
+		auto inv_n = typename iterator_traits<IT>::value_type(1) / n;
+		for(auto it = begin; it != end; ++ it) *it *= inv_n;
+	}
 }
 
 // 156485479_2_4_1_2
-// Bitwise XOR Transformation ( Fast Walsh Hadamard Transformation, FWHT ).
+// Bitwise Transformation ( Fast Walsh Hadamard Transformation, FWHT ).
 // Size must be a power of two.
-// Transformation   1  1     Inversion   1  1     
-//     Matrix       1 -1      Matrix     1 -1   TIMES  1/2
 // O(n log n)
-template<typename T>
-void xort(vector<T> &p, bool inverse){
-	int n = int(p.size());
-	for(int len = 1; 2 * len <= n; len <<= 1){
-		for(int i = 0; i < n; i += 2 * len){
+// Credit: TFG
+template<char Conv = '^', typename IT = vector<Zp>::iterator>
+void fwht(IT begin, IT end, const bool invert = false){
+	int n = distance(begin, end);
+	for(int len = 1; len < n; len <<= 1){
+		for(int i = 0; i < n; i += len << 1){
 			for(int j = 0; j < len; ++ j){
-				T u = p[i + j], v = p[i + j + len];
-				p[i + j] = u + v, p[i + j + len] = u - v;
+				auto u = *(begin + i + j), v = *(begin + i + j + len);
+				if(Conv == '^') *(begin + i + j) = u + v, *(begin + i + j + len) = u - v;
+				if(Conv == '|') *(begin + i + j + len) += invert ? -u : u;
+				if(Conv == '&') *(begin + i + j) += invert ? -v : v;
 			}
 		}
 	}
-	if(inverse) for(int i = 0; i < n; ++ i) p[i] /= n;
-	return p;
-}
-
-// 156485479_2_4_1_3
-// Bitwise AND Transformation.
-// Size must be a power of two.
-// Transformation   0  1     Inversion   -1  1
-//     Matrix       1  1      Matrix      1  0
-// O(n log n)
-template<typename T>
-void andt(vector<T> &p, bool inverse){
-	int n = int(p.size());
-	for(int len = 1; 2 * len <= n; len <<= 1){
-		for(int i = 0; i < n; i += 2 * len){
-			for(int j = 0; j < len; ++ j){
-				T u = p[i + j], v = p[i + j + len];
-				if(!inverse) p[i + j] = v, p[i + j + len] = u + v;
-				else p[i + j] = -u + v, p[i + j + len] = u;
-			}
-		}
-	}
-}
-
-// 156485479_2_4_1_4
-// Bitwise OR Transformation.
-// Size must be a power of two
-// Transformation   1  1     Inversion    0  1
-//     Matrix       1  0      Matrix      1 -1
-// O(n log n)
-template<typename T>
-void ort(vector<T> &p, bool inverse){
-	int n = int(p.size());
-	for(int len = 1; 2 * len <= n; len <<= 1){
-		for(int i = 0; i < n; i += 2 * len){
-			for(int j = 0; j < len; ++ j){
-				T u = p[i + j], v = p[i + j + len];
-				if(!inverse) p[i + j] = u + v, p[i + j + len] = u;
-				else p[i + j] = v, p[i + j + len] = u - v;
-			}
-		}
+	if(Conv == '^' && invert){
+		auto inv_n = typename iterator_traits<IT>::value_type(1) / n;
+		for(auto it = begin; it != end; ++ it) *it *= inv_n;
 	}
 }
 
@@ -2237,23 +2189,6 @@ struct bigint{
 // 156485479_2_9
 // Modular Arithmetics
 template<typename T>
-T modexp(T b, long long e){
-	T res = 1;
-	for(; e; b *= b, e >>= 1) if(e & 1) res *= b;
-	return res;
-}
-template<typename T>
-T modinv(T a, T m){
-	T u = 0, v = 1;
-	while(a){
-		T t = m / a;
-		m -= t * a; swap(a, m);
-		u -= t * v; swap(u, v);
-	}
-	assert(m == 1);
-	return u;
-}
-template<typename T>
 struct Z_p{
 	using Type = typename decay<decltype(T::value)>::type;
 	constexpr Z_p(): value(){ }
@@ -2304,7 +2239,22 @@ struct Z_p{
 		value = normalize(value * rhs.value);
 		return *this;
 	}
-	Z_p &operator/=(const Z_p &otr){ return *this *= Z_p(modinv(otr.value, mod())); }
+	Z_p operator^(long long e) const{
+		Z_p b = *this, res = 1;
+		for(; e; b *= b, e >>= 1) if(e & 1) res *= b;
+		return res;
+	}
+	Z_p &operator^=(long long e){ return *this = *this ^ e; }
+	Z_p &operator/=(const Z_p &otr){
+		Type a = otr.value, m = mod(), u = 0, v = 1;
+		while(a){
+			Type t = m / a;
+			m -= t * a; swap(a, m);
+			u -= t * v; swap(u, v);
+		}
+		assert(m == 1);
+		return *this *= u;
+	}
 	template<typename U> friend const Z_p<U> &abs(const Z_p<U> &v){ return v; }
 	template<typename U> friend bool operator==(const Z_p<U> &lhs, const Z_p<U> &rhs);
 	template<typename U> friend bool operator<(const Z_p<U> &lhs, const Z_p<U> &rhs);
@@ -2342,23 +2292,6 @@ constexpr int mod = (int)1e9 + 7;
 using Zp = Z_p<integral_constant<decay<decltype(mod)>::type, mod>>;
 
 // Variable Mod
-template<typename T>
-T modexp(T b, long long e){
-	T res = 1;
-	for(; e; b *= b, e >>= 1) if(e & 1) res *= b;
-	return res;
-}
-template<typename T>
-T modinv(T a, T m){
-	T u = 0, v = 1;
-	while(a){
-		T t = m / a;
-		m -= t * a; swap(a, m);
-		u -= t * v; swap(u, v);
-	}
-	assert(m == 1);
-	return u;
-}
 int mod;
 template<typename T>
 struct Z_p{
@@ -2410,7 +2343,22 @@ struct Z_p{
 		value = normalize(value * rhs.value);
 		return *this;
 	}
-	Z_p &operator/=(const Z_p &otr){ return *this *= Z_p(modinv(otr.value, mod)); }
+	Z_p operator^(long long e) const{
+		Z_p b = *this, res = 1;
+		for(; e; b *= b, e >>= 1) if(e & 1) res *= b;
+		return res;
+	}
+	Z_p &operator^=(long long e){ return *this = *this ^ e; }
+	Z_p &operator/=(const Z_p &otr){
+		Type a = otr.value, m = mod, u = 0, v = 1;
+		while(a){
+			Type t = m / a;
+			m -= t * a; swap(a, m);
+			u -= t * v; swap(u, v);
+		}
+		assert(m == 1);
+		return *this *= u;
+	}
 	template<typename U> friend const Z_p<U> &abs(const Z_p<U> &v){ return v; }
 	template<typename U> friend bool operator==(const Z_p<U> &lhs, const Z_p<U> &rhs);
 	template<typename U> friend bool operator<(const Z_p<U> &lhs, const Z_p<U> &rhs);
