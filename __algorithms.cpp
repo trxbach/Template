@@ -4084,9 +4084,10 @@ struct mcmf{
 };
 
 // 156485479_4_4_3
-// Simple DFS Matching
-// u from the left vertex set is linked with p[u] on the right (-1 if not linked)
-// v from the right vertex set is linked with p[v] on the left (-1 if not linked)
+// Simple DFS Bipartite Matching
+// Call solve() for maximum matching
+// u from the left vertex set is matched with p[u] on the right (-1 if not matched)
+// v from the right vertex set is matched with p[v] on the left (-1 if not matched)
 // O(VE)
 struct matching{
 	vector<vector<int>> adj;
@@ -4134,8 +4135,9 @@ struct matching{
 
 // 156485479_4_4_4
 // Hopcroft Karp Algorithm / Fast Bipartite Matching
-// u from the left vertex set is linked with p[u] on the right (-1 if not linked)
-// v from the right vertex set is linked with p[v] on the left (-1 if not linked)
+// Call solve() for maximum matching
+// u from the left vertex set is matched with p[u] on the right (-1 if not matched)
+// v from the right vertex set is matched with p[v] on the left (-1 if not matched)
 // O( sqrt(V) * E )
 struct hopcroft_karp{
 	int n, m, flow = 0;
