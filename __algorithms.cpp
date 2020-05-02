@@ -147,6 +147,8 @@ Category
 		156485479_3_11
 	3.12. Unital Sorter
 		156485479_3_12
+	3.13. Tango Tree ( INCOMPLETE )
+		156485479_3_13
 
 
 4. Graph
@@ -3050,8 +3052,7 @@ struct lazy_segment{
 	void update(int l, int r, L x){
 		if(l >= r) return;
 		array<int, 2> update_range{l, r};
-		push(l, l + 1);
-		push(r - 1, r);
+		push(l, l + 1), push(r - 1, r);
 		bool cl = false, cr = false;
 		for(l += n, r += n; l < r; l >>= 1, r >>= 1){
 			if(cl) refresh(l - 1);
@@ -3435,6 +3436,7 @@ struct wavelet{
 // 156485479_3_5
 // Disjoint Set
 // O(alpha(n)) per query where alpha(n) is the inverse ackermann function
+// Credit: KACTL
 struct disjoint{
 	vector<int> p;
 	disjoint(int n): p(n, -1){ }
@@ -3719,6 +3721,7 @@ struct less_than_k_query{
 // 156485479_3_8
 // Mo's Algorithm
 // O((N + Q) sqrt(N) F) where F is the processing time of ins and del.
+// Credit: cp-algorithms.com
 template<int B>
 struct query{
 	int l, r, ind;
@@ -3756,26 +3759,25 @@ vector<T> answer_query_offline(vector<Q> query, I ins, D del, A ans){
 // 156485479_3_9
 // Treap
 // O(log N) per operation
-template<typename T, typename P, typename R>
+// Credit: KACTL
+template<typename P, typename R, typename T = int, typename L = int>
 struct treap{
 	struct node{
 		node *l = 0, *r = 0;
-		T val, subtr_val, lazy;
-		int priority, sz = 1;
-		int ind;
-		node(T val, T lazy): val(val), subtr_val(val), lazy(lazy), priority(rng()){ }
-		node(T val, T lazy, int ind): val(val), subtr_val(val), lazy(lazy), ind(ind), priority(rng()){ }
+		T val, subtr_val;
+		L lazy;
+		int priority, sz = 1, ind = 0;
+		node(T val, L lazy, int ind = 0): val(val), subtr_val(val), lazy(lazy), ind(ind), priority(rng()){ }
 	};
 	node *root = 0;
-	P push; // update Lazy to child val and subtr_val
-	R refresh; // Recalculate sz and subtr_val
-	treap(P push, R refresh): push(push), refresh(refresh){ }
+	P push; // push: update Lazy to child val and subtr_val
+	R refresh; // refresh: Recalculate sz and subtr_val
 	template<typename IT>
-	treap(IT begin, IT end, P push, R refresh, T lazy): push(push), refresh(refresh){
-		root = build(begin, end, lazy);
+	treap(IT begin, IT end, P push, R refresh, L lazy_init = 0): push(push), refresh(refresh){
+		root = build(begin, end, lazy_init);
 	}
-	treap(int N, T val, P push, R refresh, T lazy): push(push), refresh(refresh){
-		root = build(N, val, lazy);
+	treap(int n, P push, R refresh, T val_init = 0, L lazy_init = 0): push(push), refresh(refresh){
+		root = build(n, val_init, lazy_init);
 	}
 	void heapify(node *u){
 		if(u){
@@ -3789,102 +3791,63 @@ struct treap{
 		}
 	}
 	template<typename IT>
-	node *build(IT begin, IT end, T lazy){
+	node *build(IT begin, IT end, T lazy_init){
 		if(begin == end) return 0;
 		IT mid = begin + (end - begin >> 1);
-		node *c = new node(*mid, lazy);
-		c->l = build(begin, mid, lazy), c->r = build(mid + 1, end, lazy);
-		heapify(c);
-		refresh(c);
+		node *c = new node(*mid, lazy_init);
+		c->l = build(begin, mid, lazy_init), c->r = build(mid + 1, end, lazy_init);
+		heapify(c), refresh(c);
 		return c;
 	}
-	node *build(int N, T val, T lazy){
-		if(!N) return 0;
-		int M = N >> 1;
-		node *c = new node(val, lazy);
-		c->l = build(M, val, lazy), c->r = build(N - M - 1, val, lazy);
-		heapify(c);
-		refresh(c);
+	node *build(int n, T val_init, T lazy_init){
+		if(!n) return 0;
+		int m = n >> 1;
+		node *c = new node(val_init, lazy_init);
+		c->l = build(m, val_init, lazy_init), c->r = build(n - m - 1, val_init, lazy_init);
+		heapify(c), refresh(c);
 		return c;
 	}
-	template<class F>
-	void each(node *u, F f){
-		if(u){
-			push(u);
-			each(u->l, f);
-			f(u);
-			each(u->r, f);
-		}
-	}
-	template<class F>
-	void each(F f){
-		each(root, f);
-	}
-	void print(){
-		cout << "Cur treap: ";
-		each(root, [&](node *u){ cout << u->val << " "; });
-		cout << endl;
-	}
-	int get_cnt(node *u){
+	int get_sz(node *u){
 		return u ? u->sz : 0;
 	}
 	pair<node *, node *> split(node* u, int k){
 		if(!u) return { };
 		push(u);
-		if(get_cnt(u->l) >= k){
-			auto [sl, sr] = split(u->l, k);
-			u->l = sr;
+		if(u->val >= k){
+		// if(get_sz(u->l) >= k){ // For the implicit treap
+			auto [a, b] = split(u->l, k);
+			u->l = b;
 			refresh(u);
-			return {sl, u};
+			return {a, u};
 		}
 		else{
-			auto [sl, sr] = split(u->r, k - get_cnt(u->l) - 1);
-			u->r = sl;
+			auto [a, b] = split(u->r, k);
+			// auto [a, b] = split(u->r, k - get_sz(u->l) - 1); // For the implicit treap
+			u->r = a;
 			refresh(u);
-			return {u, sr};
+			return {u, b};
 		}
 	}
-	node *merge(node *l, node *r){
-		if(!l) return r;
-		if(!r) return l;
-		push(l), push(r);
-		if(l->priority > r->priority){
-			l->r = merge(l->r, r);
-			refresh(l);
-			return l;
+	node *merge(node *u, node *v){
+		if(!u || !v) return u ?: v;
+		push(u), push(v);
+		if(v->priority < u->priority){
+			u->r = merge(u->r, v);
+			refresh(u);
+			return u;
 		}
 		else{
-			r->l = merge(l, r->l);
-			refresh(r);
-			return r;
+			v->l = merge(u, v->l);
+			refresh(v);
+			return v;
 		}
 	}
-	node *insert(node *u, node *t, int pos){
-		auto [sl, sr] = split(u, pos);
-		return merge(merge(sl, t), sr);
-	}
-	node *insert(node *t, int pos){
-		return root = root ? insert(root, t, pos) : t;
-	}
-	node *erase(node *&u, int pos){
-		node *a, *b, *c;
-		tie(a, b) = split(u, pos);
-		tie(b, c) = split(b, 1);
-		return u = merge(a, c);
-	}
-	node *erase(int pos){
-		return erase(root, pos);
-	}
-	// move the range [l, r) to index k
-	void move(node *&u, int l, int r, int k){
-		node *a, *b, *c;
-		tie(a, b) = split(u, l);
-		tie(b, c) = split(b, r - l);
-		if(k <= l) u = merge(insert(a, b, k), c);
-		else u = merge(a, insert(c, b, k - r));
-	}
-	void move(int l, int r, int k){
-		move(root, l, r, k);
+	node *insert(node *u, node *t){
+	// node *insert(node *u, node *t, pos){ // For the implicit treap
+		if(!u) return t;
+		auto [a, b] = split(u, t->val);
+		// auto [a, b] = split(u, pos); // For the implicit treap
+		return merge(merge(a, t), b);
 	}
 };
 /*
@@ -4568,62 +4531,92 @@ struct binary_lift{
 // 156485479_4_5_3
 // Heavy Light Decomposition
 // O(N + M) processing, O(log^2 N) per query
-template<typename B, typename T, typename LOP, typename QOP, typename AOP, typename INIT = function<T(B, B)>>
+template<typename L, typename Q, typename LOP, typename QOP, typename AOP>
 struct lazy_segment{
-	typedef array<B, 2> R;
-	LOP lop;              // lop(low, high, lazy, ql, qr, x): apply query to the lazy
-	QOP qop;              // qop(low, high, lval, rval): merge the value
-	AOP aop;              // aop(low, high, val, ql, qr, x): apply query to the val
-	INIT init;            // init(low, high): initialize node representing (low, high)
-	array<T, 2> id;       // lazy id, query id
-	lazy_segment *l = 0, *r = 0;
-	B low, high;
-	T lazy, val;
-	lazy_segment(LOP lop, QOP qop, AOP aop, array<T, 2> id, B low, B high, INIT init): lop(lop), qop(qop), aop(aop), id(id), low(low), high(high), lazy(id[0]), init(init), val(init(low, high)){ }
+	int n, h;
+	LOP lop;
+	QOP qop;
+	AOP aop;
+	pair<L, Q> id;
+	vector<array<int, 2>> range;
+	vector<L> lazy;
+	vector<Q> val;
 	template<typename IT>
-	lazy_segment(IT begin, IT end, LOP lop, QOP qop, AOP aop, array<T, 2> id, B low, B high): lop(lop), qop(qop), aop(aop), id(id), low(low), high(high), lazy(id[0]){
-		assert(end - begin == high - low);
-		if(high - low > 1){
-			IT inter = begin + (end - begin >> 1);
-			B mid = low + (high - low >> 1);
-			l = new lazy_segment(begin, inter, lop, qop, aop, id, low, mid);
-			r = new lazy_segment(inter, end, lop, qop, aop, id, mid, high);
-			val = qop(l->val, R{low, mid}, r->val, R{mid, high});
-		}
-		else val = *begin;
+	lazy_segment(IT begin, IT end, LOP lop, QOP qop, AOP aop, pair<L, Q> id): n(distance(begin, end)), h(__lg(n) + 1), lop(lop), qop(qop), aop(aop), id(id), range(n << 1), lazy(n << 1, id.first), val(n, id.second){
+		init_range();
+		val.insert(val.end(), begin, end);
+		build(0, n);
 	}
-	void push(){
-		if(!l){
-			B mid = low + (high - low >> 1);
-			l = new lazy_segment(lop, qop, aop, id, low, mid, init);
-			r = new lazy_segment(lop, qop, aop, id, mid, high, init);
-		}
-		if(lazy != id[0]){
-			l->update(low, high, lazy);
-			r->update(low, high, lazy);
-			lazy = id[0];
-		}
+	lazy_segment(int n, LOP lop, QOP qop, AOP aop, pair<L, Q> id): n(n), h(__lg(n) + 1), lop(lop), qop(qop), aop(aop), id(id), range(n << 1), lazy(n << 1, id.first), val(n << 1, id.second){
+		init_range();
 	}
-	void update(B ql, B qr, T x){
-		if(qr <= low || high <= ql) return;
-		if(ql <= low && high <= qr){
-			lazy = lop(lazy, R{low, high}, x, R{ql, qr});
-			val = aop(val, R{low, high}, x, R{ql, qr});
-		}
-		else{
-			push();
-			l->update(ql, qr, x);
-			r->update(ql, qr, x);
-			B mid = low + (high - low >> 1);
-			val = qop(l->val, R{low, mid}, r->val, R{mid, high});
+	void init_range(){
+		for(int i = n; i < n << 1; ++ i) range[i] = {i - n, i - n + 1};
+		for(int i = n - 1; i > 0; -- i) range[i] = {range[i << 1][0], range[i << 1 | 1][1]};
+	}
+	void refresh(int p){
+		val[p] = qop(val[p << 1], range[p << 1], val[p << 1 | 1], range[p << 1 | 1]);
+		if(lazy[p] != id.first) val[p] = aop(val[p], range[p], lazy[p], range[p]);
+	}
+	void build(int l, int r){
+		for(l += n, r += n - 1; l > 1; ){
+			l >>= 1, r >>= 1;
+			for(int i = r; i >= l; -- i) refresh(i);
 		}
 	}
-	T query(B ql, B qr){
-		if(qr <= low || high <= ql) return id[1];
-		if(ql <= low && high <= qr) return val;
-		push();
-		B mid = clamp(low + (high - low >> 1), ql, qr);
-		return qop(l->query(ql, qr), R{max(low, ql), mid}, r->query(ql, qr), R{mid, min(high, qr)});
+	void push(int l, int r){
+		int s = h;
+		for(l += n, r += n - 1; s > 0; -- s){
+			for(int i = l >> s; i <= r >> s; ++ i) if(lazy[i] != id.first){
+				val[i << 1] = aop(val[i << 1], range[i << 1], lazy[i], range[i]);
+				lazy[i << 1] = lop(lazy[i << 1], range[i << 1], lazy[i], range[i]);
+				val[i << 1 | 1] = aop(val[i << 1 | 1], range[i << 1 | 1], lazy[i], range[i]);
+				lazy[i << 1 | 1] = lop(lazy[i << 1 | 1], range[i << 1 | 1], lazy[i], range[i]);
+				lazy[i] = id.first;
+			}
+		}
+	}
+	void update(int l, int r, L x){
+		if(l >= r) return;
+		array<int, 2> update_range{l, r};
+		push(l, l + 1), push(r - 1, r);
+		bool cl = false, cr = false;
+		for(l += n, r += n; l < r; l >>= 1, r >>= 1){
+			if(cl) refresh(l - 1);
+			if(cr) refresh(r);
+			if(l & 1){
+				val[l] = aop(val[l], range[l], x, update_range);
+				if(l < n) lazy[l] = lop(lazy[l], range[l], x, update_range);
+				++ l;
+				cl = true;
+			}
+			if(r & 1){
+				-- r;
+				val[r] = aop(val[r], range[r], x, update_range);
+				if(r < n) lazy[r] = lop(lazy[r], range[r], x, update_range);
+				cr = true;
+			}
+		}
+		for(-- l; r > 0; l >>= 1, r >>= 1){
+			if(cl) refresh(l);
+			if(cr && (!cl || l != r)) refresh(r);
+		}
+	}
+	Q query(int l, int r){
+		push(l, l + 1);
+		push(r - 1, r);
+		Q resl = id.second, resr = id.second;
+		array<int, 2> l_range{l, l}, r_range{r, r};
+		for(l += n, r += n; l < r; l >>= 1, r >>= 1){
+			if(l & 1) resl = qop(resl, l_range, val[l], range[l]), l_range[1] = range[l][1], ++ l;
+			if(r & 1) -- r, resr = qop(val[r], range[r], resr, r_range), r_range[0] = range[r][0];
+		}
+		return qop(resl, l_range, resr, r_range);
+	}
+	void print(){
+		for(int u = 0; u < 2 * n; ++ u){
+			//cout << u << "-th node represent [" << range[u][0] << ", " << range[u][1] << "), val = " << val[u] << ", lazy = (" << lazy[u][0] << ", " << lazy[u][1] << ")\n";
+		}
 	}
 };
 template<typename DS, typename BO, typename T, int VALS_IN_EDGES = 1>
