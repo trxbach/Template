@@ -189,6 +189,8 @@ Category
 			156485479_4_5_4
 		4.5.5. AHU Algorithm ( Rooted Tree Isomorphism ) / Tree Isomorphism
 			156485479_4_5_5
+		4.5.6. Minimum Spanning Arborescence
+			156485479_4_5_6
 	4.6. Shortest Path Tree
 		4.6.1. On Sparse Graph ( Dijkstra, Bellman Ford, SPFA )
 			156485479_4_6_1
@@ -3874,9 +3876,56 @@ struct treap{
 
 // 156485479_3_10
 // Splay Tree
+// Amortized O(log n) per operation
+struct Node{ // Splay tree. Root's pp contains tree's parent.
+	Node *p = 0, *pp = 0, *c[2];
+	bool flip = 0;
+	Node(){ c[0] = c[1] = 0; fix(); }
+	void fix(){
+		if (c[0]) c[0]->p = this;
+		if (c[1]) c[1]->p = this;
+		// (+ update sum of subtree elements etc. if wanted)
+	}
+	void pushFlip(){
+		if(!flip) return;
+		flip = 0;
+		swap(c[0], c[1]);
+		if(c[0]) c[0]->flip ^= 1;
+		if(c[1]) c[1]->flip ^= 1;
+	}
+	int up(){ return p ? p->c[1] == this : -1; }
+	void rotate(int i, int b){
+		int h = i ^ b;
+		Node *x = c[i], *y = b == 2 ? x : x->c[h], *z = b ? y : x;
+		if ((y->p = p)) p->c[up()] = y;
+		c[i] = z->c[i ^ 1];
+		if(b < 2){
+			x->c[h] = y->c[h ^ 1];
+			z->c[h ^ 1] = b ? x : this;
+		}
+		y->c[i ^ 1] = b ? this : x;
+		fix(), x->fix(), y->fix();
+		if(p) p->fix();
+		swap(pp, y->pp);
+	}
+	void splay(){ /// Splay this up to the root. Always finishes without flip set.
+		for(pushFlip(); p; ){
+			if(p->p) p->p->pushFlip();
+			p->pushFlip(), pushFlip();
+			int c1 = up(), c2 = p->up();
+			if(c2 == -1) p->rotate(c1, 2);
+			else p->p->rotate(c2, c1 != c2);
+		}
+	}
+	Node* first(){ /// Return the min element of the subtree rooted at this, splayed to the top.
+		pushFlip();
+		return c[0] ? c[0]->first() : (splay(), this);
+	}
+};
 
 // 156485479_3_11
 // Link Cut Tree
+// Amortized O(log n) per operation
 
 // 156485479_3_12
 // Unital Sorter
@@ -4852,6 +4901,88 @@ bool isomorphic(const vector<vector<vector<int>>> &adj){
 	return false;
 }
 
+// 156485479_4_5_6
+// Minimum Spanning Arborescence
+// O(E log V)
+// Credit: KACTL
+// msa_edge contains the indices of edges forming msa.
+// solve() returns -1 if no msa exists
+struct disjoint{
+	vector<int> p;
+	disjoint(int n): p(n, -1){ }
+	bool share(int a, int b){ return root(a) == root(b); }
+	int sz(int u){ return -p[root(u)]; }
+	int root(int u){ return p[u] < 0 ? u : p[u] = root(p[u]); }
+	bool merge(int u, int v){
+		u = root(u), v = root(v);
+		if(u == v) return false;
+		if(p[u] > p[v]) swap(u, v);
+		p[u] += p[v];
+		p[v] = u;
+		return true;
+	}
+};
+template<typename T = long long>
+struct minimum_spanning_arborescence{
+	struct etype{ int u, v, ind; T w; };
+	int n, root;
+	vector<etype> edge;
+	T cost = 0;
+	minimum_spanning_arborescence(int n, int root): n(n), root(root){ }
+	void insert(int u, int v, T w){ edge.push_back({u, v, int(edge.size()), w}); }
+	struct node{ /// lazy skew heap node
+		etype key;
+		node *l, *r;
+		T delta = 0;
+		void push(){
+			key.w += delta;
+			if(l) l->delta += delta;
+			if(r) r->delta += delta;
+			delta = 0;
+		}
+		etype top(){
+			push();
+			return key;
+		}
+	};
+	node *merge(node *u, node *v){
+		if(!u || !v) return u ?: v;
+		u->push(), v->push();
+		if(u->key.w > v->key.w) swap(u, v);
+		swap(u->l, (u->r = merge(v, u->r)));
+		return u;
+	}
+	void pop(node *&u){
+		u->push();
+		u = merge(u->l, u->r);
+	}
+	T solve(){
+		disjoint dsu(n);
+		vector<node *> heap(n);
+		for(auto &e: edge) heap[e.v] = merge(heap[e.v], new node{e});
+		vector<int> seen(n, -1), path(n);
+		seen[root] = root;
+		for(int s = 0; s < n; ++ s){
+			int u = s, qi = 0, v;
+			while(seen[u] < 0){
+				path[qi ++] = u, seen[u] = s;
+				if(!heap[u]) return cost = -1;
+				etype e = heap[u]->top();
+				heap[u]->delta -= e.w, pop(heap[u]);
+				cost += e.w, u = dsu.root(e.u);
+				if(seen[u] == s){
+					node *cycle = 0;
+					do cycle = merge(cycle, heap[v = path[-- qi]]);
+					while(dsu.merge(u, v));
+					u = dsu.root(u);
+					heap[u] = cycle, seen[u] = -1;
+				}
+			}
+		}
+		return cost;
+	}
+};
+
 // 156485479_4_6_1
 // Shortest Path Tree On Sparse Graph ( Dijkstra, Bellman Ford, SPFA )
 template<typename T = long long, typename BO = plus<T>, typename Compare = less<T>>
@@ -5096,18 +5227,18 @@ template<typename T = long long>
 struct minimum_spanning_forest{
 	int n;
 	vector<vector<pair<int, int>>> adj;
-	vector<vector<int>> mstadj;
-	vector<int> mstedge;
+	vector<vector<int>> mst_adj;
+	vector<int> mst_edge;
 	vector<tuple<int, int, T>> edge;
 	T cost = 0;
-	minimum_spanning_forest(int n): n(n), adj(n), mstadj(n){ }
+	minimum_spanning_forest(int n): n(n), adj(n), mst_adj(n){ }
 	void insert(int u, int v, T w){
 		adj[u].emplace_back(v, edge.size()), adj[v].emplace_back(u, edge.size());
 		edge.emplace_back(u, v, w);
 	}
 	void init_kruskal(){
-		int M = int(edge.size());
-		vector<int> t(M);
+		int m = int(edge.size());
+		vector<int> t(m);
 		iota(t.begin(), t.end(), 0);
 		sort(t.begin(), t.end(), [&](int i, int j){ return get<2>(edge[i]) < get<2>(edge[j]); });
 		disjoint dsu(n);
@@ -5115,14 +5246,14 @@ struct minimum_spanning_forest{
 			auto [u, v, w] = edge[i];
 			if(dsu.merge(u, v)){
 				cost += w;
-				mstedge.push_back(i);
-				mstadj[u].push_back(v), mstadj[v].push_back(u);
+				mst_edge.push_back(i);
+				mst_adj[u].push_back(v), mst_adj[v].push_back(u);
 			}
 		}
 	}
 	void init_prim(){
 		vector<bool> used(n);
-		priority_queue<tuple<T, int, int, int>, vector<tuple<T, int, int, int>>, greater<tuple<T, int, int, int>>> q;
+		priority_queue<tuple<T, int, int, int>, vector<tuple<T, int, int, int>>, greater<>> q;
 		for(int u = 0; u < n; ++ u) if(!used[u]){
 			q.emplace(0, u, -1, -1);
 			while(!q.empty()){
@@ -5131,8 +5262,8 @@ struct minimum_spanning_forest{
 				if(used[u]) continue;
 				used[u] = true;
 				if(p != -1){
-					mstedge.push_back(i);
-					mstadj[u].push_back(p), mstadj[p].push_back(u);
+					mst_edge.push_back(i);
+					mst_adj[u].push_back(p), mst_adj[p].push_back(u);
 				}
 				cost += w;
 				for(auto [v, i]: adj[u]) if(!used[v]) q.emplace(get<2>(edge[i]), v, u, i);
@@ -5146,14 +5277,14 @@ template<typename T = long long>
 struct minimum_spanning_forest_dense{
 	static constexpr T inf = numeric_limits<T>::max();
 	int n, edgecnt = 0;
-	vector<vector<T>> adj;
-	vector<vector<int>> adjL;
-	vector<vector<bool>> mstadj;
+	vector<vector<T>> adjm;
+	vector<vector<int>> adj;
+	vector<vector<bool>> mst_adjm;
 	T cost = 0;
-	minimum_spanning_forest_dense(int n): n(n), adj(n, vector<T>(n, inf)), adjL(n), mstadj(n, vector<bool>(n)){ }
+	minimum_spanning_forest_dense(int n): n(n), adjm(n, vector<T>(n, inf)), adj(n), mst_adjm(n, vector<bool>(n)){ }
 	void insert(int u, int v, T w){
-		adj[u][v] = adj[v][u] = w;
-		adjL[u].push_back(v), adjL[v].push_back(u);
+		adjm[u][v] = adjm[v][u] = w;
+		adj[u].push_back(v), adj[v].push_back(u);
 	}
 	void init_prim(){
 		vector<bool> used(n), reached(n);
@@ -5163,21 +5294,21 @@ struct minimum_spanning_forest_dense{
 			function<void(int)> dfs = [&](int u){
 				reached[u] = true;
 				reach.push_back(u);
-				for(auto v: adjL[u]) if(!reached[v]) dfs(v);
+				for(auto v: adj[u]) if(!reached[v]) dfs(v);
 			};
 			dfs(u);
 			get<0>(t[reach[0]]) = 0;
 			for(int tt = 0; tt < reach.size(); ++ tt){
 				int u = -1;
 				for(auto v: reach) if(!used[v] && (u == -1 || get<0>(t[v]) < get<0>(t[u]))) u = v;
-				auto [w, p, _] = t[u];
+				auto [w, p, ignore] = t[u];
 				used[u] = true;
 				cost += w;
 				if(p != -1){
-					mstadj[u][p] = mstadj[p][u] = true;
+					mst_adjm[u][p] = mst_adjm[p][u] = true;
 					++ edgecnt;
 				}
-				for(auto v: reach) if(adj[u][v] < get<0>(t[v])) t[v] = {adj[u][v], u, v};
+				for(auto v: reach) if(adjm[u][v] < get<0>(t[v])) t[v] = {adjm[u][v], u, v};
 			}
 			reach.clear();
 		}
