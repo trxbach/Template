@@ -176,33 +176,34 @@ Category
 		4.4.8. General Matching ( INCOMPLETE )
 			156485479_4_4_8
 	4.5. Tree Algorithms
-		4.5.1. LCA
+		4.5.1. LCA ( Unweighted / Weighted )
 			156485479_4_5_1
-		4.5.2. Binary Lifting
-			4.5.2.1. Unweighted Tree
-				156485479_4_5_2_1
-			4.5.2.2. Weighted Tree
-				156485479_4_5_2_2
+		4.5.2. Binary Lifting ( Unweighted / Weighted )
+			156485479_4_5_2
 		4.5.3. Heavy Light Decomposition
 			156485479_4_5_3
 		4.5.4. Centroid / Centroid Decomposition
 			156485479_4_5_4
 		4.5.5. AHU Algorithm ( Rooted Tree Isomorphism ) / Tree Isomorphism
 			156485479_4_5_5
-		4.5.6. Minimum Spanning Arborescence
+		4.5.6. Minimum Spanning Forest
 			156485479_4_5_6
+		4.5.7. Minimum Spanning Arborescence
+			156485479_4_5_7
+		4.5.8. Compressed Tree ( Virtual Tree, Auxiliary Tree )
+			156485479_4_5_8
 	4.6. Shortest Path Tree
 		4.6.1. On Sparse Graph ( Dijkstra, Bellman Ford, SPFA )
 			156485479_4_6_1
 		4.6.2. On Dense Graph ( Dijkstra, Floyd Warshall )
 			156485479_4_6_2
-	4.7. Minimum Spanning Forest
+	4.7. Topological Sort
 		156485479_4_7
-	4.8. Topological Sort
+	4.8. Two Satisfiability
 		156485479_4_8
-	4.9. Two Satisfiability
+	4.9. Euler Walk
 		156485479_4_9
-	4.10. Euler Walk
+	4.10. Dominator Tree
 		156485479_4_10
 
 
@@ -2817,8 +2818,9 @@ template<typename T, typename BO>
 struct sparse_table{
 	int n, m;
 	BO bin_op;
+	T id;
 	vector<vector<vector<vector<T>>>> val;
-	sparse_table(const vector<vector<T>> &arr, BO bin_op): n(arr.size()), m(arr[0].size()), bin_op(bin_op), val(__lg(n) + 1, vector<vector<vector<T>>>(__lg(m) + 1, arr)){
+	sparse_table(vector<vector<T>> &&arr, BO bin_op, T id): n(arr.size()), m(arr[0].size()), bin_op(bin_op), id(id), val(__lg(n) + 1, vector<vector<vector<T>>>(__lg(m) + 1, arr)){
 		for(int ii = 0; ii < n; ++ ii) for(int jj = 0; jj < m; ++ jj){
 			for(int i = 0, j = 0; j < __lg(m); ++ j) val[i][j + 1][ii][jj] = bin_op(val[i][j][ii][jj], val[i][j][ii][min(m - 1, jj + (1 << j))]);
 		}
@@ -2829,7 +2831,7 @@ struct sparse_table{
 		}
 	}
 	T query(int pl, int ql, int pr, int qr){
-		assert(pl < pr && ql < qr);
+		if(pl >= pr || ql >= qr) return id;
 		int pd = __lg(pr - pl), qd = __lg(qr - ql);
 		return bin_op(bin_op(val[pd][qd][pl][ql], val[pd][qd][pl][qr - (1 << qd)]), bin_op(val[pd][qd][pr - (1 << pd)][ql], val[pd][qd][pr - (1 << pd)][qr - (1 << qd)]));
 	}
@@ -2908,7 +2910,7 @@ template<typename T, typename BO>
 struct segment{
 	int n, m;
 	BO bin_op;
-	const T id;
+	T id;
 	vector<vector<T>> val;
 	segment(const vector<vector<T>> &arr, BO bin_op, T id): n(arr.size()), m(arr[0].size()), bin_op(bin_op), id(id), val(n << 1, vector<T>(m << 1, id)){
 		for(int i = 0; i < n; ++ i) for(int j = 0; j < m; ++ j) val[i + n][j + m] = arr[i][j];
@@ -2934,9 +2936,9 @@ struct segment{
 	T query(int pl, int ql, int pr, int qr){
 		if(pl >= pr || ql >= qr) return id;
 		T res = id;
-		for(int il = pl + n, ir = pr + m; il < ir; il >>= 1, ir >>= 1){
+		for(int il = pl + n, ir = pr + n; il < ir; il >>= 1, ir >>= 1){
 			if(il & 1){
-				for(int jl = ql + n, jr = qr + m; jl < jr; jl >>= 1, jr >>= 1){
+				for(int jl = ql + m, jr = qr + m; jl < jr; jl >>= 1, jr >>= 1){
 					if(jl & 1) res = bin_op(res, val[il][jl ++]);
 					if(jr & 1) res = bin_op(res, val[il][-- jr]);
 				}
@@ -2944,7 +2946,7 @@ struct segment{
 			}
 			if(ir & 1){
 				-- ir;
-				for(int jl = ql + n, jr = qr + m; jl < jr; jl >>= 1, jr >>= 1){
+				for(int jl = ql + m, jr = qr + m; jl < jr; jl >>= 1, jr >>= 1){
 					if(jl & 1) res = bin_op(res, val[ir][jl ++]);
 					if(jr & 1) res = bin_op(res, val[ir][-- jr]);
 				}
@@ -3439,9 +3441,9 @@ struct wavelet{
 // Disjoint Set
 // O(alpha(n)) per query where alpha(n) is the inverse ackermann function
 // Credit: KACTL
-struct disjoint{
+struct disjoint_set{
 	vector<int> p;
-	disjoint(int n): p(n, -1){ }
+	disjoint_set(int n): p(n, -1){ }
 	bool share(int a, int b){ return root(a) == root(b); }
 	int sz(int u){ return -p[root(u)]; }
 	int root(int u){ return p[u] < 0 ? u : p[u] = root(p[u]); }
@@ -3449,38 +3451,31 @@ struct disjoint{
 		u = root(u), v = root(v);
 		if(u == v) return false;
 		if(p[u] > p[v]) swap(u, v);
-		p[u] += p[v];
-		p[v] = u;
+		p[u] += p[v], p[v] = u;
 		return true;
 	}
 };
 // Persistent Version
-struct disjoint{
+// O(log n)
+struct rollback_disjoint_set{
 	vector<int> p;
 	vector<pair<int, int>> log;
-	disjoint(int N): p(N, -1){ }
+	rollback_disjoint_set(int n): p(n, -1){ }
 	bool share(int a, int b){ return root(a) == root(b); }
 	int sz(int u){ return -p[root(u)]; }
-	int root(int u){ return p[u] < 0 ? u : (log.emplace_back(u, p[u]), p[u] = root(p[u])); }
+	int root(int u){ return p[u] < 0 ? u : p[u] = root(p[u]); }
 	bool merge(int u, int v){
 		u = root(u), v = root(v);
 		if(u == v) return false;
 		if(p[u] > p[v]) swap(u, v);
 		log.emplace_back(u, p[u]), log.emplace_back(v, p[v]);
-		p[u] += p[v];
-		p[v] = u;
+		p[u] += p[v], p[v] = u;
 		return true;
 	}
-	void reverse(int n){
-		while(int(log.size()) > n){
-			auto [u, val] = log.back();
-			log.pop_back();
-			p[u] = val;
-		}
-	}
-	void clear(){
-		for(auto &[u, ignore]: log) p[u] = -1;
-		log.clear();
+	int time(){ return int(log.size()); }
+	void reverse_to(int t = 0){
+		for(int i = time(); i --> t; ) p[log[i].first] = log[i].second;
+		log.resize(t);
 	}
 };
 
@@ -4446,64 +4441,100 @@ struct sparse_table{
 		return bin_op(val[d][l], val[d][r - (1 << d)]);
 	}
 };
-struct LCA{
-	vector<int> time;
-	vector<long long> depth;
-	int root;
-	sparse_table<pair<int, int>, function<pair<int, int>(pair<int, int>, pair<int, int>)>> rmq;
-	LCA(vector<vector<pair<int, int>>> &adj, int root): root(root), time(adj.size(), -99), depth(adj.size()), rmq(dfs(adj), [](pair<int, int> x, pair<int, int> y){ return min(x, y); }, numeric_limits<int>::max() / 2){}
-	vector<pair<int, int>> dfs(vector<vector<pair<int, int>>> &adj){
-		vector<tuple<int, int, int, long long>> q(1);
-		vector<pair<int, int>> res;
-		int T = root;
-		while(!q.empty()){
-			auto [u, p, d, di] = q.back();
-			q.pop_back();
-			if(d) res.emplace_back(d, p);
-			time[u] = T ++;
-			depth[u] = di;
-			for(auto &e: adj[u]) if(e.first != p){
-				q.emplace_back(e.first, u, d + 1, di + e.second);
-			}
+struct lca{
+	int n, T = 0;
+	vector<int> time, depth, path, res;
+	sparse_table<int, function<int(int, int)>> rmq;
+	template<typename Graph>
+	lca(const Graph &adj, int root = 0): n(int(adj.size())), time(n), depth(n){
+		dfs(adj, root, root);
+		rmq = {res.begin(), res.end(), [&](int x, int y){ return min(x, y); }, numeric_limits<int>::max() / 2};
+	}
+	template<typename Graph>
+	void dfs(const Graph &adj, int u, int p){
+		time[u] = T ++;
+		for(auto v: adj[u]) if(v != p){
+			path.push_back(u), res.push_back(time[u]), depth[v] = depth[u] + 1;
+			dfs(adj, v, u);
 		}
-		return res;
 	}
-	int query(int l, int r){
-		if(l == r) return l;
-		l = time[l], r = time[r];
-		return rmq.query(min(l, r), max(l, r)).second;
+	int query(int u, int v){
+		if(u == v) return u;
+		tie(u, v) = minmax(time[u], time[v]);
+		return path[rmq.query(u, v)];
 	}
-	long long dist(int l, int r){
-		int lca = query(l, r);
-		return depth[l] + depth[r] - 2 * depth[lca];
+	long long dist(int u, int v){ return depth[u] + depth[v] - 2 * depth[query(u, v)]; }
+};
+// For Weighted Tree
+template<typename T, typename BO>
+struct sparse_table{
+	int n;
+	BO bin_op;
+	T id;
+	vector<vector<T>> val;
+	template<typename IT>
+	sparse_table(IT begin, IT end, BO bin_op, T id): n(distance(begin, end)), bin_op(bin_op), id(id), val(__lg(n) + 1, vector<T>(begin, end)){
+		for(int i = 0; i < __lg(n); ++ i) for(int j = 0; j < n; ++ j){
+			val[i + 1][j] = bin_op(val[i][j], val[i][min(n - 1, j + (1 << i))]);
+		}
+	}
+	sparse_table(){ }
+	T query(int l, int r){
+		if(l >= r) return id;
+		int d = __lg(r - l);
+		return bin_op(val[d][l], val[d][r - (1 << d)]);
+	}
+};
+struct weighted_lca{
+	int n, T = 0;
+	vector<int> time, depth, path, res;
+	vector<long long> dist;
+	sparse_table<int, function<int(int, int)>> rmq;
+	template<typename Graph>
+	lca(const Graph &adj, int root = 0): n(int(adj.size())), time(n), depth(n), dist(n){
+		dfs(adj, root, root);
+		rmq = {res.begin(), res.end(), [&](int x, int y){ return min(x, y); }, numeric_limits<int>::max() / 2};
+	}
+	template<typename Graph>
+	void dfs(const Graph &adj, int u, int p){
+		time[u] = T ++;
+		for(auto &[v, w]: adj[u]) if(v != p){
+			path.push_back(u), res.push_back(time[u]), depth[v] = depth[u] + 1, dist[v] = dist[u] + w;
+			dfs(adj, v, u);
+		}
+	}
+	int query(int u, int v){
+		if(u == v) return u;
+		tie(u, v) = minmax(time[u], time[v]);
+		return path[rmq.query(u, v)];
+	}
+	pair<int, long long> dist(int u, int v){
+		int l = query(u, v);
+		return {depth[u] + depth[v] - 2 * depth[l], dist[u] + dist[v] - 2 * dist[l]};
 	}
 };
 
-// 156485479_4_5_2_1
-// Binary Lifting for Unweighted Tree
+// 156485479_4_5_2
+// Binary Lifting
 // Also works for graphs with outdegree 1 for all vertices.
 // O(n log n) preprocessing, O(log n) per lca query
 struct binary_lift{
 	int n, lg;
-	vector<vector<int>> adj, up;
-	vector<int> depth;
-	binary_lift(int n): n(n), lg(__lg(n) + 1), depth(n), adj(n), up(n, vector<int>(lg + 1)){ }
-	void insert(int u, int v){
-		adj[u].push_back(v);
-		adj[v].push_back(u);
+	vector<vector<int>> up;
+	vector<int> depth, visited;
+	template<typename Graph>
+	binary_lift(const Graph &adj): n(n), lg(__lg(n) + 1), depth(n), visited(n), up(n, vector<int>(lg + 1)){
+		for(int u = 0; u < n; ++ u) if(!visited[u]) dfs(adj, u, u);
 	}
-	void init(){
-		vector<int> visited(n);
-		function<void(int, int)> dfs = [&](int u, int p){
-			visited[u] = true;
-			up[u][0] = p;
-			for(int i = 1; i <= lg; ++ i) up[u][i] = up[up[u][i - 1]][i - 1];
-			for(auto &v: adj[u]) if(v != p){
-				depth[v] = depth[u] + 1;
-				dfs(v, u);
-			}
-		};
-		for(int u = 0; u < n; ++ u) if(!visited[u]) dfs(u, u);
+	template<typename Graph>
+	void dfs(const Graph &adj, int u, int p){
+		visited[u] = true;
+		up[u][0] = p;
+		for(int i = 1; i <= lg; ++ i) up[u][i] = up[up[u][i - 1]][i - 1];
+		for(auto &v: adj[u]) if(v != p){
+			depth[v] = depth[u] + 1;
+			dfs(v, u);
+		}
 	}
 	int lca(int u, int v){
 		if(depth[u] < depth[v]) swap(u, v);
@@ -4519,40 +4550,31 @@ struct binary_lift{
 		return u;
 	}
 };
-
-// 156485479_4_5_2_2
-// Binary Lifting for Weighted Tree Supporting Commutative Monoid Operations
-// Also works for graphs with outdegree 1 for all vertices.
-// O(n log n) processing, O(log n) per query
-template<typename T, typename BO>
-struct binary_lift{
+// For Weighted Tree
+template<typename T, typename U, typename BO>
+struct weighted_binary_lift{
 	int n, lg;
 	BO bin_op;
 	T id;
-	vector<T> val;
-	vector<vector<pair<int, T>>> adj, up;
-	vector<int> depth;
-	binary_lift(int n, const vector<T> &val, BO bin_op, T id): n(n), bin_op(bin_op), id(id), lg(__lg(n) + 1), depth(n), val(val), adj(n), up(n, vector<pair<int, T>>(lg + 1)){ }
-	binary_lift(int n, BO bin_op, T id): n(n), bin_op(bin_op), id(id), lg(__lg(n) + 1), depth(n), val(n, id), adj(n), up(n, vector<pair<int, T>>(lg + 1)){ }
-	void insert(int u, int v, T w){
-		adj[u].emplace_back(v, w);
-		adj[v].emplace_back(u, w);
+	vector<U> val;
+	vector<vector<pair<int, T>>> up;
+	vector<int> depth, visited;
+	template<typename Graph>
+	weighted_binary_lift(const Graph &adj, vector<U> val, BO bin_op, T id): n(int(adj.size())), bin_op(bin_op), id(id), lg(__lg(n) + 1), depth(n), visited(n), val(move(val)), up(n, vector<pair<int, T>>(lg + 1)){
+		for(int u = 0; u < n; ++ u) if(!visited[u]) dfs(adj, u, u, id);
 	}
-	void init(){
-		vector<int> visited(n);
-		function<void(int, int, T)> dfs = [&](int u, int p, T w){
-			visited[u] = true;
-			up[u][0] = {p, bin_op(val[u], w)};
-			for(int i = 1; i <= lg; ++ i) up[u][i] = {
-				up[up[u][i - 1].first][i - 1].first
-				, bin_op(up[u][i - 1].second, up[up[u][i - 1].first][i - 1].second)
-			};
-			for(auto &[v, x]: adj[u]) if(v != p){
-				depth[v] = depth[u] + 1;
-				dfs(v, u, x);
-			}
+	template<typename Graph>
+	void dfs(const Graph &adj, int u, int p, T w){
+		visited[u] = true;
+		up[u][0] = {p, bin_op(val[u], w)};
+		for(int i = 1; i <= lg; ++ i) up[u][i] = {
+			up[up[u][i - 1].first][i - 1].first
+			, bin_op(up[u][i - 1].second, up[up[u][i - 1].first][i - 1].second)
 		};
-		for(int u = 0; u < n; ++ u) if(!visited[u]) dfs(u, u, id);
+		for(auto &[v, x]: adj[u]) if(v != p){
+			depth[v] = depth[u] + 1;
+			dfs(adj, v, u, x);
+		}
 	}
 	pair<int, T> trace_up(int u, int dist){ // Node, Distance (Does not include weight of the Node)
 		T res = id;
@@ -4901,15 +4923,12 @@ bool isomorphic(const vector<vector<vector<int>>> &adj){
 	return false;
 }
 
-// 156485479_4_5_6
-// Minimum Spanning Arborescence
-// O(E log V)
-// Credit: KACTL
-// msa_edge contains the indices of edges forming msa.
-// solve() returns -1 if no msa exists
-struct disjoint{
+// 156485479_4_6
+// Minimum Spanning Forest
+// O(m log n)
+struct disjoint_set{
 	vector<int> p;
-	disjoint(int n): p(n, -1){ }
+	disjoint_set(int n): p(n, -1){ }
 	bool share(int a, int b){ return root(a) == root(b); }
 	int sz(int u){ return -p[root(u)]; }
 	int root(int u){ return p[u] < 0 ? u : p[u] = root(p[u]); }
@@ -4917,16 +4936,115 @@ struct disjoint{
 		u = root(u), v = root(v);
 		if(u == v) return false;
 		if(p[u] > p[v]) swap(u, v);
-		p[u] += p[v];
-		p[v] = u;
+		p[u] += p[v], p[v] = u;
 		return true;
 	}
 };
 template<typename T = long long>
+struct minimum_spanning_forest{
+	int n;
+	vector<vector<pair<int, int>>> adj;
+	vector<vector<int>> mst_adj;
+	vector<int> mst_edge;
+	vector<tuple<int, int, T>> edge;
+	T cost = 0;
+	minimum_spanning_forest(int n): n(n), adj(n), mst_adj(n){ }
+	void insert(int u, int v, T w){
+		adj[u].emplace_back(v, edge.size()), adj[v].emplace_back(u, edge.size());
+		edge.emplace_back(u, v, w);
+	}
+	void init_kruskal(){
+		int m = int(edge.size());
+		vector<int> t(m);
+		iota(t.begin(), t.end(), 0);
+		sort(t.begin(), t.end(), [&](int i, int j){ return get<2>(edge[i]) < get<2>(edge[j]); });
+		disjoint_set dsu(n);
+		for(auto i: t){
+			auto [u, v, w] = edge[i];
+			if(dsu.merge(u, v)){
+				cost += w;
+				mst_edge.push_back(i);
+				mst_adj[u].push_back(v), mst_adj[v].push_back(u);
+			}
+		}
+	}
+	void init_prim(){
+		vector<bool> used(n);
+		priority_queue<tuple<T, int, int, int>, vector<tuple<T, int, int, int>>, greater<>> q;
+		for(int u = 0; u < n; ++ u) if(!used[u]){
+			q.emplace(0, u, -1, -1);
+			while(!q.empty()){
+				auto [w, u, p, i] = q.top();
+				q.pop();
+				if(used[u]) continue;
+				used[u] = true;
+				if(p != -1){
+					mst_edge.push_back(i);
+					mst_adj[u].push_back(p), mst_adj[p].push_back(u);
+				}
+				cost += w;
+				for(auto [v, i]: adj[u]) if(!used[v]) q.emplace(get<2>(edge[i]), v, u, i);
+			}
+		}
+	}
+};
+// For dense graph
+// O(n^2)
+template<typename T = long long>
+struct minimum_spanning_forest_dense{
+	static constexpr T inf = numeric_limits<T>::max();
+	int n, edgecnt = 0;
+	vector<vector<T>> adjm;
+	vector<vector<int>> adj;
+	vector<vector<bool>> mst_adjm;
+	T cost = 0;
+	minimum_spanning_forest_dense(int n): n(n), adjm(n, vector<T>(n, inf)), adj(n), mst_adjm(n, vector<bool>(n)){ }
+	void insert(int u, int v, T w){
+		adjm[u][v] = adjm[v][u] = w;
+		adj[u].push_back(v), adj[v].push_back(u);
+	}
+	void init_prim(){
+		vector<bool> used(n), reached(n);
+		vector<int> reach;
+		vector<tuple<T, int, int>> t(n, {inf, -1, 0});
+		for(int u = 0; u < n; ++ u) if(!used[u]){
+			function<void(int)> dfs = [&](int u){
+				reached[u] = true;
+				reach.push_back(u);
+				for(auto v: adj[u]) if(!reached[v]) dfs(v);
+			};
+			dfs(u);
+			get<0>(t[reach[0]]) = 0;
+			for(int tt = 0; tt < reach.size(); ++ tt){
+				int u = -1;
+				for(auto v: reach) if(!used[v] && (u == -1 || get<0>(t[v]) < get<0>(t[u]))) u = v;
+				auto [w, p, ignore] = t[u];
+				used[u] = true;
+				cost += w;
+				if(p != -1){
+					mst_adjm[u][p] = mst_adjm[p][u] = true;
+					++ edgecnt;
+				}
+				for(auto v: reach) if(adjm[u][v] < get<0>(t[v])) t[v] = {adjm[u][v], u, v};
+			}
+			reach.clear();
+		}
+	}
+};
+
+// 156485479_4_5_7
+// Minimum Spanning Arborescence
+// O(E log V)
+// Credit: KACTL
+// msa_edge contains the indices of edges forming msa.
+// solve() returns -1 if no msa exists
+// Requires rollback_disjoint_set
+template<typename T = long long>
 struct minimum_spanning_arborescence{
-	struct etype{ int u, v, ind; T w; };
+	struct etype{ int u, v, ind = 0; T w; };
 	int n, root;
 	vector<etype> edge;
+	vector<int> msa_edge;
 	T cost = 0;
 	minimum_spanning_arborescence(int n, int root): n(n), root(root){ }
 	void insert(int u, int v, T w){ edge.push_back({u, v, int(edge.size()), w}); }
@@ -4940,10 +5058,7 @@ struct minimum_spanning_arborescence{
 			if(r) r->delta += delta;
 			delta = 0;
 		}
-		etype top(){
-			push();
-			return key;
-		}
+		etype top(){ push(); return key; }
 	};
 	node *merge(node *u, node *v){
 		if(!u || !v) return u ?: v;
@@ -4952,36 +5067,73 @@ struct minimum_spanning_arborescence{
 		swap(u->l, (u->r = merge(v, u->r)));
 		return u;
 	}
-	void pop(node *&u){
-		u->push();
-		u = merge(u->l, u->r);
-	}
+	void pop(node *&u){ u->push(); u = merge(u->l, u->r); }
 	T solve(){
-		disjoint dsu(n);
+		rollback_disjoint_set dsu(n);
 		vector<node *> heap(n);
 		for(auto &e: edge) heap[e.v] = merge(heap[e.v], new node{e});
-		vector<int> seen(n, -1), path(n);
+		vector<int> seen(n, -1), path(n), par(n);
 		seen[root] = root;
+		vector<etype> Q(n), in(n, {-1, -1}), comp;
+		deque<tuple<int, int, vector<etype>>> cycles;
 		for(int s = 0; s < n; ++ s){
 			int u = s, qi = 0, v;
 			while(seen[u] < 0){
-				path[qi ++] = u, seen[u] = s;
 				if(!heap[u]) return cost = -1;
 				etype e = heap[u]->top();
 				heap[u]->delta -= e.w, pop(heap[u]);
+				Q[qi] = e, path[qi ++] = u, seen[u] = s;
 				cost += e.w, u = dsu.root(e.u);
 				if(seen[u] == s){
 					node *cycle = 0;
+					int end = qi, time = dsu.time();
 					do cycle = merge(cycle, heap[v = path[-- qi]]);
 					while(dsu.merge(u, v));
-					u = dsu.root(u);
-					heap[u] = cycle, seen[u] = -1;
+					u = dsu.root(u), heap[u] = cycle, seen[u] = -1;
+					cycles.push_front({u, time, {&Q[qi], &Q[end]}});
 				}
 			}
+			for(int i = 0; i < qi; ++ i) in[dsu.root(Q[i].v)] = Q[i];
 		}
+		for(auto &[u, t, comp]: cycles){
+			dsu.reverse_to(t);
+			etype inedge = in[u];
+			for(auto &e: comp) in[dsu.root(e.v)] = e;
+			in[dsu.root(inedge.v)] = inedge;
+		}
+		for(int u = 0; u < n; ++ u) if(u != root) msa_edge.push_back(in[u].ind);
 		return cost;
 	}
 };
+
+// 156485479_4_5_8
+// Compressed Tree ( Virtual Tree, Auxiliary Tree )template<typename T, typename BO>
+// O(S log S)
+// Returns a list of (parent, original index) where parent of root = root
+// Credit: KACTL
+// Requires sparse_table
+// Requires lca / weighted_lca
+template<typename LCA>
+vector<array<int, 2>> compressed_tree(LCA &lca, vector<int> &subset){
+	static vector<int> rev; rev.resize(int(lca.time.size()));
+	vector<int> li = subset, &T = lca.time;
+	auto cmp = [&](int a, int b) { return T[a] < T[b]; };
+	sort(li.begin(), li.end(), cmp);
+	int m = int(li.size()) - 1;
+	for(int i = 0; i < m; ++ i){
+		int u = li[i], v = li[i + 1];
+		li.push_back(lca.query(u, v));
+	}
+	sort(li.begin(), li.end(), cmp);
+	li.erase(unique(li.begin(), li.end()), li.end());
+	for(int i = 0; i < int(li.size()); ++ i) rev[li[i]] = i;
+	vector<array<int, 2>> res = {{0, li[0]}};
+	for(int i = 0; i < int(li.size()) - 1; ++ i){
+		int u = li[i], v = li[i + 1];
+		res.push_back({rev[lca.query(u, v)], v});
+	}
+	return res;
+}
 
 // 156485479_4_6_1
 // Shortest Path Tree On Sparse Graph ( Dijkstra, Bellman Ford, SPFA )
@@ -5192,134 +5344,24 @@ struct shortest_path_tree_dense{
 	vector<int> path_between(int u, int v){
 		if(dist[u][v] == inf) return { };
 		vector<int> path;
-		function<void(int, int)> solve = [&](int u, int v){
+		auto solve = [&](int u, int v, auto &solve){
 			if(pass[u][v] == -1){
 				path.push_back(u);
 				return;
 			}
-			solve(u, pass[u][v]), solve(pass[u][v], v);
+			solve(u, pass[u][v], solve), solve(pass[u][v], v, solve);
 		};
-		solve(u, v);
+		solve(u, v, solve);
 		path.push_back(v);
 		return path;
 	}
 };
 
 // 156485479_4_7
-// Minimum Spanning Forest
-// O(m log n)
-struct disjoint{
-	vector<int> p;
-	disjoint(int n): p(n, -1){ }
-	bool share(int a, int b){ return root(a) == root(b); }
-	int sz(int u){ return -p[root(u)]; }
-	int root(int u){ return p[u] < 0 ? u : p[u] = root(p[u]); }
-	bool merge(int u, int v){
-		u = root(u), v = root(v);
-		if(u == v) return false;
-		if(p[u] > p[v]) swap(u, v);
-		p[u] += p[v];
-		p[v] = u;
-		return true;
-	}
-};
-template<typename T = long long>
-struct minimum_spanning_forest{
-	int n;
-	vector<vector<pair<int, int>>> adj;
-	vector<vector<int>> mst_adj;
-	vector<int> mst_edge;
-	vector<tuple<int, int, T>> edge;
-	T cost = 0;
-	minimum_spanning_forest(int n): n(n), adj(n), mst_adj(n){ }
-	void insert(int u, int v, T w){
-		adj[u].emplace_back(v, edge.size()), adj[v].emplace_back(u, edge.size());
-		edge.emplace_back(u, v, w);
-	}
-	void init_kruskal(){
-		int m = int(edge.size());
-		vector<int> t(m);
-		iota(t.begin(), t.end(), 0);
-		sort(t.begin(), t.end(), [&](int i, int j){ return get<2>(edge[i]) < get<2>(edge[j]); });
-		disjoint dsu(n);
-		for(auto i: t){
-			auto [u, v, w] = edge[i];
-			if(dsu.merge(u, v)){
-				cost += w;
-				mst_edge.push_back(i);
-				mst_adj[u].push_back(v), mst_adj[v].push_back(u);
-			}
-		}
-	}
-	void init_prim(){
-		vector<bool> used(n);
-		priority_queue<tuple<T, int, int, int>, vector<tuple<T, int, int, int>>, greater<>> q;
-		for(int u = 0; u < n; ++ u) if(!used[u]){
-			q.emplace(0, u, -1, -1);
-			while(!q.empty()){
-				auto [w, u, p, i] = q.top();
-				q.pop();
-				if(used[u]) continue;
-				used[u] = true;
-				if(p != -1){
-					mst_edge.push_back(i);
-					mst_adj[u].push_back(p), mst_adj[p].push_back(u);
-				}
-				cost += w;
-				for(auto [v, i]: adj[u]) if(!used[v]) q.emplace(get<2>(edge[i]), v, u, i);
-			}
-		}
-	}
-};
-// For dense graph
-// O(n^2)
-template<typename T = long long>
-struct minimum_spanning_forest_dense{
-	static constexpr T inf = numeric_limits<T>::max();
-	int n, edgecnt = 0;
-	vector<vector<T>> adjm;
-	vector<vector<int>> adj;
-	vector<vector<bool>> mst_adjm;
-	T cost = 0;
-	minimum_spanning_forest_dense(int n): n(n), adjm(n, vector<T>(n, inf)), adj(n), mst_adjm(n, vector<bool>(n)){ }
-	void insert(int u, int v, T w){
-		adjm[u][v] = adjm[v][u] = w;
-		adj[u].push_back(v), adj[v].push_back(u);
-	}
-	void init_prim(){
-		vector<bool> used(n), reached(n);
-		vector<int> reach;
-		vector<tuple<T, int, int>> t(n, {inf, -1, 0});
-		for(int u = 0; u < n; ++ u) if(!used[u]){
-			function<void(int)> dfs = [&](int u){
-				reached[u] = true;
-				reach.push_back(u);
-				for(auto v: adj[u]) if(!reached[v]) dfs(v);
-			};
-			dfs(u);
-			get<0>(t[reach[0]]) = 0;
-			for(int tt = 0; tt < reach.size(); ++ tt){
-				int u = -1;
-				for(auto v: reach) if(!used[v] && (u == -1 || get<0>(t[v]) < get<0>(t[u]))) u = v;
-				auto [w, p, ignore] = t[u];
-				used[u] = true;
-				cost += w;
-				if(p != -1){
-					mst_adjm[u][p] = mst_adjm[p][u] = true;
-					++ edgecnt;
-				}
-				for(auto v: reach) if(adjm[u][v] < get<0>(t[v])) t[v] = {adjm[u][v], u, v};
-			}
-			reach.clear();
-		}
-	}
-};
-
-// 156485479_4_8
-// Topological Sort / Returns false if there's a cycle
+// Topological Sort / Returns less than n elements if there's a cycle
 // O(V + E)
-template<class Graph>
-pair<bool, vector<int>> toposort(const Graph &adj){
+template<typename Graph>
+vector<int> toposort(const Graph &adj){
 	int n = int(adj.size());
 	vector<int> indeg(n), res;
 	for(int u = 0; u < n; ++ u) for(auto v: adj[u]) ++ indeg[v];
@@ -5331,12 +5373,12 @@ pair<bool, vector<int>> toposort(const Graph &adj){
 		res.push_back(u);
 		for(auto v: adj[u]) if (!(-- indeg[v])) q.push_back(v);
 	}
-	return {int(res.size()) == n, res};
+	return res;
 }
-// Lexicographically Smallest Topological Sort / Return false if there's a cycle
+// Lexicographically Smallest Topological Sort / Return returns less than n elements if there's a cycle
 // O(V log V + E)
-template<class Graph>
-pair<bool, vector<int>> toposort(const Graph &radj){
+template<typename Graph>
+vector<int> toposort(const Graph &radj){
 	int n = radj.size();
 	vector<int> indeg(n), res;
 	for(int u = 0; u < n; ++ u) for(auto v: radj[u]) ++ indeg[v];
@@ -5348,10 +5390,10 @@ pair<bool, vector<int>> toposort(const Graph &radj){
 		res.push_back(u);
 		for(auto v: radj[u]) if (!(-- indeg[v])) q.push(v);
 	}
-	return {int(res.size()) == n, res};
+	return res;
 }
 
-// 156485479_4_9
+// 156485479_4_8
 // Two Satisfiability / values hold the result
 // O(V + E)
 struct two_sat{
@@ -5409,7 +5451,7 @@ struct two_sat{
 	}
 };
 
-// 156485479_4_10
+// 156485479_4_9
 // Euler Walk / adj list must be of form  [vertex, edge_index]
 // O(n + m)
 pair<vector<int>, vector<int>> euler_walk(const vector<vector<pair<int, int>>> &adj, int m, int source = 0){
@@ -5430,6 +5472,57 @@ pair<vector<int>, vector<int>> euler_walk(const vector<vector<pair<int, int>>> &
 	for(auto d: deg) if(d < 0 || int(res_v.size()) != m + 1) return {};
 	return {{res_v.rbegin(), res_v.rend()}, {res_e.rbegin() + 1, res_e.rend()}};
 }
+
+// 156485479_4_10
+// Dominator Tree
+// O(n log n)
+// Credit: Benq
+struct dominator_tree{
+	int n, source, timer = 0;
+	vector<vector<int>> adj;
+	// adj: dominator tree
+	// Nodes below are labelled with dfs tree index 
+	vector<vector<int>> radj, child, sdomChild;
+	vector<int> label, rlabel, sdom, dom, par, best;
+	template<typename Graph>
+	dominator_tree(const Graph &init_adj, int source = 0): n(int(init_adj.size())), source(source), adj(n), radj(n), child(n), sdomChild(n), label(n, -1), rlabel(n), sdom(n), dom(n), par(n), best(n){
+		dfs(init_adj, source);
+		for(int i = timer - 1; i >= 0; -- i){
+			for(auto j: radj[i]) sdom[i] = min(sdom[i], sdom[get(j)]);
+			if(i) sdomChild[sdom[i]].push_back(i);
+			for(auto j: sdomChild[i]){
+				int k = get(j);
+				if(sdom[j] == sdom[k]) dom[j] = sdom[j];
+				else dom[j] = k;
+			}
+			for(auto j: child[i]) par[j] = i;
+		}
+		for(int i = 1; i < timer; ++ i){
+			if(dom[i] != sdom[i]) dom[i] = dom[dom[i]];
+			adj[rlabel[dom[i]]].push_back(rlabel[i]);
+		}
+	}
+	template<typename Graph>
+	void dfs(const Graph &adj, int u){ // create DFS tree
+		rlabel[timer] = u, label[u] = sdom[timer] = par[timer] = best[timer] = timer;
+		++ timer;
+		for(auto v: adj[u]){
+			if(!~label[v]){
+				dfs(adj, v);
+				child[label[u]].push_back(label[v]);
+			}
+			radj[label[v]].push_back(label[u]);
+		}
+	}
+	int get(int i){// DSU with path compression, get vertex with smallest sdom on path to root
+		if(par[i] != i){
+			int j = get(par[i]);
+			par[i] = par[par[i]];
+			if(sdom[j] < sdom[best[i]]) best[i] = j;
+		}
+		return best[i];
+	}
+};
 
 // 156485479_5_1
 // Returns the starting position of the lexicographically minimal rotation
@@ -5480,10 +5573,8 @@ struct sparse_table{
 	BO bin_op;
 	T id;
 	vector<vector<T>> val;
-	vector<int> bit;
 	template<typename IT>
-	sparse_table(IT begin, IT end, BO bin_op, T id): n(distance(begin, end)), bin_op(bin_op), id(id), val(__lg(n) + 1, vector<T>(begin, end)), bit(n + 1){
-		for(int i = 1; i <= n; ++ i) bit[i] = __lg(i);
+	sparse_table(IT begin, IT end, BO bin_op, T id): n(distance(begin, end)), bin_op(bin_op), id(id), val(__lg(n) + 1, vector<T>(begin, end)){
 		for(int i = 0; i < __lg(n); ++ i) for(int j = 0; j < n; ++ j){
 			val[i + 1][j] = bin_op(val[i][j], val[i][min(n - 1, j + (1 << i))]);
 		}
@@ -5491,7 +5582,7 @@ struct sparse_table{
 	sparse_table(){ }
 	T query(int l, int r){
 		if(l >= r) return id;
-		int d = bit[r - l];
+		int d = __lg(r - l);
 		return bin_op(val[d][l], val[d][r - (1 << d)]);
 	}
 };
@@ -5505,7 +5596,7 @@ struct suffix_array{
 		p.erase(p.begin());
 		for(int i = 0; i < n; ++ i) c[p[i]] = i;
 		l = get_lcp(s, p);
-		rmq = sparse_table<int, function<int(int, int)>>(l.begin(), l.end(), [](int x, int y){ return min(x, y); }, numeric_limits<int>::max() / 2);
+		rmq = {l.begin(), l.end(), [&](int x, int y){ return min(x, y); }, numeric_limits<int>::max()};
 	}
 	vector<int> sort_cyclic_shifts(const Str &s){
 		int n = int(s.size());
