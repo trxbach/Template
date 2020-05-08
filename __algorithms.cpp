@@ -3012,37 +3012,42 @@ struct lazy_segment{
 	int n, h;
 
 #define R array<int, 2> // Range type
-#define L long long     // Lazy type
-#define Q int           // Query type
+#define L int           // Lazy type
+#define Q array<int, 2>     // Query type min, cnt
 	L lop(const L &lazy, const R &r0, const L &x, const R &r1){ // r1 always contain r0
 		return lazy + x;
 	}
 	Q qop(const Q &lval, const R &r0, const Q &rval, const R &r1){ // always r0[1] == r1[0]
-		return lval + rval;
+		return lval[0] == rval[0] ? Q{lval[0], lval[1] + rval[1]} : min(lval, rval);
 	}
 	Q aop(const Q &val, const R &r0, const L &x, const R &r1){ // r1 always contain r0
-		return val + (r0[1] - r0[0]) * x;
+		return {min(val[0] + x, numeric_limits<int>::max() / 2), val[1]};
 	}
-	const pair<L, Q> id{0, 0};
+	const pair<L, Q> id{0, Q{numeric_limits<int>::max() / 2, 0}};
+	Q init(const int &p){
+		return {0, 1};
+	}
 
 	vector<R> range;
 	vector<L> lazy;
 	vector<Q> val;
 	template<typename IT>
-	lazy_segment(IT begin, IT end): n(distance(begin, end)), h(__lg(n) + 1), id(id), range(n << 1), lazy(n << 1, id.first), val(n, id.second){
+	lazy_segment(IT begin, IT end): n(distance(begin, end)), h(__lg(n) + 1), range(n << 1), lazy(n << 1, id.first), val(n, id.second){
 		init_range();
 		val.insert(val.end(), begin, end);
 		build(0, n);
 	}
-	lazy_segment(int n): n(n), h(__lg(n) + 1), id(id), range(n << 1), lazy(n << 1, id.first), val(n << 1, id.second){
+	lazy_segment(int n): n(n), h(__lg(n) + 1), range(n << 1), lazy(n << 1, id.first), val(n << 1){
 		init_range();
+		for(int i = n; i < n << 1; ++ i) val[i] = init(i - n);
+		build(0, n);
 	}
 	void init_range(){
 		for(int i = n; i < n << 1; ++ i) range[i] = {i - n, i - n + 1};
 		for(int i = n - 1; i > 0; -- i) range[i] = {range[i << 1][0], range[i << 1 | 1][1]};
 	}
 	void refresh(int p){
-		val[p] = qop(val[p << 1], range[p << 1], val[p << 1 | 1], range[p << 1 | 1]);
+		if(p < n) val[p] = qop(val[p << 1], range[p << 1], val[p << 1 | 1], range[p << 1 | 1]);
 		if(lazy[p] != id.first) val[p] = aop(val[p], range[p], lazy[p], range[p]);
 	}
 	void build(int l, int r){
@@ -3113,39 +3118,39 @@ struct lazy_segment{
 // 156485479_3_2_5_2
 // Dynamic Lazy Segment Tree
 // O(1) or O(n) processing, O(log L) or O(log n) per query
-struct lazy_segment{
+struct dynamic_lazy_segment{
 
 #define B int           // Base coordinate type
 #define R array<B, 2>   // Range type
-#define L long long     // Lazy type
-#define Q int           // Query type
+#define L int           // Lazy type
+#define Q array<int, 2>     // Query type
 	L lop(const L &lazy, const R &r0, const L &x, const R &r1){ // r1 always contain r0
 		return lazy + x;
 	}
 	Q qop(const Q &lval, const R &r0, const Q &rval, const R &r1){ // always r0[1] == r1[0]
-		return lval + rval;
+		return lval[0] == rval[0] ? Q{lval[0], lval[1] + rval[1]} : min(lval, rval);
 	}
 	Q aop(const Q &val, const R &r0, const L &x, const R &r1){ // r1 always contain r0
-		return val + (r0[1] - r0[0]) * x;
+		return {min(val[0] + x, numeric_limits<int>::max() / 2), val[1]};
 	}
-	Q init(const B &low, const B &high){
-		return 0;
-	};
-	const pair<L, Q> id{0, 0};
+	const pair<L, Q> id{0, Q{numeric_limits<int>::max() / 2, 0}};
+	Q init(const B &l, const B &r){
+		return {0, r - l};
+	}
 
-	lazy_segment *l = 0, *r = 0;
+	dynamic_lazy_segment *l = 0, *r = 0;
 	B low, high;
 	L lazy = id.first;
 	Q val;
-	lazy_segment(B low, B high): low(low), high(high), val(init(low, high)){ }
+	dynamic_lazy_segment(B low, B high): low(low), high(high), val(init(low, high)){ }
 	template<typename IT>
-	lazy_segment(IT begin, IT end, B low, B high): low(low), high(high){
+	dynamic_lazy_segment(IT begin, IT end, B low, B high): low(low), high(high){
 		assert(end - begin == high - low);
 		if(high - low > 1){
 			IT inter = begin + (end - begin >> 1);
 			B mid = low + (high - low >> 1);
-			l = new lazy_segment(begin, inter, low, mid);
-			r = new lazy_segment(inter, end, mid, high);
+			l = new dynamic_lazy_segment(begin, inter, low, mid);
+			r = new dynamic_lazy_segment(inter, end, mid, high);
 			val = qop(l->val, R{low, mid}, r->val, R{mid, high});
 		}
 		else val = *begin;
@@ -3153,8 +3158,8 @@ struct lazy_segment{
 	void push(){
 		if(!l){
 			B mid = low + (high - low >> 1);
-			l = new lazy_segment(low, mid);
-			r = new lazy_segment(mid, high);
+			l = new dynamic_lazy_segment(low, mid);
+			r = new dynamic_lazy_segment(mid, high);
 		}
 		if(lazy != id.first){
 			l->update(low, high, lazy);
@@ -3874,6 +3879,7 @@ struct treap{
 // 156485479_3_10
 // Splay Tree
 // Amortized O(log n) per operation
+// Credit: KACTL
 template<typename T = long long, typename L = int>
 struct splay_node{ // Splay tree. Root's pp contains tree's parent.
 	splay_node *p = 0, *pp = 0;
@@ -4613,94 +4619,7 @@ struct weighted_binary_lift{
 // 156485479_4_5_3
 // Heavy Light Decomposition
 // O(N + M) processing, O(log^2 N) per query
-template<typename L, typename Q, typename LOP, typename QOP, typename AOP>
-struct lazy_segment{
-	int n, h;
-	LOP lop;
-	QOP qop;
-	AOP aop;
-	pair<L, Q> id;
-	vector<array<int, 2>> range;
-	vector<L> lazy;
-	vector<Q> val;
-	template<typename IT>
-	lazy_segment(IT begin, IT end, LOP lop, QOP qop, AOP aop, pair<L, Q> id): n(distance(begin, end)), h(__lg(n) + 1), lop(lop), qop(qop), aop(aop), id(id), range(n << 1), lazy(n << 1, id.first), val(n, id.second){
-		init_range();
-		val.insert(val.end(), begin, end);
-		build(0, n);
-	}
-	lazy_segment(int n, LOP lop, QOP qop, AOP aop, pair<L, Q> id): n(n), h(__lg(n) + 1), lop(lop), qop(qop), aop(aop), id(id), range(n << 1), lazy(n << 1, id.first), val(n << 1, id.second){
-		init_range();
-	}
-	void init_range(){
-		for(int i = n; i < n << 1; ++ i) range[i] = {i - n, i - n + 1};
-		for(int i = n - 1; i > 0; -- i) range[i] = {range[i << 1][0], range[i << 1 | 1][1]};
-	}
-	void refresh(int p){
-		val[p] = qop(val[p << 1], range[p << 1], val[p << 1 | 1], range[p << 1 | 1]);
-		if(lazy[p] != id.first) val[p] = aop(val[p], range[p], lazy[p], range[p]);
-	}
-	void build(int l, int r){
-		for(l += n, r += n - 1; l > 1; ){
-			l >>= 1, r >>= 1;
-			for(int i = r; i >= l; -- i) refresh(i);
-		}
-	}
-	void push(int l, int r){
-		int s = h;
-		for(l += n, r += n - 1; s > 0; -- s){
-			for(int i = l >> s; i <= r >> s; ++ i) if(lazy[i] != id.first){
-				val[i << 1] = aop(val[i << 1], range[i << 1], lazy[i], range[i]);
-				lazy[i << 1] = lop(lazy[i << 1], range[i << 1], lazy[i], range[i]);
-				val[i << 1 | 1] = aop(val[i << 1 | 1], range[i << 1 | 1], lazy[i], range[i]);
-				lazy[i << 1 | 1] = lop(lazy[i << 1 | 1], range[i << 1 | 1], lazy[i], range[i]);
-				lazy[i] = id.first;
-			}
-		}
-	}
-	void update(int l, int r, L x){
-		if(l >= r) return;
-		array<int, 2> update_range{l, r};
-		push(l, l + 1), push(r - 1, r);
-		bool cl = false, cr = false;
-		for(l += n, r += n; l < r; l >>= 1, r >>= 1){
-			if(cl) refresh(l - 1);
-			if(cr) refresh(r);
-			if(l & 1){
-				val[l] = aop(val[l], range[l], x, update_range);
-				if(l < n) lazy[l] = lop(lazy[l], range[l], x, update_range);
-				++ l;
-				cl = true;
-			}
-			if(r & 1){
-				-- r;
-				val[r] = aop(val[r], range[r], x, update_range);
-				if(r < n) lazy[r] = lop(lazy[r], range[r], x, update_range);
-				cr = true;
-			}
-		}
-		for(-- l; r > 0; l >>= 1, r >>= 1){
-			if(cl) refresh(l);
-			if(cr && (!cl || l != r)) refresh(r);
-		}
-	}
-	Q query(int l, int r){
-		push(l, l + 1);
-		push(r - 1, r);
-		Q resl = id.second, resr = id.second;
-		array<int, 2> l_range{l, l}, r_range{r, r};
-		for(l += n, r += n; l < r; l >>= 1, r >>= 1){
-			if(l & 1) resl = qop(resl, l_range, val[l], range[l]), l_range[1] = range[l][1], ++ l;
-			if(r & 1) -- r, resr = qop(val[r], range[r], resr, r_range), r_range[0] = range[r][0];
-		}
-		return qop(resl, l_range, resr, r_range);
-	}
-	void print(){
-		for(int u = 0; u < 2 * n; ++ u){
-			//cout << u << "-th node represent [" << range[u][0] << ", " << range[u][1] << "), val = " << val[u] << ", lazy = (" << lazy[u][0] << ", " << lazy[u][1] << ")\n";
-		}
-	}
-};
+// Requires lazy_segment or dynamic lazy_segment
 template<typename DS, typename BO, typename T, int VALS_IN_EDGES = 1>
 struct heavy_light_decomposition{
 	int n, root;
