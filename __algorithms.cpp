@@ -5040,17 +5040,17 @@ struct minimum_spanning_forest_dense{
 // Minimum Spanning Arborescence
 // O(E log V)
 // Credit: KACTL
-// msa_edge contains the indices of edges forming msa.
+// msa_edge contains the indices of edges forming msa rooted at 0.
 // solve() returns -1 if no msa exists
 // Requires rollback_disjoint_set
 template<typename T = long long>
 struct minimum_spanning_arborescence{
 	struct etype{ int u, v, ind = 0; T w; };
-	int n, root;
+	int n;
 	vector<etype> edge;
 	vector<int> msa_edge;
 	T cost = 0;
-	minimum_spanning_arborescence(int n, int root): n(n), root(root){ }
+	minimum_spanning_arborescence(int n): n(n){ }
 	void insert(int u, int v, T w){ edge.push_back({u, v, int(edge.size()), w}); }
 	struct node{ /// lazy skew heap node
 		etype key;
@@ -5077,7 +5077,7 @@ struct minimum_spanning_arborescence{
 		vector<node *> heap(n);
 		for(auto &e: edge) heap[e.v] = merge(heap[e.v], new node{e});
 		vector<int> seen(n, -1), path(n), par(n);
-		seen[root] = root;
+		seen[0] = 0;
 		vector<etype> Q(n), in(n, {-1, -1}), comp;
 		deque<tuple<int, int, vector<etype>>> cycles;
 		for(int s = 0; s < n; ++ s){
@@ -5105,7 +5105,7 @@ struct minimum_spanning_arborescence{
 			for(auto &e: comp) in[dsu.root(e.v)] = e;
 			in[dsu.root(inedge.v)] = inedge;
 		}
-		for(int u = 0; u < n; ++ u) if(u != root) msa_edge.push_back(in[u].ind);
+		for(int u = 0; u < n; ++ u) if(u) msa_edge.push_back(in[u].ind);
 		return cost;
 	}
 };
