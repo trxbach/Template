@@ -1,6 +1,6 @@
 /***************************************************************************************************************
 
-                                     This is Aeren's algorithm template library                     
+                                   This is Aeren's C++ algorithm template library                     
                                             for competitive programming
 
 ****************************************************************************************************************
@@ -143,7 +143,7 @@ Category
 		156485479_3_9
 	3.10. Splay Tree ( WARNING: UNTESTED )
 		156485479_3_10
-	3.11. Link Cut Tree ( INCOMPLETE )
+	3.11. Link Cut Trees
 		156485479_3_11
 	3.12. Unital Sorter
 		156485479_3_12
@@ -3879,65 +3879,139 @@ struct treap{
 // 156485479_3_10
 // Splay Tree
 // Amortized O(log n) per operation
-// Credit: KACTL
-template<typename T = long long, typename L = int>
-struct splay_node{ // Splay tree. Root's pp contains tree's parent.
-	splay_node *p = 0, *pp = 0;
-	array<splay_node *, 2> c{};
-	bool flip = false;
-	T val, subtr_val;
-	L lazy;
-	int sz = 1, ind = 0;
-	splay_node(T val = 0, L lazy = 0, int ind = 0): val(val), subtr_val(val), lazy(lazy), ind(ind){ }
-	void refresh(){
-		if(c[0]) c[0]->p = this;
-		if(c[1]) c[1]->p = this;
-		// refresh val/subtr_val/sz
+// Credit: DGC
+template<typename pnode>
+struct splay_tree{
+	pnode ch[2], p;
+	bool rev;
+	int sz;
+	splay_tree(){ ch[0] = ch[1] = p = NULL; rev = 0; sz = 1; }
+	friend int get_sz(pnode u) { return u ? u->sz : 0; }
+	virtual void update(){
+		if(ch[0]) ch[0]->push();
+		if(ch[1]) ch[1]->push();
+		sz = 1 + get_sz(ch[0]) + get_sz(ch[1]);
 	}
-	void push(){
-		// push lazy to lower nodes
-	}
-	void push_flip(){
-		if(!flip) return;
-		flip = false;
-		swap(c[0], c[1]);
-		if(c[0]) c[0]->flip ^= 1;
-		if(c[1]) c[1]->flip ^= 1;
-	}
-	int up(){ return p ? p->c[1] == this : -1; }
-	void rotate(int i, int b){
-		int h = i ^ b;
-		splay_node *x = c[i], *y = b == 2 ? x : x->c[h], *z = b ? y : x;
-		if((y->p = p)) p->c[up()] = y;
-		c[i] = z->c[i ^ 1];
-		if(b < 2){
-			x->c[h] = y->c[h ^ 1];
-			z->c[h ^ 1] = b ? x : this;
-		}
-		y->c[i ^ 1] = b ? this : x;
-		refresh(), x->refresh(), y->refresh();
-		if(p) p->refresh();
-		swap(pp, y->pp);
-	}
-	void splay(){ /// Splay this up to the root. Always finishes without flip set.
-		for(push_flip(), push(); p; ){
-			if(p->p) p->p->push_flip(), p->p->push();
-			p->push_flip(), p->push(), push_flip(), push();
-			int c1 = up(), c2 = p->up();
-			if(c2 == -1) p->rotate(c1, 2);
-			else p->p->rotate(c2, c1 != c2);
+	virtual void push(){
+		if(rev){
+			if(ch[0]) ch[0]->rev ^= 1;
+			if(ch[1]) ch[1]->rev ^= 1;
+			swap(ch[0], ch[1]); rev = 0;
 		}
 	}
-	splay_node *first(){ /// Return the min element of the subtree rooted at this, splayed to the top.
-		push_flip(), push();
-		return c[0] ? c[0]->first() : (splay(), this);
+	int dir(){
+		if(!p) return -2; // root of LCT component
+		if(p->ch[0] == this) return 0; // left child
+		if(p->ch[1] == this) return 1; // right child
+		return -1; // root of current splay tree
+	}
+	bool is_root(){ return dir() < 0; }
+	friend void set_link(pnode u, pnode v, int d){
+		if(v) v->p = u;
+		if(d >= 0) u->ch[d] = v;
+	}
+	void rotate(){ // assume p and p->p propagated
+		assert(!is_root());
+		int x = dir(); pnode g = p;
+		set_link(g->p, static_cast<pnode>(this), g->dir());
+		set_link(g, ch[x^1], x);
+		set_link(static_cast<pnode>(this), g, x^1);
+		g->update(); update();
+	}
+	void splay(){ // bring this to top of splay tree
+		while(!is_root() && !p->is_root()){
+			p->p->push(), p->push(), push();
+			dir() == p->dir() ? p->rotate() : rotate();
+			rotate();
+		}
+		if(!is_root()) p->push(), push(), rotate();
+		push();
+	}
+};
+struct node: splay_tree<node *>{
+	using splay_tree::ch;
+	int val;
+	long long aux_sum;
+	node(): splay_tree(){ }
+	void update() override{
+		splay_tree::update();
+		aux_sum = val;
+		if(ch[0]) aux_sum += ch[0]->aux_sum;
+		if(ch[1]) aux_sum += ch[1]->aux_sum;
+	}
+	void update_vsub(node* v, bool add){
+
+	}
+	void push() override{ // make sure push fix the node (don't call splay_tree::update)
+		splay_tree::push();
 	}
 };
 
 // 156485479_3_11
-// Link Cut Tree
+// Link Cut Trees
 // Amortized O(log n) per operation
+// Credit: DGC
 // Requires Splay Tree
+template<typename node>
+struct link_cut_tree{
+	bool connected(node *u, node *v){ return lca(u, v) != NULL; }
+	int depth(node *u){ access(u); return get_sz(u->ch[0]); }
+	node *get_root(node *u){ // get root of LCT component
+		access(u);
+		while(u->ch[0]) u = u->ch[0], u->push();
+		return access(u), u;
+	}
+	node *ancestor(node *u, int k){ // get k-th parent on path to root
+		k = depth(u) - k;
+		assert(k >= 0);
+		for(; ; u->push()){
+			int sz = get_sz(u->ch[0]);
+			if(sz == k) return access(u), u;
+			if(sz < k) k -= sz + 1, u = u->ch[1];
+			else u = u->ch[0];
+		}
+		assert(0);
+	}
+	node *lca(node *u, node *v){
+		if(u == v) return u;
+		access(u); access(v);
+		if(!u->p) return NULL;
+		u->splay(); return u->p ?: u;
+	}
+	// make u parent of v
+	void link(node *u, node *v){ assert(!connected(u, v)); make_root(v); access(u); set_link(v, u, 0); v->update(); }
+	// cut u from its parent
+	void cut(node *u){ access(u); u->ch[0]->p = NULL; u->ch[0] = NULL; u->update(); }
+	void cut(node *u, node *v){ cut(depth(u) > depth(v) ? u : v); }
+	void make_root(node *u){ access(u); u->rev ^= 1; access(u); assert(!u->ch[0] && !u->ch[1]); }
+	void access(node *u){ // puts u on the preferred path, splay (right subtree is empty)
+		for(node *v = u, *pre = NULL; v; v = v->p){
+			v->splay(); // now update virtual children
+			if(pre) v->update_vsub(pre, false);
+			if(v->ch[1]) v->update_vsub(v->ch[1], true);
+			v->ch[1] = pre; v->update(); pre = v;
+		}
+		u->splay(); assert(!u->ch[1]);
+	}
+	node *operator[](int i){ return &data[i]; }
+	int operator[](node *i){ return i - &data[0]; }
+	vector<node> data;
+	link_cut_tree(int n): data(n){ }
+	void print(){
+		cout << "-----Current LCT info-----\n";
+		for(auto u = 0; u < int(data.size()); ++ u){
+			cout << "Node " << u << "\n" << "parent: ";
+			if(data[u].p) cout << (*this)[data[u].p];
+			cout << "\nSub aux tree size = " << get_sz(&data[u]) << "\nchilds = ";
+			if(data[u].ch[0]) cout << (*this)[data[u].ch[0]] << " ";
+			else cout << "x ";
+			if(data[u].ch[1]) cout << (*this)[data[u].ch[1]];
+			else cout << "x";
+			// cout << "\nvalue = " << data[u].val << "\nsub aux tree value = " << data[u].aux_sum << "\n\n";
+		}
+		cout << "--------------------------\n\n";
+	}
+};
 
 // 156485479_3_12
 // Unital Sorter
