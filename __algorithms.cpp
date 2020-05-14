@@ -1151,50 +1151,48 @@ int discrete_log(int a, int b, int mod){
 
 // 156485479_1_13
 // Continued Fraction
+typedef array<long long, 2> frac;
 struct continued_fraction{
-	typedef array<long long, 2> frac;
 	vector<long long> a;
-	// Fraction must be of form p/q where p is an integer and q is a positive integer
+	// Fraction must either be of form p/q where p is an integer and q is a positive integer
+	// or p a non-zero integer and q = 0 ( this represents inf / -inf )
 	continued_fraction(frac x){
 		while(x[1]){
 			a.push_back(x[0] / x[1]);
 			x = {x[1], x[0] % x[1]};
 			if(x[1] < 0) x[1] += x[0], -- a.back();
 		}
+		if(a.empty()) a.push_back(x[0] > 0 ? 1e9 : -1e9);
 	}
 	continued_fraction(vector<long long> a): a(move(a)){ }
-	void alter(){
-		a.back() == 1 ? a.pop_back(), ++ a.back() : (a.push_back(1), -- *(next(a.rbegin())));
-	}
+	void alter(){ int(a.size()) > 1 && a.back() == 1 ? a.pop_back(), ++ a.back() : (a.push_back(1), -- *(next(a.rbegin()))); }
 	frac convergent(int len){
-		frac res{0, 1};
-		for(int i = min(len, int(a.size())) - 1; i >= 0; -- i) res = {res[1], a[i] * res[1] + res[0]};
-		return res;
-	}
-	// assumes 0 < x < y
-	// returns a fraction p/q with minimal p ( or equivalently, q ) within range (x, y)
-	friend frac best_rational_within(frac x, frac y){
-		continued_fraction cx(x), cy(y);
 		frac res{1, 0};
-		for(int ix = 0; ix < 2; ++ ix, cx.alter()) for(int iy = 0; iy < 2; ++ iy, cy.alter()){
-			vector<long long> t;
-			for(int i = 0; ; ++ i){
-				if(i < min(int(cx.a.size()), int(cy.a.size())) && cx.a[i] == cy.a[i]){
-					t.push_back(cx.a[i]);
-					continue;
-				}
-				if(int(cx.a.size()) == i) t.push_back(cy.a[i] + 1);
-				else if(int(cy.a.size()) == i) t.push_back(cx.a[i] + 1);
-				else t.push_back(min(cx.a[i], cy.a[i]) + 1);
-				break;
-			}
-			continued_fraction frac_t(t);
-			auto c = frac_t.convergent(int(t.size()));
-			if(c[0] * res[1] < c[1] * res[0]) res = c;
-		}
+		for(int i = min(len, int(a.size())) - 1; i >= 0; -- i) res = {res[1] + res[0] * a[i], res[0]};
 		return res;
 	}
 };
+bool frac_cmp(frac x, frac y){ return x[0] * y[1] < x[1] * y[0]; }
+// assumes 0 < x < y
+// returns a fraction p/q with minimal p ( or equivalently, q ) within range (x, y)
+frac best_rational_within(frac low, frac high){
+	continued_fraction clow(low), chigh(high);
+	for(int ix = 0; ix < 2; ++ ix, clow.alter()) for(int iy = 0; iy < 2; ++ iy, chigh.alter()){
+		vector<long long> t;
+		clow.a.push_back(numeric_limits<long long>::max()), chigh.a.push_back(numeric_limits<long long>::max());
+		for(int i = 0; ; ++ i){
+			if(clow.a[i] == chigh.a[i]) t.push_back(clow.a[i]);
+			else{
+				t.push_back(min(clow.a[i], chigh.a[i]) + 1);
+				break;
+			}
+		}
+		clow.a.pop_back(), chigh.a.pop_back();
+		continued_fraction frac_t(t);
+		auto c = frac_t.convergent(int(t.size()));
+		if(frac_cmp(low, c) && frac_cmp(c, high)) return c;
+	}
+}
 
 // 156485479_2_1
 // Linear Recurrence Relation Solver / Berlekamp - Massey Algorithm
