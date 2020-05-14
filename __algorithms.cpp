@@ -1173,7 +1173,7 @@ struct continued_fraction{
 	}
 };
 bool frac_cmp(frac x, frac y){ return x[0] * y[1] < x[1] * y[0]; }
-// assumes 0 < x < y
+// assumes 0 <= x < y
 // returns a fraction p/q with minimal p ( or equivalently, q ) within range (x, y)
 frac best_rational_within(frac low, frac high){
 	continued_fraction clow(low), chigh(high);
