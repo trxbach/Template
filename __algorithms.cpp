@@ -34,6 +34,8 @@ Category
 		156485479_1_11
 	1.12. Discrete Log
 		156485479_1_12
+	1.13. Continued Fraction
+		156485479_1_13
 
 
 2. Numeric
@@ -99,7 +101,7 @@ Category
 	2.11. Matroid
 		2.11.1. Matroid Intersection
 			156485479_2_11_1
-		2.11.2. Matroid Union
+		2.11.2. Matroid Union ( INCOMPLETE )
 			156485479_2_11_2
 
 
@@ -147,7 +149,7 @@ Category
 		156485479_3_11
 	3.12. Unital Sorter
 		156485479_3_12
-	3.13. Tango Tree ( INCOMPLETE )
+	3.13. AAA Tree ( INCOMPLETE )
 		156485479_3_13
 
 
@@ -1146,6 +1148,53 @@ int discrete_log(int a, int b, int mod){
 	}
 	return -1;
 }
+
+// 156485479_1_13
+// Continued Fraction
+struct continued_fraction{
+	typedef array<long long, 2> frac;
+	vector<long long> a;
+	// Fraction must be of form p/q where p is an integer and q is a positive integer
+	continued_fraction(frac x){
+		while(x[1]){
+			a.push_back(x[0] / x[1]);
+			x = {x[1], x[0] % x[1]};
+			if(x[1] < 0) x[1] += x[0], -- a.back();
+		}
+	}
+	continued_fraction(vector<long long> a): a(move(a)){ }
+	void alter(){
+		a.back() == 1 ? a.pop_back(), ++ a.back() : (a.push_back(1), -- *(next(a.rbegin())));
+	}
+	frac convergent(int len){
+		frac res{0, 1};
+		for(int i = min(len, int(a.size())) - 1; i >= 0; -- i) res = {res[1], a[i] * res[1] + res[0]};
+		return res;
+	}
+	// assumes 0 < x < y
+	// returns a fraction p/q with minimal p ( or equivalently, q ) within range (x, y)
+	friend frac best_rational_within(frac x, frac y){
+		continued_fraction cx(x), cy(y);
+		frac res{1, 0};
+		for(int ix = 0; ix < 2; ++ ix, cx.alter()) for(int iy = 0; iy < 2; ++ iy, cy.alter()){
+			vector<long long> t;
+			for(int i = 0; ; ++ i){
+				if(i < min(int(cx.a.size()), int(cy.a.size())) && cx.a[i] == cy.a[i]){
+					t.push_back(cx.a[i]);
+					continue;
+				}
+				if(int(cx.a.size()) == i) t.push_back(cy.a[i] + 1);
+				else if(int(cy.a.size()) == i) t.push_back(cx.a[i] + 1);
+				else t.push_back(min(cx.a[i], cy.a[i]) + 1);
+				break;
+			}
+			continued_fraction frac_t(t);
+			auto c = frac_t.convergent(int(t.size()));
+			if(c[0] * res[1] < c[1] * res[0]) res = c;
+		}
+		return res;
+	}
+};
 
 // 156485479_2_1
 // Linear Recurrence Relation Solver / Berlekamp - Massey Algorithm
@@ -2494,294 +2543,64 @@ struct subinterval{
 // 156485479_2_11_1
 // Matroid Intersection
 // Credit: tfg ( https://github.com/tfg50/Competitive-Programming/blob/master/Biblioteca/Math/MatroidIntersection.cpp )
-// Prototype of a matroid
-struct Matroid{
-	Matroid(){
-		
-	}
-	bool independent_with(/*an element*/){
-
-	}
-	void insert(/*an element*/){
-
-	}
-	void clear(){
-
-	}
+// Examples of Matroids
+struct ColorMat{
+	vector<int> cnt, clr;
+	ColorMat(int n, vector<int> clr): cnt(n), clr(clr){ }
+	bool check(int x){ return !cnt[clr[x]]; }
+	void add(int x){ ++ cnt[clr[x]]; }
+	void clear(){ fill(cnt.begin(), cnt.end(), 0); }
 };
-// to get answer just call Matroid_Intersection<M1, M2, T>(m1, m2, ground).solve()
-// rebuild() = O(r^2) insert() + O(r) clear() calls
-// O(r) rebuild() + O(r * n^2) test() = O(r^3) insert() + O(r^2) clear() + O(r^2 * n) independent_with() calls in total
-template<class M1, class M2, class T>
+struct GraphMat{
+	disjoint_set dsu;
+	vector<array<int, 2>> e;
+	GraphMat(int n, vector<array<int, 2>> e): dsu(n), e(e){ }
+	bool check(int x){ return !dsu.share(e[x][0], e[x][1]); }
+	void add(int x){ dsu.merge(e[x][0], e[x][1]); }
+	void clear(){ dsu = disjoint_set(int(dsu.p.size())); }
+};
+
+// R^2N(M2.add + M1.check + M2.check) + R^3 M1.add + R^2 M1.clear + RN M2.clear
+template<typename M1, typename M2>
 struct Matroid_Intersection{
 	int n;
-	const vector<T> &ground;
-	vector<bool> present;
-	M1 m1;
-	M2 m2;
-	vector<M1> except1;
-	vector<M2> except2;
-	Matroid_Intersection(M1 m1, M2 m2, const vector<T> &ground): n((int) ground.size()), m1(m1), m2(m2), ground(ground), present(ground.size()), except1(n, m1), except2(n, m2){ }
-	vector<T> solve(){
-		// greedy step
-		for(int i = 0; i < n; ++ i){
-			if(test(m1, i) && test(m2, i)){
-				present[i] = true;
-				m1.insert(ground[i]), m2.insert(ground[i]);
-			}
-		}
-		rebuild();
-		// augment step
+	vector<char> iset;
+	M1 m1; M2 m2;
+	Matroid_Intersection(M1 m1, M2 m2, int n): n(n), iset(n + 1), m1(m1), m2(m2) {}
+	vector<int> solve(){
+		for(int i = 0; i < n; ++ i) if(m1.check(i) && m2.check(i)) iset[i] = true, m1.add(i), m2.add(i);
 		while(augment());
-		vector<T> ans;
-		for(int i = 0; i < n; ++ i) if(present[i]) ans.push_back(ground[i]);
-		return ans;
-	}
-	template<class M>
-	bool test(M &m, int add, int rem = -1){
-		return !present[add] && (rem == -1 || present[rem]) && m.independent_with(ground[add]);
-	}
-	void rebuild(){
-		m1.clear(), m2.clear();
-		for(int u = 0; u < n; ++ u){
-			if(present[u]){
-				m1.insert(ground[u]), m2.insert(ground[u]);
-				except1[u].clear(), except2[u].clear();
-				for(int v = 0; v < n; ++ v){
-					if(v != u && present[v]){
-						except1[u].insert(ground[v]), except2[u].insert(ground[v]);
-					}
-				}
-			}
-		}
+		vector<int> res;
+		for(int i = 0; i < n; ++ i) if(iset[i]) res.push_back(i);
+		return res;
 	}
 	bool augment(){
-		deque<int> q;
-		vector<int> dist(n, -1), frm(n, -1);
-		for(int i = 0; i < n; ++ i){
-			if(test(m1, i)){
-				q.push_back(i);
-				dist[i] = 0;
-			}
-		}
-		while(!q.empty()){
-			int on = q.front();
-			q.pop_front();
-			for(int i = 0; i < n; ++ i){
-				if(dist[i] == -1 && (dist[on] & 1 ? test(except1[on], i, on) : test(except2[i], on, i))){
-					q.push_back(i);
-					dist[i] = dist[on] + 1;
-					frm[i] = on;
-					if(test(m2, i)){
-						for(int pos = i; pos != -1; pos = frm[pos]){
-							present[pos] = !present[pos];
-						}
-						rebuild();
-						return true;
-					}
+		vector<int> frm(n, -1);
+		queue<int> q({n}); // starts at dummy node
+		auto fwdE = [&](int a){
+			vector<int> res;
+			m1.clear();
+			for(int v = 0; v < n; ++ v) if(iset[v] && v != a) m1.add(v);
+			for(int b = 0; b < n; ++ b) if(!iset[b] && frm[b] == -1 && m1.check(b)) res.push_back(b), frm[b] = a;
+			return res;
+		};
+		auto backE = [&](int b){
+			m2.clear();
+			for(int cas = 0; cas < 2; ++ cas) for(int v = 0; v < n; ++ v)
+				if((v == b || iset[v]) && (frm[v] == -1) == cas){
+					if(!m2.check(v)) return cas ? q.push(v), frm[v] = b, v : -1;
+					m2.add(v);
 				}
+			return n;
+		};
+		while(!q.empty()){
+			int a = q.front(), c; q.pop();
+			for(int b: fwdE(a)) while((c = backE(b)) >= 0) if(c == n){
+				while(b != n) iset[b] ^= 1, b = frm[b];
+				return true;
 			}
 		}
 		return false;
-	}
-};
-/*
-Todo: make a weighted version
-bellman ford, cost is (actual cost, number of edges in path), break ties by length
-*/
-
-// Prototype of a matroid
-struct Matroid{
-	Matroid(){
-
-	}
-	bool is_independent(/*a set of ground elements*/){
-
-	}
-	int get_rank(/*a set of ground elements*/){
-
-	}
-};
-// O(n * r^1.5 * log n) oracle calls
-// Slower than the upper implementation
-// implementation of https://arxiv.org/pdf/1911.10765.pdf
-template<class M1, class M2, class T>
-struct Matroid_Intersection{
-	int curAns = 0, n;
-	vector<T> ground;
-	vector<bool> present;
-	Matroid_Intersection(M1 m1, M2 m2, const vector<T> &ground): n((int) ground.size()), ground(ground), present(ground.size()){
-		// greedy step
-		for(int i = 0; i < n; ++ i){
-			if(test(m1, i) && test(m2, i)){
-				present[i] = true;
-				++ curAns;
-			}
-		}
-		// augment step
-		while(augment(m1, m2));
-	}
-	vector<T> solve(int o = -1){
-		vector<T> ans;
-		for(int i = 0; i < n; ++ i){
-			if(present[i] && i != o){
-				ans.push_back(ground[i]);
-			}
-		}
-		return ans;
-	}
-	template<class M>
-	bool test(M &m, int add, int rem = -1){
-		if(present[add] || (rem != -1 && !present[rem])) return false;
-		auto st = solve(rem);
-		st.push_back(ground[add]);
-		return m.is_independent(st);
-	}
-	bool augment(M1 &m1, M2 &m2){
-		deque<int> q;
-		vector<int> dist(n, -1), frm(n, -1);
-		vector<vector<int>> layers;
-		for(int i = 0; i < n; ++ i){
-			if(test(m1, i)){
-				q.push_back(i);
-				dist[i] = 0;
-			}
-		}
-		if(q.empty()){
-			return false;
-		}
-		int limit = 1e9;
-		auto outArc = [&](int u, bool phase){
-			vector<T> st;
-			vector<int> others;
-			if(present[u]){
-				for(int i = 0; i < n; ++ i){
-					if(present[i] && i != u){
-						st.push_back(ground[i]);
-					}
-					else if(!present[i] && dist[i] == (phase ? dist[u] + 1 : -1)){
-						others.push_back(i);
-					}
-				}
-				auto _test = [&](int l, int r){
-					auto cur = st;
-					for(int i = l; i < r; ++ i){
-						cur.push_back(ground[others[i]]);
-					}
-					return m1.get_rank(cur) >= curAns;
-				};
-				int l = 0, r = (int)others.size();
-				if(l == r || !_test(l, r)) return -1;
-				while(l + 1 != r){
-					int mid = (l + r) / 2;
-					if(_test(l, mid)){
-						r = mid;
-					}
-					else{
-						l = mid;
-					}
-				}
-				return others[l];
-			}
-			else{
-				for(int i = 0; i < n; ++ i){
-					if(present[i] && dist[i] != (phase ? dist[u] + 1 : -1)){
-						st.push_back(ground[i]);
-					}
-					else if(present[i]){
-						others.push_back(i);
-					}
-				}
-				auto _test = [&](int l, int r){
-					auto cur = st;
-					for(int i = 0; i < l; ++ i){
-						cur.push_back(ground[others[i]]);
-					}
-					for(int i = r; i < (int) others.size(); ++ i){
-						cur.push_back(ground[others[i]]);
-					}
-					cur.push_back(ground[u]);
-					return m2.is_independent(cur);
-				};
-				int l = 0, r = (int)others.size();
-				if(l == r || !_test(l, r)) return -1;
-				while(l + 1 != r){
-					int mid = (l + r) / 2;
-					if(_test(l, mid)){
-						r = mid;
-					}
-					else{
-						l = mid;
-					}
-				}
-				return others[l];
-			}
-		};
-		while(!q.empty()){
-			int on = q.front();
-			q.pop_front();
-			if((int)layers.size() <= dist[on]) layers.emplace_back(0);
-			layers[dist[on]].push_back(on);
-			if(dist[on] == limit) continue;
-			for(int i = outArc(on, false); i != -1; i = outArc(on, false)){
-				assert(dist[i] == -1 && (dist[on] % 2 == 0 ? test(m2, on, i) : test(m1, i, on)));
-				q.push_back(i);
-				dist[i] = dist[on] + 1;
-				frm[i] = on;
-				if(limit > n && test(m2, i)){
-					limit = dist[i];
-					continue;
-					for(on = i; on != -1; on = frm[on]){
-						present[on] = !present[on];
-					}
-					++ curAns;
-					return true;
-				}
-			}
-		}
-		if(limit > n) return false;
-		auto rem = [&](int on){
-			assert(dist[on] != -1);
-			auto it = find(layers[dist[on]].begin(), layers[dist[on]].end(), on);
-			assert(it != layers[dist[on]].end());
-			layers[dist[on]].erase(it);
-			dist[on] = -1;
-		};
-		function<bool(int)> dfs = [&](int on){
-			if(dist[on] == 0 && !test(m1, on)){
-				rem(on);
-				return false;
-			}
-			if(dist[on] == limit){
-				rem(on);
-				if(test(m2, on)){
-					present[on] = !present[on];
-					return true;
-				}
-				else{
-					return false;
-				}
-			}
-			for(int to = outArc(on, true); to != -1; to = outArc(on, true)){
-				if(dfs(to)){
-					rem(on);
-					present[on] = !present[on];
-					return true;
-				}
-			}
-			rem(on);
-			return false;
-		};
-		bool got = false;
-		while(!layers[0].empty()){
-			if(dfs(layers[0].back())){
-				got = true;
-				assert(m1.is_independent(solve()) && m2.is_independent(solve()));
-				++ curAns;
-			}
-		}
-		assert(got);
-		return true;
 	}
 };
 
