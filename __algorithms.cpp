@@ -1694,44 +1694,24 @@ vector<long long> interpolate(vector<long long> x, vector<long long> y, long lon
 // Binary Search
 // O(log(high - low)) applications of p
 template<typename Pred>
-long long custom_binary_search(long long low, long long high, Pred p, bool is_left = true){
+long long custom_binary_search(long long low, long long high, Pred p, const bool &is_left = true){
 	assert(low < high);
-	if(is_left){
-		while(high - low > 1){
-			long long mid = low + (high - low >> 1);
-			p(mid) ? low = mid : high = mid;
-		}
-		return low;
+	while(high - low > 1){
+		auto mid = low + (high - low >> 1);
+		(p(mid) == is_left ? low : high) = mid;
 	}
-	else{
-		while(high - low > 1){
-			long long mid = low + (high - low >> 1);
-			p(mid) ? high = mid : low = mid;
-		}
-		return high;
-	}
+	return low;
 }
 // Binary search for numbers with the same remainder mod step
 template<typename Pred>
-long long custom_binary_search(long long low, long long high, const long long &step, Pred p, bool is_left = true){
+long long custom_binary_search(long long low, long long high, const long long &step, Pred p, const &bool is_left = true){
 	assert(low < high && (high - low) % step == 0);
-	const long long rem = (low % step + step) % step;
-	if(is_left){
-		while(high - low > step){
-			long long mid = low + (high - low >> 1);
-			mid = mid / step * step + rem;
-			p(mid) ? low = mid : high = mid;
-		}
-		return low;
+	const auto rem = (low % step + step) % step;
+	while(high - low > step){
+		long long mid = (low + (high - low >> 1)) / step * step + rem;
+		(p(mid) == is_left ? low : high) = mid;
 	}
-	else{
-		while(high - low > step){
-			long long mid = low + (high - low >> 1);
-			mid = mid / step * step + rem;
-			p(mid) ? high = mid : low = mid;
-		}
-		return high;
-	}
+	return low;
 }
 
 // 156485479_2_6_1_1
@@ -2669,11 +2649,9 @@ struct segment{
 		for(int i = n - 1; i > 0; -- i) val[i] = bin_op(val[i << 1], val[i << 1 | 1]);
 	}
 	segment(int n, BO bin_op, T id): n(n), bin_op(bin_op), id(id), val(n << 1, id){ }
-	void set(int p, T x){
-		for(p += n, val[p] = x; p > 1; p >>= 1) val[p >> 1] = bin_op(val[p], val[p ^ 1]);
-	}
+	template<bool increment = true>
 	void update(int p, T x){
-		for(p += n, val[p] = bin_op(val[p], x); p > 1; p >>= 1) val[p >> 1] = bin_op(val[p], val[p ^ 1]);
+		for(p += n, val[p] = increment ? bin_op(val[p], x) : x; p > 1; p >>= 1) val[p >> 1] = bin_op(val[p], val[p ^ 1]);
 	}
 	T query(int l, int r){
 		if(l >= r) return id;
@@ -2734,16 +2712,9 @@ struct segment{
 		for(int i = n - 1; i > 0; -- i) for(int j = 0; j < m; ++ j) val[i][j + m] = bin_op(val[i << 1][j + m], val[i << 1 | 1][j + m]);
 		for(int i = 1; i < n << 1; ++ i) for(int j = m - 1; j > 0; -- j) val[i][j] = bin_op(val[i][j << 1], val[i][j << 1 | 1]);
 	}
-	void set(int p, int q, T x){
-		val[p += n][q += m] = x;
-		for(int j = q; j >>= 1; ) val[p][j] = bin_op(val[p][j << 1], val[p][j << 1 | 1]);
-		for(int i = p; i >>= 1; ){
-			val[i][q] = bin_op(val[i << 1][q], val[i << 1 | 1][q]);
-			for(int j = q; j >>= 1; ) val[i][j] = bin_op(val[i][j << 1], val[i][j << 1 | 1]);
-		}
-	}
+	template<bool increment = true>
 	void update(int p, int q, T x){
-		p += n, q += m, val[p][q] = bin_op(val[p][q], x);
+		p += n, q += m, val[p][q] = increment ? bin_op(val[p][q], x) : x;
 		for(int j = q; j >>= 1; ) val[p][j] = bin_op(val[p][j << 1], val[p][j << 1 | 1]);
 		for(int i = p; i >>= 1; ){
 			val[i][q] = bin_op(val[i << 1][q], val[i << 1 | 1][q]);
@@ -2791,7 +2762,7 @@ struct segment{
 	void build(IT begin, IT end, int u, int left, int right){
 		if(left + 1 == right) val[u] = *begin;
 		else{
-			int mid = left + right >> 1;
+			int mid = left + (right - left >> 1);
 			IT inter = begin + mid;
 			build(begin, inter, u << 1, left, mid);
 			build(inter, end, u << 1 ^ 1, mid, right);
@@ -2801,23 +2772,25 @@ struct segment{
 	T pq(int u, int left, int right, int ql, int qr){
 		if(qr <= left || right <= ql) return id;
 		if(ql == left && qr == right) return val[u];
-		int mid = left + right >> 1;
+		int mid = left + (right - left >> 1);
 		return bin_op(pq(u << 1, left, mid, ql, qr), pq(u << 1 ^ 1, mid, right, ql, qr));
 	}
 	T query(int ql, int qr){
 		return pq(1, 0, n, ql, qr);
 	}
+	template<bool increment>
 	void pu(int u, int left, int right, int ind, T x){
-		if(left + 1 == right) val[u] = x;
+		if(left + 1 == right) val[u] = increment ? bin_op(val[u], x) : x;
 		else{
-			int mid = left + right >> 1;
-			if(ind < mid) pu(u << 1, left, mid, ind, x);
-			else pu(u << 1 ^ 1, mid, right, ind, x);
+			int mid = left + (right - left >> 1);
+			if(ind < mid) pu<increment>(u << 1, left, mid, ind, x);
+			else pu<increment>(u << 1 ^ 1, mid, right, ind, x);
 			val[u] = bin_op(val[u << 1], val[u << 1 ^ 1]);
 		}
 	}
+	template<bool increment = true>
 	void update(int ind, T x){
-		pu(1, 0, n, ind, x);
+		pu<increment>(1, 0, n, ind, x);
 	}
 };
 
@@ -3107,10 +3080,9 @@ struct fenwick{
 		for(int i = 0; i < n; ++ i) update(i, *(begin ++));
 	}
 	fenwick(int n, BO bin_op, IO inv_op, T id): n(n), bin_op(bin_op), inv_op(inv_op), id(id), val(n + 1, id){ }
-	void set(int p, T x){
-		for(x = inv_op(x, query(p, p + 1)), ++ p; p <= n; p += p & -p) val[p] = bin_op(val[p], x);
-	}
+	template<bool increment = true>
 	void update(int p, T x){
+		if(!increment) x = inv_op(x, query(p, p + 1));
 		for(++ p; p <= n; p += p & -p) val[p] = bin_op(val[p], x);
 	}
 	T sum(int p){
@@ -3138,10 +3110,9 @@ struct fenwick{
 		for(int i = 0; i < n; ++ i) update(i, *(begin ++));
 	}
 	fenwick(int n, BO bin_op, IO inv_op, T id): n(n), bin_op(bin_op), inv_op(inv_op), id(id), val(n + 1, id){ }
-	void set(int p, T x){
-		for(x = inv_op(x, query(p, p + 1)), ++ p; p <= n; p += p & -p) val[p] = bin_op(val[p], x);
-	}
+	template<bool increment = true>
 	void update(int p, T x){
+		if(!increment) x = inv_op(x, query(p, p + 1));
 		for(++ p; p <= n; p += p & -p) val[p] = bin_op(val[p], x);
 	}
 	T sum(int p){
@@ -3191,11 +3162,9 @@ struct fenwick{
 	fenwick(const vector<vector<T>> &arr, BO bin_op, IO inv_op, T id): n(arr.size()), m(arr[0].size()), bin_op(bin_op), inv_op(inv_op), id(id), val(n + 1, vector<T>(m + 1)){
 		for(int i = 0; i < n; ++ i) for(int j = 0; j < m; ++ j) update(i, j, arr[i][j]);
 	}
-	void set(int p, int q, T x){
-		x = inv_op(x, query(p, q, p + 1, q + 1)), ++ p, ++ q;
-		for(int i = p; i <= n; i += i & -i) for(int j = q; j <= m; j += j & -j) val[i][j] = bin_op(val[i][j], x);
-	}
+	template<bool increment = true>
 	void update(int p, int q, T x){
+		if(!increment) x = inv_op(x, query(p, q, p + 1, q + 1));
 		++ p, ++ q;
 		for(int i = p; i <= n; i += i & -i) for(int j = q; j <= m; j += j & -j) val[i][j] = bin_op(val[i][j], x);
 	}
@@ -3346,10 +3315,9 @@ struct fenwick{
 		for(int i = 0; i < n; ++ i) update(i, *(begin ++));
 	}
 	fenwick(int n, BO bin_op, IO inv_op, T id): n(n), bin_op(bin_op), inv_op(inv_op), id(id), val(n + 1, id){ }
-	void set(int p, T x){
-		for(x = inv_op(x, query(p, p + 1)), ++ p; p <= n; p += p & -p) val[p] = bin_op(val[p], x);
-	}
+	template<bool increment = true>
 	void update(int p, T x){
+		if(!increment) x = inv_op(x, query(p, p + 1));
 		for(++ p; p <= n; p += p & -p) val[p] = bin_op(val[p], x);
 	}
 	T sum(int p){
@@ -3874,10 +3842,10 @@ int scc(const Graph &adj, Process_SCC f){
 	int n = int(adj.size());
 	vector<int> val(n), comp(n, -1), z, cur;
 	int timer = 0, ncomps = 0;
-	function<int(int)> dfs = [&](int u){
+	auto dfs = [&](auto &dfs, int u)->int{
 		int low = val[u] = ++ timer, v;
 		z.push_back(u);
-		for(auto v: adj[u]) if(comp[v] < 0) low = min(low, val[v] ?: dfs(v));
+		for(auto v: adj[u]) if(comp[v] < 0) low = min(low, val[v] ?: dfs(dfs, v));
 		if(low == val[u]){
 			do{
 				v = z.back(); z.pop_back();
@@ -3890,7 +3858,7 @@ int scc(const Graph &adj, Process_SCC f){
 		}
 		return val[u] = low;
 	};
-	for(int u = 0; u < n; ++ u) if(comp[u] < 0) dfs(u);
+	for(int u = 0; u < n; ++ u) if(comp[u] < 0) dfs(dfs, u);
 	return ncomps;
 }
 
