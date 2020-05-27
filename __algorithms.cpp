@@ -103,6 +103,8 @@ Category
 			156485479_2_11_1
 		2.11.2. Matroid Union ( INCOMPLETE )
 			156485479_2_11_2
+	2.12. LIS
+		156485479_2_12
 
 
 3. Data Structure
@@ -143,7 +145,7 @@ Category
 		156485479_3_8
 	3.9. Treap
 		156485479_3_9
-	3.10. Splay Tree ( WARNING: UNTESTED )
+	3.10. Splay Tree
 		156485479_3_10
 	3.11. Link Cut Trees
 		156485479_3_11
@@ -194,6 +196,8 @@ Category
 			156485479_4_5_7
 		4.5.8. Compressed Tree ( Virtual Tree, Auxiliary Tree )
 			156485479_4_5_8
+		4.5.9. Pruefer Code / Decode
+			156485479_4_5_9
 	4.6. Shortest Path Tree
 		4.6.1. On Sparse Graph ( Dijkstra, Bellman Ford, SPFA )
 			156485479_4_6_1
@@ -248,6 +252,8 @@ Category
 		156485479_7_1
 	7.2. Bump Allocator
 		156485479_7_2
+	7.3. Debug
+		156485479_7_3
 
 
 ***************************************************************************************************************/
@@ -1700,7 +1706,7 @@ long long custom_binary_search(long long low, long long high, Pred p, const bool
 		auto mid = low + (high - low >> 1);
 		(p(mid) == is_left ? low : high) = mid;
 	}
-	return low;
+	return is_left ? low : high;
 }
 // Binary search for numbers with the same remainder mod step
 template<typename Pred>
@@ -1711,7 +1717,7 @@ long long custom_binary_search(long long low, long long high, const long long &s
 		long long mid = (low + (high - low >> 1)) / step * step + rem;
 		(p(mid) == is_left ? low : high) = mid;
 	}
-	return low;
+	return is_left ? low : high;
 }
 
 // 156485479_2_6_1_1
@@ -1879,25 +1885,14 @@ void DCDP(vector<long long> &dp, vector<long long> &dp_next, auto cost, int low,
 // WARNING: the cost function for f() should be doubled
 // O(log(high - low)) applications of f()
 template<typename Pred>
-long long custom_binary_search(long long low, long long high, const long long &step, Pred p, bool is_left = true){
+long long custom_binary_search(long long low, long long high, const long long &step, Pred p, const &bool is_left = true){
 	assert(low < high && (high - low) % step == 0);
-	const long long rem = (low % step + step) % step;
-	if(is_left){
-		while(high - low > step){
-			long long mid = low + (high - low >> 1);
-			mid = mid / step * step + rem;
-			p(mid) ? low = mid : high = mid;
-		}
-		return low;
+	const auto rem = (low % step + step) % step;
+	while(high - low > step){
+		long long mid = (low + (high - low >> 1)) / step * step + rem;
+		(p(mid) == is_left ? low : high) = mid;
 	}
-	else{
-		while(high - low > step){
-			long long mid = low + (high - low >> 1);
-			mid = mid / step * step + rem;
-			p(mid) ? high = mid : low = mid;
-		}
-		return high;
-	}
+	return is_left ? low : high;
 }
 template<typename DP, bool GET_MAX = true>
 pair<long long, vector<int>> LagrangeDP(int n, DP f, long long k, long long low, long long high){
@@ -2304,10 +2299,11 @@ struct Z_p{
 	}
 	Z_p operator^(long long e) const{
 		Z_p b = *this, res = 1;
+		if(e < 0) b = 1 / b, e = -e;
 		for(; e; b *= b, e >>= 1) if(e & 1) res *= b;
 		return res;
 	}
-	Z_p &operator^=(long long e){ return *this = *this ^ e; }
+	Z_p &operator^=(const long long &e){ return *this = *this ^ e; }
 	Z_p &operator/=(const Z_p &otr){
 		Type a = otr.value, m = mod(), u = 0, v = 1;
 		while(a){
@@ -2350,111 +2346,18 @@ template<typename T> istream &operator>>(istream &in, Z_p<T> &number){
 	return in;
 }
 template<typename T> ostream &operator<<(ostream &out, const Z_p<T> &number){ return out << number(); }
+
+/*
+using ModType = int;
+struct VarMod{ static ModType value; };
+ModType VarMod::value;
+ModType &mod = VarMod::value;
+using Zp = Z_p<VarMod>;
+*/
+
 constexpr int mod = (int)1e9 + 7;
 //constexpr int mod = 998244353;
 using Zp = Z_p<integral_constant<decay<decltype(mod)>::type, mod>>;
-
-// Variable Mod
-int mod;
-template<typename T>
-struct Z_p{
-	using Type = int;
-	constexpr Z_p(): value(){ }
-	template<typename U> Z_p(const U &x){ value = normalize(x); }
-	template<typename U> static Type normalize(const U &x){
-		Type v;
-		if(-mod <= x && x < mod) v = static_cast<Type>(x);
-		else v = static_cast<Type>(x % mod);
-		if(v < 0) v += mod;
-		return v;
-	}
-	const Type& operator()() const{ return value; }
-	template<typename U> explicit operator U() const{ return static_cast<U>(value); }
-	Z_p &operator+=(const Z_p &otr){ if((value += otr.value) >= mod) value -= mod; return *this; }
-	Z_p &operator-=(const Z_p &otr){ if((value -= otr.value) < 0) value += mod; return *this; }
-	template<typename U> Z_p &operator+=(const U &otr){ return *this += Z_p(otr); }
-	template<typename U> Z_p &operator-=(const U &otr){ return *this -= Z_p(otr); }
-	Z_p &operator++(){ return *this += 1; }
-	Z_p &operator--(){ return *this -= 1; }
-	Z_p operator++(int){ Z_p result(*this); *this += 1; return result; }
-	Z_p operator--(int){ Z_p result(*this); *this -= 1; return result; }
-	Z_p operator-() const{ return Z_p(-value); }
-	template<typename U = T>
-	typename enable_if<is_same<typename Z_p<U>::Type, int>::value, Z_p>::type& operator*=(const Z_p& rhs){
-		#ifdef _WIN32
-		uint64_t x = static_cast<int64_t>(value) * static_cast<int64_t>(rhs.value);
-		uint32_t xh = static_cast<uint32_t>(x >> 32), xl = static_cast<uint32_t>(x), d, m;
-		asm(
-			"divl %4; \n\t"
-			: "=a" (d), "=d" (m)
-			: "d" (xh), "a" (xl), "r" (mod)
-		);
-		value = m;
-		#else
-		value = normalize(static_cast<int64_t>(value) * static_cast<int64_t>(rhs.value));
-		#endif
-		return *this;
-	}
-	template<typename U = T>
-	typename enable_if<is_same<typename Z_p<U>::Type, int64_t>::value, Z_p>::type& operator*=(const Z_p &rhs){
-		int64_t q = static_cast<int64_t>(static_cast<long double>(value) * rhs.value / mod);
-		value = normalize(value * rhs.value - q * mod);
-		return *this;
-	}
-	template<typename U = T>
-	typename enable_if<!is_integral<typename Z_p<U>::Type>::value, Z_p>::type& operator*=(const Z_p &rhs){
-		value = normalize(value * rhs.value);
-		return *this;
-	}
-	Z_p operator^(long long e) const{
-		Z_p b = *this, res = 1;
-		for(; e; b *= b, e >>= 1) if(e & 1) res *= b;
-		return res;
-	}
-	Z_p &operator^=(long long e){ return *this = *this ^ e; }
-	Z_p &operator/=(const Z_p &otr){
-		Type a = otr.value, m = mod, u = 0, v = 1;
-		while(a){
-			Type t = m / a;
-			m -= t * a; swap(a, m);
-			u -= t * v; swap(u, v);
-		}
-		assert(m == 1);
-		return *this *= u;
-	}
-	template<typename U> friend const Z_p<U> &abs(const Z_p<U> &v){ return v; }
-	template<typename U> friend bool operator==(const Z_p<U> &lhs, const Z_p<U> &rhs);
-	template<typename U> friend bool operator<(const Z_p<U> &lhs, const Z_p<U> &rhs);
-	template<typename U> friend istream &operator>>(istream &in, Z_p<U> &number);
-	Type value;
-};
-template<typename T> bool operator==(const Z_p<T> &lhs, const Z_p<T> &rhs){ return lhs.value == rhs.value; }
-template<typename T, typename U> bool operator==(const Z_p<T>& lhs, U rhs){ return lhs == Z_p<T>(rhs); }
-template<typename T, typename U> bool operator==(U lhs, const Z_p<T> &rhs){ return Z_p<T>(lhs) == rhs; }
-template<typename T> bool operator!=(const Z_p<T> &lhs, const Z_p<T> &rhs){ return !(lhs == rhs); }
-template<typename T, typename U> bool operator!=(const Z_p<T> &lhs, U rhs){ return !(lhs == rhs); }
-template<typename T, typename U> bool operator!=(U lhs, const Z_p<T> &rhs){ return !(lhs == rhs); }
-template<typename T> bool operator<(const Z_p<T> &lhs, const Z_p<T> &rhs){ return lhs.value < rhs.value; }
-template<typename T> Z_p<T> operator+(const Z_p<T> &lhs, const Z_p<T> &rhs){ return Z_p<T>(lhs) += rhs; }
-template<typename T, typename U> Z_p<T> operator+(const Z_p<T> &lhs, U rhs){ return Z_p<T>(lhs) += rhs; }
-template<typename T, typename U> Z_p<T> operator+(U lhs, const Z_p<T> &rhs){ return Z_p<T>(lhs) += rhs; }
-template<typename T> Z_p<T> operator-(const Z_p<T> &lhs, const Z_p<T> &rhs){ return Z_p<T>(lhs) -= rhs; }
-template<typename T, typename U> Z_p<T> operator-(const Z_p<T>& lhs, U rhs){ return Z_p<T>(lhs) -= rhs; }
-template<typename T, typename U> Z_p<T> operator-(U lhs, const Z_p<T> &rhs){ return Z_p<T>(lhs) -= rhs; }
-template<typename T> Z_p<T> operator*(const Z_p<T> &lhs, const Z_p<T> &rhs){ return Z_p<T>(lhs) *= rhs; }
-template<typename T, typename U> Z_p<T> operator*(const Z_p<T>& lhs, U rhs){ return Z_p<T>(lhs) *= rhs; }
-template<typename T, typename U> Z_p<T> operator*(U lhs, const Z_p<T> &rhs){ return Z_p<T>(lhs) *= rhs; }
-template<typename T> Z_p<T> operator/(const Z_p<T> &lhs, const Z_p<T> &rhs) { return Z_p<T>(lhs) /= rhs; }
-template<typename T, typename U> Z_p<T> operator/(const Z_p<T>& lhs, U rhs) { return Z_p<T>(lhs) /= rhs; }
-template<typename T, typename U> Z_p<T> operator/(U lhs, const Z_p<T> &rhs) { return Z_p<T>(lhs) /= rhs; }
-template<typename T> istream &operator>>(istream &in, Z_p<T> &number){
-	typename common_type<typename Z_p<T>::Type, int64_t>::type x;
-	in >> x;
-	number.value = Z_p<T>::normalize(x);
-	return in;
-}
-template<typename T> ostream &operator<<(ostream &out, const Z_p<T> &number){ return out << number(); }
-using Zp = Z_p<int>;
 
 // 156485479_2_10
 // K-Dimensional Prefix Sum
@@ -2585,6 +2488,30 @@ struct Matroid_Intersection{
 // 156485479_2_11_2
 // Matroid Union
 
+// 156485479_2_12
+// LIS / Returns the indices of the longest increasing sequence
+// O(n log n)
+// Credit: KACTL
+template<typename T>
+vector<int> LIS(const vector<T> &a){
+	int n = int(a.size());
+	if(!n) return {};
+	vector<int> prev(n);
+	typedef pair<T, int> p;
+	vector<p> active;
+	for(int i = 0; i < n; ++ i){
+		// change 0 -> i for longest non-decreasing subsequence
+		auto it = lower_bound(all(active), p{a[i], 0});
+		if(it == active.end()) active.emplace_back(), it = prev(active.end());
+		*it = {a[i], i};
+		prev[i] = it == active.begin() ? 0 : prev(it)->second;
+	}
+	int L = int(active.size()), cur = active.back().second;
+	vector<int> res(L);
+	while(L --) res[L] = cur, cur = prev[cur];
+	return res;
+}
+
 // 156485479_3_1
 // Sparse Table
 // The binary operator must be idempotent and associative
@@ -2617,7 +2544,7 @@ struct sparse_table{
 	BO bin_op;
 	T id;
 	vector<vector<vector<vector<T>>>> val;
-	sparse_table(vector<vector<T>> &&arr, BO bin_op, T id): n(arr.size()), m(arr[0].size()), bin_op(bin_op), id(id), val(__lg(n) + 1, vector<vector<vector<T>>>(__lg(m) + 1, arr)){
+	sparse_table(const vector<vector<T>> &arr, BO bin_op, T id): n(arr.size()), m(arr[0].size()), bin_op(bin_op), id(id), val(__lg(n) + 1, vector<vector<vector<T>>>(__lg(m) + 1, arr)){
 		for(int ii = 0; ii < n; ++ ii) for(int jj = 0; jj < m; ++ jj){
 			for(int i = 0, j = 0; j < __lg(m); ++ j) val[i][j + 1][ii][jj] = bin_op(val[i][j][ii][jj], val[i][j][ii][min(m - 1, jj + (1 << j))]);
 		}
@@ -2641,14 +2568,23 @@ template<typename T, typename BO>
 struct segment{
 	int n;
 	BO bin_op;
-	const T id;
+	T id;
 	vector<T> val;
+	vector<int> roots;
 	template<typename IT>
 	segment(IT begin, IT end, BO bin_op, T id): n(distance(begin, end)), bin_op(bin_op), id(id), val(n << 1, id){
 		for(int i = 0; i < n; ++ i) val[i + n] = *(begin ++);
 		for(int i = n - 1; i > 0; -- i) val[i] = bin_op(val[i << 1], val[i << 1 | 1]);
 	}
 	segment(int n, BO bin_op, T id): n(n), bin_op(bin_op), id(id), val(n << 1, id){ }
+	void init_roots(){
+		vector<int> roots_r;
+		for(auto l = n, r = n << 1; l < r; l >>= 1, r >>= 1){
+			if(l & 1) roots.push_back(l ++);
+			if(r & 1) roots_r.push_back(-- r);
+		}
+		roots.insert(roots.end(), roots_r.rbegin(), roots_r.rend());
+	}
 	template<bool increment = true>
 	void update(int p, T x){
 		for(p += n, val[p] = increment ? bin_op(val[p], x) : x; p > 1; p >>= 1) val[p >> 1] = bin_op(val[p], val[p ^ 1]);
@@ -2673,11 +2609,20 @@ struct segment{
 	BO bin_op;
 	T id;
 	vector<T> val;
+	vector<int> roots;
 	template<typename IT>
 	segment(IT begin, IT end, BO bin_op, T id): n(distance(begin, end)), bin_op(bin_op), id(id), val(n << 1, id){
 		for(int i = 0; i < n; ++ i) val[i + n] = *(begin ++);
 	}
 	segment(int n, BO bin_op, T id): n(n), bin_op(bin_op), id(id), val(n << 1, id){ }
+	void init_roots(){
+		vector<int> roots_r;
+		for(auto l = n, r = n << 1; l < r; l >>= 1, r >>= 1){
+			if(l & 1) roots.push_back(l ++);
+			if(r & 1) roots_r.push_back(-- r);
+		}
+		roots.insert(roots.end(), roots_r.rbegin(), roots_r.rend());
+	}
 	void update(int l, int r, T x){
 		for(l += n, r += n; l < r; l >>= 1, r >>= 1){
 			if(l & 1) val[l ++] = bin_op(val[l], x);
@@ -2751,7 +2696,7 @@ template<typename T, typename BO>
 struct segment{
 	int n;
 	BO bin_op;
-	const T id;
+	T id;
 	vector<T> val;
 	template<typename IT>
 	segment(IT begin, IT end, BO bin_op, T id): n(distance(begin, end)), bin_op(bin_op), id(id), val(n << 2, id){
@@ -2800,10 +2745,11 @@ struct segment{
 // O(n) processing, O(log n) per query
 struct lazy_segment{
 	int n, h;
+	vector<int> roots;
 
-#define R array<int, 2> // Range type
-#define L int           // Lazy type
-#define Q array<int, 2>     // Query type min, cnt
+#define R array<int, 2>		// Range type
+#define L int 				// Lazy type
+#define Q array<int, 2>		// Query type
 	L lop(const L &lazy, const R &r0, const L &x, const R &r1){ // r1 always contain r0
 		return lazy + x;
 	}
@@ -2831,6 +2777,14 @@ struct lazy_segment{
 		init_range();
 		for(int i = n; i < n << 1; ++ i) val[i] = init(i - n);
 		build(0, n);
+	}
+	void init_roots(){
+		vector<int> roots_r;
+		for(auto l = n, r = n << 1; l < r; l >>= 1, r >>= 1){
+			if(l & 1) roots.push_back(l ++);
+			if(r & 1) roots_r.push_back(-- r);
+		}
+		roots.insert(roots.end(), roots_r.rbegin(), roots_r.rend());
 	}
 	void init_range(){
 		for(int i = n; i < n << 1; ++ i) range[i] = {i - n, i - n + 1};
@@ -3073,7 +3027,7 @@ struct fenwick{
 	int n;
 	BO bin_op;
 	IO inv_op;
-	const T id;
+	T id;
 	vector<T> val;
 	template<typename IT>
 	fenwick(IT begin, IT end, BO bin_op, IO inv_op, T id): n(distance(begin, end)), bin_op(bin_op), inv_op(inv_op), id(id), val(n + 1, id){
@@ -3103,7 +3057,7 @@ struct fenwick{
 	int n;
 	BO bin_op;
 	IO inv_op;
-	const T id;
+	T id;
 	vector<T> val;
 	template<typename IT>
 	fenwick(IT begin, IT end, BO bin_op, IO inv_op, T id): n(distance(begin, end)), bin_op(bin_op), inv_op(inv_op), id(id), val(n + 1, id){
@@ -3130,7 +3084,7 @@ struct rangefenwick{
 	BO bin_op;
 	IO inv_op;
 	MO multi_op;
-	const T id;
+	T id;
 	rangefenwick(int n, BO bin_op, IO inv_op, MO multi_op, T id):
 		tr1(n, bin_op, inv_op, id),
 		tr2(n, bin_op, inv_op, id),
@@ -3157,7 +3111,7 @@ struct fenwick{
 	int n, m;
 	BO bin_op;
 	IO inv_op;
-	const T id;
+	T id;
 	vector<vector<T>> val;
 	fenwick(const vector<vector<T>> &arr, BO bin_op, IO inv_op, T id): n(arr.size()), m(arr[0].size()), bin_op(bin_op), inv_op(inv_op), id(id), val(n + 1, vector<T>(m + 1)){
 		for(int i = 0; i < n; ++ i) for(int j = 0; j < m; ++ j) update(i, j, arr[i][j]);
@@ -3288,15 +3242,15 @@ struct rollback_disjoint_set{
 // 156485479_3_6
 // Monotone Stack
 // O(1) per operation
-template<typename T = int, typename Compare = function<bool(T, T)>>
+template<typename T = int, typename Compare = less<>>
 struct monotone_stack: vector<T>{
 	T init;
 	Compare cmp;
-	monotone_stack(T init = 0, Compare cmp = less<T>{}): init(init), cmp(cmp){ }
+	monotone_stack(T init = 0, Compare cmp = less{}): init(init), cmp(cmp){ }
 	T push(T x){
 		while(!this->empty() && !cmp(this->back(), x)) this->pop_back();
 		this->push_back(x);
-		return this->size() == 1 ? init : *-- -- this->end();
+		return this->size() == 1 ? init : *next(this->rbegin());
 	}
 };
 
@@ -3308,7 +3262,7 @@ struct fenwick{
 	int n;
 	BO bin_op;
 	IO inv_op;
-	const T id;
+	T id;
 	vector<T> val;
 	template<typename IT>
 	fenwick(IT begin, IT end, BO bin_op, IO inv_op, T id): n(distance(begin, end)), bin_op(bin_op), inv_op(inv_op), id(id), val(n + 1, id){
@@ -4399,7 +4353,7 @@ struct binary_lift{
 	vector<vector<int>> up;
 	vector<int> depth, visited;
 	template<typename Graph>
-	binary_lift(const Graph &adj): n(n), lg(__lg(n) + 1), depth(n), visited(n), up(n, vector<int>(lg + 1)){
+	binary_lift(const Graph &adj): n(int(adj.size())), lg(__lg(n) + 1), depth(n), visited(n), up(n, vector<int>(__lg(n) + 2)){
 		for(int u = 0; u < n; ++ u) if(!visited[u]) dfs(adj, u, u);
 	}
 	template<typename Graph>
@@ -4407,9 +4361,9 @@ struct binary_lift{
 		visited[u] = true;
 		up[u][0] = p;
 		for(int i = 1; i <= lg; ++ i) up[u][i] = up[up[u][i - 1]][i - 1];
-		for(auto &v: adj[u]) if(v != p){
+		for(auto v: adj[u]) if(v != p){
 			depth[v] = depth[u] + 1;
-			dfs(v, u);
+			dfs(adj, v, u);
 		}
 	}
 	int lca(int u, int v){
@@ -4922,6 +4876,61 @@ vector<array<int, 2>> compressed_tree(LCA &lca, vector<int> &subset){
 		res.push_back({rev[lca.query(u, v)], v});
 	}
 	return res;
+}
+
+// 156485479_4_5_9
+// Pruefer Code
+// O(V) for both
+// Credit: CP-Algorithms
+template<typename Graph>
+vector<int> pruefer_code(const Graph &adj){
+	int n = int(adj.size());
+	vector<int> parent(n);
+	function<void(int, int)> dfs = [&](int u, int p){
+		parent[u] = p;
+		for(auto v: adj[u]) if(v != p) dfs(v, u);
+	};
+	dfs(n - 1, -1);
+	int ptr = -1;
+	vector<int> deg(n);
+	for(int u = 0; u < n; ++ u){
+		deg[u] = int(adj[u].size());
+		if(deg[u] == 1 && ptr == -1) ptr = u;
+	}
+	vector<int> code(n - 2);
+	for(int i = 0, leaf = ptr; i < n - 2; ++ i){
+		int next = parent[leaf];
+		code[i] = next;
+		if(-- deg[next] == 1 && next < ptr) leaf = next;
+		else{
+			++ ptr;
+			while(deg[ptr] != 1) ++ ptr;
+			leaf = ptr;
+		}
+	}
+	return code;
+}
+// Decode
+template<typename Code>
+vector<array<int, 2>> pruefer_decode(const Code &code){
+	int n = int(code.size()) + 2;
+	vector<int> deg(n, 1);
+	for(auto u: code) ++ deg[u];
+	int ptr = 0;
+	while(deg[ptr] != 1) ++ ptr;
+	int leaf = ptr;
+	vector<array<int, 2>> edges;
+	for(auto u: code){
+		edges.emplace_back(leaf, u);
+		if(-- deg[u] == 1 && u < ptr) leaf = u;
+		else{
+			++ ptr;
+			while(deg[ptr] != 1) ++ ptr;
+			leaf = ptr;
+		}
+	}
+	edges.push_back({leaf, n - 1});
+	return edges;
 }
 
 // 156485479_4_6_1
@@ -5512,6 +5521,7 @@ vector<int> z_function(const Str &s){
 // 156485479_5_5
 // Aho Corasic Automaton
 // O(W) preprocessing, O(L) per query
+// Credit: CP-Algorithms
 template<typename Str, int lim = 128, typename Str::value_type PCH = '$'>
 struct aho_corasic{
 	typedef typename Str::value_type Char;
@@ -5552,12 +5562,17 @@ struct aho_corasic{
 		}
 		return state[u].elink;
 	}
-	int go(int u, Char c){
+	int go(int u, const Char &c){
 		if(state[u].go[c] == -1){
 			if(state[u].next[c] != -1) state[u].go[c] = state[u].next[c];
 			else state[u].go[c] = u ? go(get_link(u), c) : u;
 		}
 		return state[u].go[c];
+	}
+	int go(const Str &s){
+		int u = 0;
+		for(auto &c: s) u = go(u, c);
+		return u;
 	}
 	void print(int u, Str s = ""){
 		cout << "Node " << u << ": par = " << state[u].par << ", cpar = " << state[u].cpar << ", string: " << s << "\n";
@@ -6387,3 +6402,43 @@ void *operator new(size_t s){
 	return (void *)&BUFF[i -= s];
 }
 void operator delete(void *){ }
+
+// 156485479_7_3
+// Debug
+template<class L, class R>
+istream &operator>>(istream &in, pair<L, R> &p){
+	return in >> p.first >> p.second;
+}
+template<class Tuple, size_t ...Is>
+void read_tuple(istream &in, Tuple &t, index_sequence<Is...>){
+	((in >> get<Is>(t)), ...);
+}
+template<class ...Args>
+istream &operator>>(istream &in, tuple<Args...> &t){
+	read_tuple(in, t, index_sequence_for<Args...>{});
+	return in;
+}
+template<class ...Args, template<class...> class T>
+istream &operator>>(enable_if_t<!is_same_v<T<Args...>, string>, istream> &in, T<Args...> &arr){
+	for(auto &x: arr) in >> x; return in;
+}
+template<class L, class R>
+ostream &operator<<(ostream &out, const pair<L, R> &p){
+	return out << "P(" << p.first << " " << p.second << ")";
+}
+template<class Tuple, size_t ...Is>
+void print_tuple(ostream &out, const Tuple &t, index_sequence<Is...>){
+	((out << (Is ? " " : "") << get<Is>(t)), ...);
+}
+template<class ...Args>
+ostream &operator<<(ostream &out, const tuple<Args...> &t){
+	out << "T<";
+	print_tuple(out, t, index_sequence_for<Args...>{});
+	return out << ">";
+}
+template<class ...Args, template<class...> class T>
+ostream &operator<<(enable_if_t<!is_same_v<T<Args...>, string>, ostream> &out, const T<Args...> &arr){
+	out << "V[";
+	for(auto &x: arr) out << x << " ";
+	return out << "]\n";
+}
