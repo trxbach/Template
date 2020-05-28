@@ -1710,14 +1710,14 @@ long long custom_binary_search(long long low, long long high, Pred p, const bool
 }
 // Binary search for numbers with the same remainder mod step
 template<typename Pred>
-long long custom_binary_search(long long low, long long high, const long long &step, Pred p, const &bool is_left = true){
-	assert(low < high && (high - low) % step == 0);
-	const auto rem = (low % step + step) % step;
-	while(high - low > step){
-		long long mid = (low + (high - low >> 1)) / step * step + rem;
-		(p(mid) == is_left ? low : high) = mid;
+long long custom_binary_search(long long low0, long long high0, const long long &step, Pred p, const bool &is_left = true){
+	auto low = low0 / step - ((low0 ^ step) < 0 && low0 % step), high = high0 / step + ((high0 ^ step) > 0 && high0 % step);
+	const auto rem = low0 - low * step;
+	while(high - low > 1){
+		auto mid = low + (high - low >> 1);
+		(p(mid * step + rem) == is_left ? low : high) = mid;
 	}
-	return is_left ? low : high;
+	return (is_left ? low : high) * step + rem;
 }
 
 // 156485479_2_6_1_1
@@ -1959,14 +1959,10 @@ vector<long long> monotone_queue_dp(int n, long long init, auto cost){
 // 156485479_2_7
 // Kadane
 // O(N)
-template<typename T>
-T kadane(const vector<T> &arr){
-	int n = int(arr.size());
-	T lm = 0, gm = 0;
-	for(int i = 0; i < n; ++ i){
-		lm = max(arr[i], arr[i] + lm);
-		gm = max(gm, lm);
-	}
+template<typename IT, typename T = int>
+auto kadane(IT begin, IT end, T init = 0){
+	typename iterator_traits<IT>::value_type lm = init, gm = init;
+	for(; begin != end; ++ begin) lm = max(*begin, *begin + lm), gm = max(gm, lm);
 	return gm;
 }
 
@@ -5965,42 +5961,44 @@ template<typename T = long long> struct point{
 	template<typename U> explicit operator point<U>() const{ return point<U>(static_cast<U>(x), static_cast<U>(y)); }
 	T operator*(const point &otr) const{ return x * otr.x + y * otr.y; }
 	T operator^(const point &otr) const{ return x * otr.y - y * otr.x; }
-	point operator+(const point &otr) const{ return point(x + otr.x, y + otr.y); }
+	point operator+(const point &otr) const{ return {x + otr.x, y + otr.y}; }
 	point &operator+=(const point &otr){ return *this = *this + otr; }
-	point operator-(const point &otr) const{ return point(x - otr.x, y - otr.y); }
+	point operator-(const point &otr) const{ return {x - otr.x, y - otr.y}; }
 	point &operator-=(const point &otr){ return *this = *this - otr; }
-	point operator*(const T &c) const{ return point(x * c, y * c); }
-	point &operator*=(const T &c) { return *this = *this * c; }
-	point operator/(const T &c) const{ return point(x / c, y / c); }
-	point &operator/=(const T &c) { return *this = *this / c; }
-	point operator-() const{ return point(-x, -y); }
-	bool operator<(const point &otr) const{ return tie(x, y) < tie(otr.x, otr.y); }
-	bool operator>(const point &otr) const{ return tie(x, y) > tie(otr.x, otr.y); }
-	bool operator<=(const point &otr) const{ return tie(x, y) <= tie(otr.x, otr.y); }
-	bool operator>=(const point &otr) const{ return tie(x, y) >= tie(otr.x, otr.y); }
-	bool operator==(const point &otr) const{ return tie(x, y) == tie(otr.x, otr.y); }
-	bool operator!=(const point &otr) const{ return tie(x, y) != tie(otr.x, otr.y); }
+	point operator-() const{ return {-x, -y}; }
+#define scalarop_l(op) friend point operator op(const T &c, const point &p){ return {c op p.x, c op p.y}; }
+	scalarop_l(+) scalarop_l(-) scalarop_l(*) scalarop_l(/)
+#undef scalarop_l
+#define scalarop_r(op) point operator op(const T &c) const{ return {x op c, y op c}; }
+	scalarop_r(+) scalarop_r(-) scalarop_r(*) scalarop_r(/)
+#undef scalarop_r
+#define scalarapply_r(op) point &operator op(const T &c){ return *this = *this op c; }
+	scalarapply_r(+=) scalarapply_r(-=) scalarapply_r(*=) scalarapply_r(/=)
+#undef scalarapply_r
+#define compareop(op) bool operator op(const point &otr) const{ return tie(x, y) op tie(otr.x, otr.y); }
+	compareop(>) compareop(<) compareop(>=) compareop(<=) compareop(==) compareop(!=)
+#undef compareop
 	double norm() const{ return sqrt(x * x + y * y); }
 	T squared_norm() const{ return x * x + y * y; }
 	double arg() const{ return atan2(y, x); } // [-pi, pi]
 	point<double> unit() const{ return point<double>(x, y) / norm(); }
-	point perp() const{ return point(-y, x); }
+	point perp() const{ return {-y, x}; }
 	point<double> normal() const{ return perp().unit(); }
 	point<double> rotate(const double &theta) const{ return point<double>(x * cos(theta) - y * sin(theta), x * sin(theta) + y * cos(theta)); }
-	point reflect_x() const{ return point(x, -y); }
-	point reflect_y() const{ return point(-x, y); }
+	point reflect_x() const{ return {x, -y}; }
+	point reflect_y() const{ return {-x, y}; }
+	point reflect(const point &o) const{ return {2 * o.x - x, 2 * o.y - y}; }
 	bool operator||(const point &otr) const{ return !(*this ^ otr); }
 };
-template<typename T> point<T> operator*(const T &c, const point<T> &p){ return point<T>(c * p.x, c * p.y); }
 template<typename T> istream &operator>>(istream &in, point<T> &p){ return in >> p.x >> p.y; }
 template<typename T> ostream &operator<<(ostream &out, const point<T> &p){ return out << "(" << p.x << ", " << p.y << ")"; }
 template<typename T> double distance(const point<T> &p, const point<T> &q){ return (p - q).norm(); }
 template<typename T> T squared_distance(const point<T> &p, const point<T> &q){ return (p - q).squared_norm(); }
 template<typename T, typename U, typename V> T ori(const point<T> &p, const point<U> &q, const point<V> &r){ return (q - p) ^ (r - p); }
-template<typename T> T doubled_signed_area(const vector<point<T>> &arr){
-	T s = arr.back() ^ arr.front();
-	for(int i = 1; i < arr.size(); ++ i) s += arr[i - 1] ^ arr[i];
-	return s;
+template<typename IT> auto doubled_signed_area(IT begin, IT end){
+	typename iterator_traits<IT>::value_type s = 0, init = *begin;
+	for(; begin != prev(end); ++ begin) s += *begin ^ *next(begin);
+	return s + (*begin ^ init);
 }
 template<typename T = long long> struct line{
 	point<T> p, d; // p + d*t
@@ -6010,8 +6008,8 @@ template<typename T = long long> struct line{
 	template<typename U> explicit operator line<U>() const{ return line<U>(point<U>(p), point<U>(d), false); }
 	point<T> q() const{ return p + d; }
 	bool degen() const{ return d == point<T>(); }
-	tuple<T, T, T> coef(){ return {d.y, -d.x, d.perp() * p}; } // d.y (X - p.x) - d.x (Y - p.y) = 0
-	bool operator||(const line<T> &L){ return d || L.d; }
+	tuple<T, T, T> coef() const{ return {d.y, -d.x, d.perp() * p}; } // d.y (X - p.x) - d.x (Y - p.y) = 0
+	bool operator||(const line<T> &L) const{ return d || L.d; }
 };
 template<typename T> bool on_line(const point<T> &p, const line<T> &L){
 	if(L.degen()) return p == L.p;
@@ -6098,11 +6096,11 @@ template<typename P> struct compare_by_angle{
 	compare_by_angle(const P &origin = P()): origin(origin){ }
 	bool operator()(const P &p, const P &q) const{ return ori(origin, p, q) > 0; }
 };
-template<typename It, typename P> void sort_by_angle(It first, It last, const P &origin){
-	first = partition(first, last, [&origin](const decltype(*first) &point){ return origin == point; });
-	auto pivot = partition(first, last, [&origin](const decltype(*first) &point) { return origin < point; });
+template<typename It, typename P> void sort_by_angle(It begin, It end, const P &origin){
+	begin = partition(begin, end, [&origin](const decltype(*begin) &point){ return point == origin; });
+	auto pivot = partition(begin, end, [&origin](const decltype(*begin) &point) { return point > origin; });
 	compare_by_angle<P> cmp(origin);
-	sort(first, pivot, cmp), sort(pivot, last, cmp);
+	sort(begin, pivot, cmp), sort(pivot, end, cmp);
 }
 // 3D Geometry Classes
 template<typename T = long long> struct point{
