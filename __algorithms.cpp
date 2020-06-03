@@ -236,6 +236,8 @@ Category
 		156485479_5_10
 	5.11. Levenshtein Automaton ( INCOMPLETE )
 		156485479_5_11
+	5.12. Burrows Wheeler Transform / Inverse
+		156485479_5_12
 
 
 6. Geometry
@@ -245,6 +247,9 @@ Category
 		156485479_6_2
 	6.3. KD Tree ( WARNING: UNTESTED )
 		156485479_6_3
+	6.4. Line Sweep
+		6.4.1. Find a Pair of Intersecting Segments
+			156485479_6_4_1
 
 
 7. Miscellaneous
@@ -2519,9 +2524,10 @@ struct sparse_table{
 	T id;
 	vector<vector<T>> val;
 	template<typename IT>
-	sparse_table(IT begin, IT end, BO bin_op, T id): n(distance(begin, end)), bin_op(bin_op), id(id), val(__lg(n) + 1, vector<T>(begin, end)){
-		for(int i = 0; i < __lg(n); ++ i) for(int j = 0; j < n; ++ j){
-			val[i + 1][j] = bin_op(val[i][j], val[i][min(n - 1, j + (1 << i))]);
+	sparse_table(IT begin, IT end, BO bin_op, T id): n(distance(begin, end)), bin_op(bin_op), id(id), val(1, {begin, end}){
+		for(int p = 1, i = 1; p << 1 <= n; p <<= 1, ++ i){
+			val.emplace_back(n - (p << 1) + 1);
+			for(int j = 0; j < int(val[i].size()); ++ j) val[i][j] = min(val[i - 1][j], val[i - 1][j + p]);
 		}
 	}
 	sparse_table(){ }
@@ -2583,7 +2589,7 @@ struct segment{
 	}
 	template<bool increment = true>
 	void update(int p, T x){
-		for(p += n, val[p] = increment ? bin_op(val[p], x) : x; p > 1; p >>= 1) val[p >> 1] = bin_op(val[p], val[p ^ 1]);
+		for(val[p += n] = increment ? bin_op(val[p], x) : x; p >>= 1; ) val[p] = bin_op(val[p << 1], val[p << 1 | 1]);
 	}
 	T query(int l, int r){
 		if(l >= r) return id;
@@ -2706,15 +2712,15 @@ struct segment{
 			int mid = left + (right - left >> 1);
 			IT inter = begin + mid;
 			build(begin, inter, u << 1, left, mid);
-			build(inter, end, u << 1 ^ 1, mid, right);
-			val[u] = bin_op(val[u << 1], val[u << 1 ^ 1]);
+			build(inter, end, u << 1 | 1, mid, right);
+			val[u] = bin_op(val[u << 1], val[u << 1 | 1]);
 		}
 	}
 	T pq(int u, int left, int right, int ql, int qr){
 		if(qr <= left || right <= ql) return id;
 		if(ql == left && qr == right) return val[u];
 		int mid = left + (right - left >> 1);
-		return bin_op(pq(u << 1, left, mid, ql, qr), pq(u << 1 ^ 1, mid, right, ql, qr));
+		return bin_op(pq(u << 1, left, mid, ql, qr), pq(u << 1 | 1, mid, right, ql, qr));
 	}
 	T query(int ql, int qr){
 		return pq(1, 0, n, ql, qr);
@@ -2725,8 +2731,8 @@ struct segment{
 		else{
 			int mid = left + (right - left >> 1);
 			if(ind < mid) pu<increment>(u << 1, left, mid, ind, x);
-			else pu<increment>(u << 1 ^ 1, mid, right, ind, x);
-			val[u] = bin_op(val[u << 1], val[u << 1 ^ 1]);
+			else pu<increment>(u << 1 | 1, mid, right, ind, x);
+			val[u] = bin_op(val[u << 1], val[u << 1 | 1]);
 		}
 	}
 	template<bool increment = true>
@@ -3048,40 +3054,15 @@ struct fenwick{
 // 156485479_3_3_2
 // Fenwick Tree Supporting Range Queries of The Same Type
 // O(n log n) preprocessing, O(log n) per query
-template<typename T, typename BO, typename IO>
-struct fenwick{
-	int n;
-	BO bin_op;
-	IO inv_op;
-	T id;
-	vector<T> val;
-	template<typename IT>
-	fenwick(IT begin, IT end, BO bin_op, IO inv_op, T id): n(distance(begin, end)), bin_op(bin_op), inv_op(inv_op), id(id), val(n + 1, id){
-		for(int i = 0; i < n; ++ i) update(i, *(begin ++));
-	}
-	fenwick(int n, BO bin_op, IO inv_op, T id): n(n), bin_op(bin_op), inv_op(inv_op), id(id), val(n + 1, id){ }
-	template<bool increment = true>
-	void update(int p, T x){
-		if(!increment) x = inv_op(x, query(p, p + 1));
-		for(++ p; p <= n; p += p & -p) val[p] = bin_op(val[p], x);
-	}
-	T sum(int p){
-		T res = id;
-		for(++ p; p > 0; p -= p & -p) res = bin_op(res, val[p]);
-		return res;
-	}
-	T query(int l, int r){
-		return inv_op(sum(r - 1), sum(l - 1));
-	}
-};
+// Requires fenwick
 template<typename T, typename BO, typename IO, typename MO>
-struct rangefenwick{
+struct range_fenwick{
 	fenwick<T, BO, IO> tr1, tr2;
 	BO bin_op;
 	IO inv_op;
 	MO multi_op;
 	T id;
-	rangefenwick(int n, BO bin_op, IO inv_op, MO multi_op, T id):
+	range_fenwick(int n, BO bin_op, IO inv_op, MO multi_op, T id):
 		tr1(n, bin_op, inv_op, id),
 		tr2(n, bin_op, inv_op, id),
 		bin_op(bin_op), inv_op(inv_op), id(id){}
@@ -3103,13 +3084,13 @@ struct rangefenwick{
 // 2D Fenwick Tree ( Only for Commutative Group )
 // O(nm log nm) preprocessing, O(log n log m) per query
 template<typename T, typename BO, typename IO>
-struct fenwick{
+struct fenwick_2d{
 	int n, m;
 	BO bin_op;
 	IO inv_op;
 	T id;
 	vector<vector<T>> val;
-	fenwick(const vector<vector<T>> &arr, BO bin_op, IO inv_op, T id): n(arr.size()), m(arr[0].size()), bin_op(bin_op), inv_op(inv_op), id(id), val(n + 1, vector<T>(m + 1)){
+	fenwick_2d(const vector<vector<T>> &arr, BO bin_op, IO inv_op, T id): n(arr.size()), m(arr[0].size()), bin_op(bin_op), inv_op(inv_op), id(id), val(n + 1, vector<T>(m + 1)){
 		for(int i = 0; i < n; ++ i) for(int j = 0; j < m; ++ j) update(i, j, arr[i][j]);
 	}
 	template<bool increment = true>
@@ -3253,32 +3234,7 @@ struct monotone_stack: vector<T>{
 // 156485479_3_7
 // Distinct Value Query, Less-than-k Query (Offline, Online)
 // O(n log n) processing
-template<typename T, typename BO, typename IO>
-struct fenwick{
-	int n;
-	BO bin_op;
-	IO inv_op;
-	T id;
-	vector<T> val;
-	template<typename IT>
-	fenwick(IT begin, IT end, BO bin_op, IO inv_op, T id): n(distance(begin, end)), bin_op(bin_op), inv_op(inv_op), id(id), val(n + 1, id){
-		for(int i = 0; i < n; ++ i) update(i, *(begin ++));
-	}
-	fenwick(int n, BO bin_op, IO inv_op, T id): n(n), bin_op(bin_op), inv_op(inv_op), id(id), val(n + 1, id){ }
-	template<bool increment = true>
-	void update(int p, T x){
-		if(!increment) x = inv_op(x, query(p, p + 1));
-		for(++ p; p <= n; p += p & -p) val[p] = bin_op(val[p], x);
-	}
-	T sum(int p){
-		T res = id;
-		for(++ p; p > 0; p -= p & -p) res = bin_op(res, val[p]);
-		return res;
-	}
-	T query(int l, int r){
-		return inv_op(sum(r - 1), sum(l - 1));
-	}
-};
+// Requires fenwick
 // TYPE: {0: distinct value query, 1: less-than-k query with numbers in range [0, n), 2: arbitrary range less-than-k query}
 template<typename T, int TYPE = 0>
 struct offline_less_than_k_query{
@@ -3324,82 +3280,7 @@ struct offline_less_than_k_query{
 	}
 };
 // Online
-template<typename T>
-struct node{
-	node *l = 0, *r = 0;
-	T val;
-	node(T val): val(val){}
-	template<typename BO>
-	node(node *l, node *r, BO bin_op, T id): l(l), r(r), val(id){
-		if(l) val = bin_op(l->val, val);
-		if(r) val = bin_op(val, r->val);
-	}
-};
-template<typename T, typename BO>
-struct persistent_segment: vector<node<T> *>{
-	int n;
-	BO bin_op;
-	T id;
-	template<typename IT>
-	persistent_segment(IT begin, IT end, BO bin_op, T id): n(distance(begin, end)), bin_op(bin_op), id(id){
-		this->push_back(build(begin, end, 0, n));
-	}
-	persistent_segment(int n, BO bin_op, T id): n(n), bin_op(bin_op), id(id){
-		vector<int> temp(n, id);
-		this->push_back(build(temp.begin(), temp.end(), 0, n));
-	}
-	template<typename IT>
-	node<T> *build(IT begin, IT end, int left, int right){
-		if(left + 1 == right) return new node<T>(*begin);
-		int mid = left + (right - left >> 1);
-		IT inter = begin + (end - begin >> 1);
-		return new node<T>(build(begin, inter, left, mid), build(inter, end, mid, right), bin_op, id);
-	}
-	T query(node<T> *u, int ql, int qr, int left, int right){
-		if(qr <= left || right <= ql) return id;
-		if(ql <= left && right <= qr) return u->val;
-		int mid = left + (right - left >> 1);
-		return bin_op(query(u->l, ql, qr, left, mid), query(u->r, ql, qr, mid, right));
-	}
-	T query(node<T> *u, int ql, int qr){ return query(u, ql, qr, 0, n); }
-	node<T> *set(node<T> *u, int p, int x, int left, int right){
-		if(left + 1 == right) return new node<T>(x);
-		int mid = left + (right - left >> 1);
-		if(mid > p) return new node<T>(set(u->l, p, x, left, mid), u->r, bin_op, id);
-		else return new node<T>(u->l, set(u->r, p, x, mid, right), bin_op, id);
-	}
-	void set(node<T> *u, int p, int x){ this->push_back(set(u, p, x, 0, n)); }
-	// Below assumes T is an ordered field and node stores positive values
-	
-	// min p such that query[left, p) >= x
-	template<typename IO>
-	int lower_bound(node<T> *u, T x, IO inv_op, int left, int right){
-		if(u->val < x) return right + 1;
-		if(left + 1 == right) return right;
-		int mid = left + (right - left >> 1);
-		if(u->l->val < x) return lower_bound(u->r, inv_op(x, u->l->val), inv_op, mid, right);
-		else return lower_bound(u->l, x, inv_op, left, mid);
-	}
-	// min p such that query[i, p) >= x
-	template<typename IO>
-	int lower_bound(node<T> *u, int i, T x, IO inv_op){
-		return lower_bound(u, bin_op(x, query(u, 0, min(i, n))), inv_op, 0, n);
-	}
-	// min p such that query[left, p) > x
-	template<typename IO>
-	int upper_bound(node<T> *u, T x, IO inv_op, int left, int right){
-		if(x >= u->val) return n + 1;
-		if(left + 1 == right) return right;
-		int mid = left + (right - left >> 1);
-		if(x < u->l->val) return upper_bound(u->l, x, inv_op, left, mid);
-		else return upper_bound(u->r, inv_op(x, u->l->val), inv_op, mid, right);
-	}
-	// min p such that query[i, p) > x
-	template<typename IO>
-	int upper_bound(node<T> *u, int i, T x, IO inv_op){
-		return upper_bound(u, bin_op(x, query(u, 0, min(i, n))), inv_op, 0, n);
-	}
-};
+// Requires persistent_segment
 // TYPE: {0: distinct value query, 1: less-than-k query with numbers in range [0, n), 2: arbitrary range less-than-k query}
 template<typename T, int TYPE = 0>
 struct less_than_k_query{
@@ -4248,25 +4129,7 @@ pair<int, vector<int>> global_min_cut(Graph adj){
 // 156485479_4_5_1
 // LCA
 // O(n log n) processing, O(1) per query
-template<typename T, typename BO>
-struct sparse_table{
-	int n;
-	BO bin_op;
-	T id;
-	vector<vector<T>> val;
-	template<typename IT>
-	sparse_table(IT begin, IT end, BO bin_op, T id): n(distance(begin, end)), bin_op(bin_op), id(id), val(__lg(n) + 1, vector<T>(begin, end)){
-		for(int i = 0; i < __lg(n); ++ i) for(int j = 0; j < n; ++ j){
-			val[i + 1][j] = bin_op(val[i][j], val[i][min(n - 1, j + (1 << i))]);
-		}
-	}
-	sparse_table(){ }
-	T query(int l, int r){
-		if(l >= r) return id;
-		int d = __lg(r - l);
-		return bin_op(val[d][l], val[d][r - (1 << d)]);
-	}
-};
+// Requires sparse_table
 struct lca{
 	int n, T = 0;
 	vector<int> time, depth, path, res;
@@ -4289,28 +4152,10 @@ struct lca{
 		tie(u, v) = minmax(time[u], time[v]);
 		return path[rmq.query(u, v)];
 	}
-	long long dist(int u, int v){ return depth[u] + depth[v] - 2 * depth[query(u, v)]; }
+	int dist(int u, int v){ return depth[u] + depth[v] - 2 * depth[query(u, v)]; }
 };
 // For Weighted Tree
-template<typename T, typename BO>
-struct sparse_table{
-	int n;
-	BO bin_op;
-	T id;
-	vector<vector<T>> val;
-	template<typename IT>
-	sparse_table(IT begin, IT end, BO bin_op, T id): n(distance(begin, end)), bin_op(bin_op), id(id), val(__lg(n) + 1, vector<T>(begin, end)){
-		for(int i = 0; i < __lg(n); ++ i) for(int j = 0; j < n; ++ j){
-			val[i + 1][j] = bin_op(val[i][j], val[i][min(n - 1, j + (1 << i))]);
-		}
-	}
-	sparse_table(){ }
-	T query(int l, int r){
-		if(l >= r) return id;
-		int d = __lg(r - l);
-		return bin_op(val[d][l], val[d][r - (1 << d)]);
-	}
-};
+// Requires sparse_table
 struct weighted_lca{
 	int n, T = 0;
 	vector<int> time, depth, path, res;
@@ -5411,91 +5256,38 @@ array<vector<int>, 2> manacher(const Str &s){
 }
 
 // 156485479_5_3
-// Suffix Array and Kasai's Algorithm
-// O(N log N)
-template<typename T, typename BO>
-struct sparse_table{
-	int n;
-	BO bin_op;
-	T id;
-	vector<vector<T>> val;
-	template<typename IT>
-	sparse_table(IT begin, IT end, BO bin_op, T id): n(distance(begin, end)), bin_op(bin_op), id(id), val(__lg(n) + 1, vector<T>(begin, end)){
-		for(int i = 0; i < __lg(n); ++ i) for(int j = 0; j < n; ++ j){
-			val[i + 1][j] = bin_op(val[i][j], val[i][min(n - 1, j + (1 << i))]);
-		}
-	}
-	sparse_table(){ }
-	T query(int l, int r){
-		if(l >= r) return id;
-		int d = __lg(r - l);
-		return bin_op(val[d][l], val[d][r - (1 << d)]);
-	}
-};
-template<typename Str, int lim = 256>
+// Suffix Array and Kasai's Algorithm for LCP
+// O((N + W) log N) processing, O(1) per query
+// delim must be smaller than the characters on s
+// Requires sparse_table
+template<typename Str>
 struct suffix_array{
 	int n;
-	vector<int> p, c, l; // p[i]: starting index of i-th suffix in SA, c[i]: position of suffix of index i in SA
+	vector<int> sa, rank, lcp;
 	sparse_table<int, function<int(int, int)>> rmq;
-	suffix_array(const Str &s, typename Str::value_type delim = '$'): n(s.size()), c(n){
-		p = sort_cyclic_shifts(s + delim);
-		p.erase(p.begin());
-		for(int i = 0; i < n; ++ i) c[p[i]] = i;
-		l = get_lcp(s, p);
-		rmq = {l.begin(), l.end(), [&](int x, int y){ return min(x, y); }, numeric_limits<int>::max()};
-	}
-	vector<int> sort_cyclic_shifts(const Str &s){
-		int n = int(s.size());
-		vector<int> p(n), c(n), cnt(max(lim, n));
-		for(auto x: s) ++ cnt[x];
-		for(int i = 1; i < lim; ++ i) cnt[i] += cnt[i - 1];
-		for(int i = 0; i < n; ++ i) p[-- cnt[s[i]]] = i;
-		int classes = 1;
-		for(int i = 1; i < n; ++ i){
-			if(s[p[i]] != s[p[i - 1]]) classes ++;
-			c[p[i]] = classes - 1;
-		}
-		vector<int> pn(n), cn(n);
-		for(int h = 0; (1 << h) < n; ++ h){
-			for(int i = 0; i < n; ++ i){
-				pn[i] = p[i] - (1 << h);
-				if(pn[i] < 0) pn[i] += n;
-			}
-			fill(cnt.begin(), cnt.begin() + classes, 0);
-			for(auto x: pn) ++ cnt[c[x]];
-			for(int i = 1; i < classes; ++ i) cnt[i] += cnt[i - 1];
-			for(int i = n - 1; i >= 0; -- i) p[-- cnt[c[pn[i]]]] = pn[i];
-			cn[p[0]] = 0, classes = 1;
+	suffix_array(const Str &s, int lim = 256): n(int(s.size()) + 1), sa(n), rank(n), lcp(n){
+		int n = int(s.size()) + 1, k = 0, a, b;
+		vector<int> x(s.begin(), s.end() + 1), y(n), ws(max(n, lim));
+		iota(sa.begin(), sa.end(), 0);
+		for(int j = 0, p = 0; p < n; j = max(1, j * 2), lim = p){
+			p = j, iota(y.begin(), y.end(), n - j);
+			for(int i = 0; i < n; ++ i) if(sa[i] >= j) y[p ++] = sa[i] - j;
+			fill(ws.begin(), ws.end(), 0);
+			for(int i = 0; i < n; ++ i) ws[x[i]] ++;
+			for(int i = 1; i < lim; ++ i) ws[i] += ws[i - 1];
+			for(int i = n; i --; ) sa[-- ws[x[y[i]]]] = y[i];
+			swap(x, y), p = 1, x[sa[0]] = 0;
 			for(int i = 1; i < n; ++ i){
-				if(c[p[i]] != c[p[i - 1]] || c[(p[i] + (1 << h)) % n] != c[(p[i - 1] + (1 << h)) % n]){
-					++ classes;
-				}
-				cn[p[i]] = classes - 1;
+				a = sa[i - 1], b = sa[i];
+				x[b] = (y[a] == y[b] && y[a + j] == y[b + j]) ? p - 1 : p ++;
 			}
-			c.swap(cn);
 		}
-		return p;
+		for(int i = 1; i < n; ++ i) rank[sa[i]] = i;
+		for(int i = 0, j; i < n - 1; lcp[rank[i ++]] = k) for(k && k --, j = sa[rank[i] - 1]; s[i + k] == s[j + k]; k++);
+		rmq = sparse_table<int, function<int(int, int)>>(lcp.begin(), lcp.end(), [&](int x, int y){ return min(x, y); }, numeric_limits<int>::max());
 	}
-	vector<int> get_lcp(const Str &s, const vector<int> &p){
-		int n = int(s.size());
-		vector<int> rank(n);
-		for(int i = 0; i < n; ++ i) rank[p[i]] = i;
-		int k = 0;
-		vector<int> l(n - 1);
-		for(int i = 0; i < n; ++ i){
-			if(rank[i] == n - 1){
-				k = 0;
-				continue;
-			}
-			int j = p[rank[i] + 1];
-			while(i + k < n && j + k < n && s[i + k] == s[j + k]) ++ k;
-			l[rank[i]] = k;
-			if(k) -- k;
-		}
-		return l;
-	}
-	int lcp(int i, int j){
-		return rmq.query(min(c[i], c[j]), max(c[i], c[j]));
+	int query(int i, int j){ // Find the length of lcp of suffices starting at i and j
+		return i == j ? n - 1 - max(i, j) : rmq.query(min(rank[i], rank[j]) + 1, max(rank[i], rank[j]) + 1);
 	}
 };
 
@@ -5950,14 +5742,41 @@ struct palindrome_automaton{
 // 156485479_5_11
 // Levenshtein Automaton
 
+// 156485479_5_12
+// Burrows Wheeler Transform
+// O(|S| log |S|)
+// Requires sparse_table and suffix_array
+template<typename Str>
+Str bwt(const Str &s, typename Str::value_type delim = '$'){
+	auto sa = suffix_array(s);
+	Str res(s.size() + 1, delim);
+	for(int i = 0; i <= int(s.size()); ++ i) res[i] = sa.sa[i] ? s[sa.sa[i] - 1] : delim;
+	return res;
+}
+
+// Inverse Transform
+// O(|S|)
+// delim must be smaller than the characters on s
+template<typename Str, int lim = 128>
+Str ibwt(const Str &s, typename Str::value_type delim = '$'){
+	int n = int(s.size());
+	vector<int> t(lim), next(n);
+	for(auto &c: s) ++ t[c + 1];
+	for(int i = 1; i < lim; ++ i) t[i] += t[i - 1];
+	for(int i = 0; i < n; ++ i) next[t[s[i]] ++] = i;
+	int cur = next[0];
+	Str res(n - 1, delim);
+	for(int i = 0; i < n - 1; ++ i) res[i] = s[cur = next[cur]];
+	return move(res);
+};
+
 // 156485479_6_1
 // 2D Geometry Classes
 template<typename T = long long> struct point{
 	T x, y;
 	int ind;
 	template<typename U> point(const point<U> &otr): x(otr.x), y(otr.y), ind(otr.ind){ }
-	template<typename U, typename V> point(const pair<U, V> &p): x(p.first), y(p.second){ }
-	template<typename U = T, typename V = T> point(U x = 0, V y = 0): x(x), y(y){ }
+	template<typename U = T, typename V = T> point(U x = 0, V y = 0, int ind = -1): x(x), y(y), ind(ind){ }
 	template<typename U> explicit operator point<U>() const{ return point<U>(static_cast<U>(x), static_cast<U>(y)); }
 	T operator*(const point &otr) const{ return x * otr.x + y * otr.y; }
 	T operator^(const point &otr) const{ return x * otr.y - y * otr.x; }
@@ -5968,15 +5787,15 @@ template<typename T = long long> struct point{
 	point operator-() const{ return {-x, -y}; }
 #define scalarop_l(op) friend point operator op(const T &c, const point &p){ return {c op p.x, c op p.y}; }
 	scalarop_l(+) scalarop_l(-) scalarop_l(*) scalarop_l(/)
-#undef scalarop_l
 #define scalarop_r(op) point operator op(const T &c) const{ return {x op c, y op c}; }
 	scalarop_r(+) scalarop_r(-) scalarop_r(*) scalarop_r(/)
-#undef scalarop_r
-#define scalarapply_r(op) point &operator op(const T &c){ return *this = *this op c; }
-	scalarapply_r(+=) scalarapply_r(-=) scalarapply_r(*=) scalarapply_r(/=)
-#undef scalarapply_r
+#define scalarapply(op) point &operator op(const T &c){ return *this = *this op c; }
+	scalarapply(+=) scalarapply(-=) scalarapply(*=) scalarapply(/=)
 #define compareop(op) bool operator op(const point &otr) const{ return tie(x, y) op tie(otr.x, otr.y); }
 	compareop(>) compareop(<) compareop(>=) compareop(<=) compareop(==) compareop(!=)
+#undef scalarop_l
+#undef scalarop_r
+#undef scalarapply
 #undef compareop
 	double norm() const{ return sqrt(x * x + y * y); }
 	T squared_norm() const{ return x * x + y * y; }
@@ -6102,6 +5921,57 @@ template<typename It, typename P> void sort_by_angle(It begin, It end, const P &
 	compare_by_angle<P> cmp(origin);
 	sort(begin, pivot, cmp), sort(pivot, end, cmp);
 }
+/* Short Descriptions
+struct point{
+	T x, y;
+	int ind;
+	double norm()
+	T squared_norm()
+	double arg()
+	point<double> unit()
+	point perp()
+	point<double> normal()
+	point<double> rotate(double theta)
+	point reflect_x()
+	point reflect_y()
+	point reflect(point o)
+	bool operator||(point otr)
+};
+double distance(point p, point q)
+T squared_distance(point p, point q)
+T ori(point p, point q, point r){ return (q - p) ^ (r - p); }
+auto doubled_signed_area(IT begin, IT end)
+struct line{
+	point p, d; // p + d*t
+	line(point p = {0, 0}, point<V> q = {0, 0}, bool Two_Points = true)
+	// two_points: pass through p and q
+	// else: pass through p, slope q
+	line(point<U> d) // pass through origin, slope d
+	line(T a, T b, T c) // declare with ax + by + c = 0
+	point<T> q()
+	bool degen()
+	tuple<T, T, T> coef()// d.y (X - p.x) - d.x (Y - p.y) = 0
+};
+bool on_line(point, line)
+bool on_ray(point, line)
+bool on_segment(point, line)
+double distance_to_line(point, line)
+double distance_to_ray(point, line)
+double distance_to_segment(point, line)
+point<double> projection(point, line)
+point<double> reflection(point, line)
+point<double> closest_point_on_segment(point, line)
+// Endpoints: (0: rays), (1: closed), (2: open)
+// Assumes parallel lines do not intersect
+pair<bool, point<double>> intersect_no_parallel_overlap<EP1, EP2, EP3, EP4>(line, line)
+// Assumes parallel lines do not intersect
+pair<bool, point<double>> intersect_closed_segments_no_parallel_overlap(line, line)
+// Assumes nothing
+pair<bool, line<double>> intersect_closed_segments(line, line)
+double distance_between_rays(line, line)
+double distance_between_segments(line, line)
+struct compare_by_angle
+void sort_by_angle(It begin, It end, const P &origin) */
 // 3D Geometry Classes
 template<typename T = long long> struct point{
 	T x, y, z;
@@ -6342,6 +6212,9 @@ ostream &operator<<(ostream &out, const P &p){
 	return out << "(" << p.x << ", " << p.y << ")";
 }
 
+// 156485479_6_4_1
+// Find a Pair of Intersecting Segments
+
 // 156485479_7_1
 // Custom Hash Function for unordered_set and unordered map
 struct custom_hash{
@@ -6402,7 +6275,7 @@ void *operator new(size_t s){
 void operator delete(void *){ }
 
 // 156485479_7_3
-// Debug
+// DEBUG BEGIN
 template<class L, class R>
 istream &operator>>(istream &in, pair<L, R> &p){
 	return in >> p.first >> p.second;
@@ -6422,7 +6295,7 @@ istream &operator>>(enable_if_t<!is_same_v<T<Args...>, string>, istream> &in, T<
 }
 template<class L, class R>
 ostream &operator<<(ostream &out, const pair<L, R> &p){
-	return out << "P(" << p.first << " " << p.second << ")";
+	return out << "(" << p.first << " " << p.second << ")";
 }
 template<class Tuple, size_t ...Is>
 void print_tuple(ostream &out, const Tuple &t, index_sequence<Is...>){
@@ -6430,13 +6303,12 @@ void print_tuple(ostream &out, const Tuple &t, index_sequence<Is...>){
 }
 template<class ...Args>
 ostream &operator<<(ostream &out, const tuple<Args...> &t){
-	out << "T<";
-	print_tuple(out, t, index_sequence_for<Args...>{});
+	out << "<"; print_tuple(out, t, index_sequence_for<Args...>{});
 	return out << ">";
 }
 template<class ...Args, template<class...> class T>
 ostream &operator<<(enable_if_t<!is_same_v<T<Args...>, string>, ostream> &out, const T<Args...> &arr){
-	out << "V[";
-	for(auto &x: arr) out << x << " ";
-	return out << "]\n";
+	out << "["; for(auto &x: arr) out << x << " ";
+	return out << (arr.size() ? "\b" : "") << "]\n";
 }
+// DEBUG END
