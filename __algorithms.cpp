@@ -4868,12 +4868,12 @@ struct shortest_path_tree{
 		else{
 			int y = x;
 			for(int i = 0; i < n; ++ i) y = parent[y];
-			vector<int> vertices, edges;
+			vector<int> vcycle, ecycle;
 			for(int c = y; ; c = edge[parent[c]].from){
-				vertices.push_back(c), edges.push_back(parent[c]);
-				if(c == y && vertices.size() > 1) break;
+				vcycle.push_back(c), ecycle.push_back(parent[c]);
+				if(c == y && vcycle.size() > 1) break;
 			}
-			return {{vertices.rbegin(), vertices.rend()}, {edges.rbegin(), edges.rend()}};
+			return {{vcycle.rbegin(), vcycle.rend()}, {ecycle.rbegin(), ecycle.rend()}};
 		}
 	}
 	bool init_spfa(const vector<int> S = {0}){ // returns false if cycle
@@ -4907,13 +4907,13 @@ struct shortest_path_tree{
 		return true;
 	}
 	array<int, 2> path_from_root(int u){
-		vector<int> vertices, edges;
+		vector<int> vpath, epath;
 		for(; parent[u] != -1; u = edge[parent[u]].from){
-			vertices.push_back(u);
-			edges.push_back(parent[u]);
+			vpath.push_back(u);
+			epath.push_back(parent[u]);
 		}
-		vertices.push_back(u);
-		return {{vertices.rbegin(), vertices.rend()}, {edges.rbegin(), edges.rend()}};
+		vpath.push_back(u);
+		return {{vpath.rbegin(), vpath.rend()}, {epath.rbegin(), epath.rend()}};
 	}
 };
 
@@ -4930,7 +4930,7 @@ struct shortest_path_tree_dense{
 	vector<etype> edge;
 	vector<T> dist;
 	vector<int> parent;
-	shortest_path_tree(int n, const T inf = numeric_limits<T>::max() / 8, BO bin_op = plus<>(), T id = 0, Compare cmp = less<>()): n(n), adj(n), inf(inf), bin_op(bin_op), id(id), cmp(cmp){ }
+	shortest_path_tree_dense(int n, const T inf = numeric_limits<T>::max() / 8, BO bin_op = plus<>(), T id = 0, Compare cmp = less<>()): n(n), adj(n), inf(inf), bin_op(bin_op), id(id), cmp(cmp){ }
 	void insert(int u, int v, T w){
 		adj[u].push_back(int(edge.size()));
 		edge.push_back({u, v, w});
@@ -5037,13 +5037,13 @@ struct shortest_path_tree_dense{
 		return true;
 	}
 	array<vector<int>, 2> path_from_root(int u){
-		vector<int> vertices, edges;
+		vector<int> vpath, epath;
 		for(; parent[u] != -1; u = edge[parent[u]].from){
-			vertices.push_back(u);
-			edges.push_back(parent[u]);
+			vpath.push_back(u);
+			epath.push_back(parent[u]);
 		}
-		vertices.push_back(u);
-		return {{vertices.rbegin(), vertices.rend()}, {edges.rbegin(), edges.rend()}};
+		vpath.push_back(u);
+		return {{vpath.rbegin(), vpath.rend()}, {epath.rbegin(), epath.rend()}};
 	}
 };
 
