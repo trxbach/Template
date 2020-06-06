@@ -4906,22 +4906,21 @@ struct shortest_path_tree{
 		}
 		return true;
 	}
-	pair<vector<int>, vector<int>> path_from_root(int u){
+	array<int, 2> path_from_root(int u){
 		vector<int> vertices, edges;
 		for(; parent[u] != -1; u = edge[parent[u]].from){
 			vertices.push_back(u);
 			edges.push_back(parent[u]);
 		}
 		vertices.push_back(u);
-		reverse(vertices.begin(), vertices.end()), reverse(edges.begin(), edges.end());
-		return {vertices, edges};
+		return {{vertices.rbegin(), vertices.rend()}, {edges.rbegin(), edges.rend()}};
 	}
 };
 
 // 156485479_4_6_2
 // Shortest Path Tree On Dense Graph ( Dijkstra, Floyd Warshall )
 template<typename T = long long, typename BO = plus<>, typename Compare = less<>>
-struct shortest_path_tree{
+struct shortest_path_tree_dense{
 	struct etype{ int from, to; T cost; };
 	int n;
 	BO bin_op;
@@ -5004,8 +5003,7 @@ struct shortest_path_tree{
 				vcycle.push_back(c), ecycle.push_back(parent[c]);
 				if(c == y && vcycle.size() > 1) break;
 			}
-			reverse(vcycle.begin(), vcycle.end()), reverse(ecycle.begin(), ecycle.end());
-			return {vcycle, ecycle};
+			return {{vcycle.rbegin(), vcycle.rend()}, {ecycle.rbegin(), ecycle.rend()}};
 		}
 	}
 	bool init_spfa(const vector<int> &S = {0}){ // returns false if cycle
@@ -5045,8 +5043,7 @@ struct shortest_path_tree{
 			edges.push_back(parent[u]);
 		}
 		vertices.push_back(u);
-		reverse(vertices.begin(), vertices.end()), reverse(edges.begin(), edges.end());
-		return {vertices, edges};
+		return {{vertices.rbegin(), vertices.rend()}, {edges.rbegin(), edges.rend()}};
 	}
 };
 
