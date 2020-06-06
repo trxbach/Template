@@ -4843,7 +4843,7 @@ struct shortest_path_tree{
 		}
 	}
 	template<bool find_any_cycle = false>
-	array<vector<int>, 2> init_bellman_ford(const vector<int> S = {0}){ // cycle {vertices, edges}
+	pair<vector<int>, vector<int>> init_bellman_ford(const vector<int> S = {0}){ // cycle {vertices, edges}
 		if(find_any_cycle){
 			fill(dist.begin(), dist.end(), id);
 			fill(parent.begin(), parent.end(), -1);
@@ -4906,7 +4906,7 @@ struct shortest_path_tree{
 		}
 		return true;
 	}
-	array<int, 2> path_from_root(int u){
+	pair<vector<int>, vector<int>> path_from_root(int u){
 		vector<int> vpath, epath;
 		for(; parent[u] != -1; u = edge[parent[u]].from){
 			vpath.push_back(u);
@@ -4979,7 +4979,7 @@ struct shortest_path_tree_dense{
 			}
 		}
 	}
-	array<vector<int>, 2> init_bellman_ford(const vector<int> &S = {0}){ // cycle {vertices, edges}
+	pair<vector<int>, vector<int>> init_bellman_ford(const vector<int> &S = {0}){ // cycle {vertices, edges}
 		init();
 		for(auto s: S) dist[s] = id;
 		int x;
@@ -5036,7 +5036,7 @@ struct shortest_path_tree_dense{
 		}
 		return true;
 	}
-	array<vector<int>, 2> path_from_root(int u){
+	pair<vector<int>, vector<int>> path_from_root(int u){
 		vector<int> vpath, epath;
 		for(; parent[u] != -1; u = edge[parent[u]].from){
 			vpath.push_back(u);
