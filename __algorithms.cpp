@@ -4843,7 +4843,7 @@ struct shortest_path_tree{
 		}
 	}
 	template<bool find_any_cycle = false>
-	pair<vector<int>, vector<int>> init_bellman_ford(const vector<int> S = {0}){ // cycle {vertices, edges}
+	array<vector<int>, 2> init_bellman_ford(const vector<int> S = {0}){ // cycle {vertices, edges}
 		if(find_any_cycle){
 			fill(dist.begin(), dist.end(), id);
 			fill(parent.begin(), parent.end(), -1);
@@ -4873,8 +4873,7 @@ struct shortest_path_tree{
 				vertices.push_back(c), edges.push_back(parent[c]);
 				if(c == y && vertices.size() > 1) break;
 			}
-			reverse(vertices.begin(), vertices.end()), reverse(edges.begin(), edges.end());
-			return {vertices, edges};
+			return {{vertices.rbegin(), vertices.rend()}, {edges.rbegin(), edges.rend()}};
 		}
 	}
 	bool init_spfa(const vector<int> S = {0}){ // returns false if cycle
