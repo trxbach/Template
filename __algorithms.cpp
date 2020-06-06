@@ -248,7 +248,7 @@ Category
 	6.3. KD Tree ( WARNING: UNTESTED )
 		156485479_6_3
 	6.4. Line Sweep
-		6.4.1. Find a Pair of Intersecting Segments
+		6.4.1. Find a Pair of Intersecting Segments ( INCOMPLETE )
 			156485479_6_4_1
 
 
@@ -4842,16 +4842,15 @@ struct shortest_path_tree{
 			}
 		}
 	}
-	pair<vector<int>, vector<int>> init_bellman_ford(const vector<int> S = {0}, bool find_any_cycle = false){ // cycle {vertices, edges}
+	template<bool find_any_cycle = false>
+	pair<vector<int>, vector<int>> init_bellman_ford(const vector<int> S = {0}){ // cycle {vertices, edges}
 		if(find_any_cycle){
 			fill(dist.begin(), dist.end(), id);
 			fill(parent.begin(), parent.end(), -1);
 		}
 		else{
 			init();
-			for(auto s: S){
-				dist[s] = id;
-			}
+			for(auto s: S) dist[s] = id;
 		}
 		int x;
 		for(int i = 0; i < n; ++ i){
@@ -5153,7 +5152,10 @@ pair<vector<int>, vector<int>> euler_walk(const vector<vector<pair<int, int>>> &
 	while(!q.empty()){
 		auto [u, e] = q.back();
 		int &it = its[u], end = int(adj[u].size());
-		if(it == end){ res_v.push_back(u); res_e.push_back(e); q.pop_back(); continue; }
+		if(it == end){
+			res_v.push_back(u), res_e.push_back(e), q.pop_back();
+			continue;
+		}
 		auto [v, f] = adj[u][it ++];
 		if(!used[f]){
 			-- deg[u], ++ deg[v];
@@ -5264,6 +5266,7 @@ template<typename Str>
 struct suffix_array{
 	int n;
 	vector<int> sa, rank, lcp;
+	// sa[i]: indices of suffix of s+delim at position i, rank: inverse of sa, lcp[i]: lcp[0]=0, lcp[i] = lcp of suffices at i-1 and i
 	sparse_table<int, function<int(int, int)>> rmq;
 	suffix_array(const Str &s, int lim = 256): n(int(s.size()) + 1), sa(n), rank(n), lcp(n){
 		int n = int(s.size()) + 1, k = 0, a, b;
@@ -5424,7 +5427,7 @@ struct polyhash: vector<vector<long long>>{
 	int lcp(int i, int j, int posi = 0, int posj = 0){ // returns the length
 		int low = 0, high = min(int((*this)[i].size()) - posi, int((*this)[j].size()) - posj);
 		while(high - low > 1){
-			int mid = low + high >> 1;
+			int mid = low + (high - low >> 1);
 			query(posi, posi + mid, i) == query(posj, posj + mid, j) ? low = mid : high = mid;
 		}
 		return low;
@@ -5432,7 +5435,7 @@ struct polyhash: vector<vector<long long>>{
 	int lcs(int i, int j, int posi, int posj){
 		int low = 0, high = min(posi, posj) + 1;
 		while(high - low > 1){
-			int mid = low + high >> 1;
+			int mid = low + (high - low >> 1);
 			query(posi - mid, posi, i) == query(posj - mid, posj, j) ? low = mid : high = mid;
 		}
 		return low;
