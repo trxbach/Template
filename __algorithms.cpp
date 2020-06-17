@@ -259,6 +259,8 @@ Category
 		156485479_7_2
 	7.3. Debug
 		156485479_7_3
+	7.4. Random Generator
+		156485479_7_4
 
 
 ***************************************************************************************************************/
@@ -3709,8 +3711,7 @@ int bcc(const Graph &adj, Process_BCC f, Process_Bridge g = [](int u, int v, int
 				if(num[v] < me) st.push_back(e);
 			}
 			else{
-				int si = int(st.size());
-				int up = dfs(v, e);
+				int si = int(st.size()), up = dfs(v, e);
 				top = min(top, up);
 				if(up == me){
 					st.push_back(e);
@@ -3733,27 +3734,25 @@ int bcc(const Graph &adj, Process_BCC f, Process_Bridge g = [](int u, int v, int
 // O(n + m)
 template<typename Graph, typename Process_Articulation_Point>
 void articulation_points(const Graph &adj, Process_Articulation_Point f){
-	int n = adj.size();
-	vector<bool> visited(n);
-	vector<int> tin(n, -1), low(n, -1);
-	int timer = 0;
+	int n = int(adj.size()), timer = 0;
+	vector<int> tin(n, -1), low(n);
 	function<void(int, int)> dfs = [&](int u, int p){
-		visited[u] = true;
 		tin[u] = low[u] = timer ++;
 		int child = 0;
 		for(auto v: adj[u]){
-			if(v == p) continue;
-			if(visited[v]) low[u] = min(low[u], tin[v]);
-			else{
-				dfs(v, u);
-				low[u] = min(low[u], low[v]);
-				if(low[v] >= tin[u] && p != -1) f(u);
-				++ child;
+			if(v != p){
+				if(~tin[v]) low[u] = min(low[u], tin[v]);
+				else{
+					dfs(v, u);
+					low[u] = min(low[u], low[v]);
+					if(low[v] >= tin[u] && ~p) f(u);
+					++ child;
+				}
 			}
 		}
-		if(p == -1 && child > 1) f(u);
+		if(!~p && child > 1) f(u);
 	};
-	for(int u = 0; u < n; ++ u) if(!visited[u]) dfs(u, -1);
+	for(int u = 0; u < n; ++ u) if(!~tin[u]) dfs(u, -1);
 }
 
 // 156485479_4_4_1
@@ -6323,3 +6322,44 @@ ostream &operator<<(enable_if_t<!is_same_v<T<Args...>, string>, ostream> &out, c
 	return out << (arr.size() ? "\b" : "") << "]\n";
 }
 // DEBUG END
+
+// 156485479_7_4
+// Random Generators
+namespace generator{
+	int rand_int(int low, int high){ // generate random integer in [low, high)
+		return rng() % (high - low) + low;
+	}
+	vector<array<int, 2>> generate_tree(int n){
+		vector<array<int, 2>> res;
+		for(int u = 1; u < n; ++ u) res.push_back({u, rand_int(0, u)});
+		return res;
+	}
+	vector<array<int, 3>> generate_weighted_tree(int n, int wlow = 1, int whigh = 6){
+		vector<array<int, 3>> res;
+		for(int u = 1; u < n; ++ u) res.push_back({u, rand_int(0, u), rand_int(wlow, whigh)});
+		return res;
+	}
+	vector<array<int, 2>> generate_simply_connected_graph(int n, int m){
+		assert(n - 1 <= m && m <= 1LL * n * (n - 1) / 2);
+		auto res = generate_tree(n);
+		set<array<int, 2>> s;
+		for(auto [u, v]: res) s.insert({u, v}), s.insert({v, u});
+		for(int rep = n - 1; rep < m; ++ rep){
+			int u, v;
+			do{
+				u = rng() % n, v = rng() % n;
+			}while(u != v && !s.count({u, v}));
+			s.insert({u, v}), s.insert({v, u});
+			res.push_back({u, v});
+		}
+		return res;
+	}
+	vector<array<int, 3>> generate_weighted_simply_connected_graph(int n, int m, int wlow = 1, int whigh = 6){
+		assert(n - 1 <= m && m <= 1LL * n * (n - 1) / 2);
+		auto edges = generate_simply_connected_graph(n, m);
+		vector<array<int, 3>> res(m);
+		for(int i = 0; i < m; ++ i) res[i] = {{edges[i][0], edges[i][1], rand_int(wlow, whigh)}};
+		return res;
+	}
+}
+using namespace generator;
