@@ -2589,7 +2589,7 @@ struct segment{
 	}
 	template<bool increment = true>
 	void update(int p, T x){
-		for(val[p += n] = increment ? bin_op(val[p], x) : x; p >>= 1; ) val[p] = bin_op(val[p << 1], val[p << 1 | 1]);
+		for(p += n, val[p] = increment ? bin_op(val[p], x) : x; p >>= 1; ) val[p] = bin_op(val[p << 1], val[p << 1 | 1]);
 	}
 	T query(int l, int r){
 		if(l >= r) return id;
@@ -3940,14 +3940,14 @@ struct mcmf{
 // 156485479_4_4_3
 // Simple DFS Bipartite Matching
 // Call solve() for maximum matching
-// u from the left vertex set is matched with p[u] on the right (-1 if not matched)
-// v from the right vertex set is matched with p[v] on the left (-1 if not matched)
+// u from the left vertex set is matched with pu[u] on the right (-1 if not matched)
+// v from the right vertex set is matched with pv[v] on the left (-1 if not matched)
 // O(VE)
 struct matching{
 	vector<vector<int>> adj;
-	vector<int> pa, pb, cur;
+	vector<int> pu, pv, cur;
 	int n, m, flow = 0, id = 0;
-	matching(int n, int m): n(n), m(m), pa(n, -1), pb(m, -1), cur(n), adj(n){ }
+	matching(int n, int m): n(n), m(m), pu(n, -1), pv(m, -1), cur(n), adj(n){ }
 	int insert(int from, int to){
 		adj[from].push_back(to);
 		return int(adj[from].size()) - 1;
@@ -3955,16 +3955,16 @@ struct matching{
 	bool dfs(int v){
 		cur[v] = id;
 		for(auto u: adj[v]){
-			if(pb[u] == -1){
-				pa[v] = u;
-				pb[u] = v;
+			if(pv[u] == -1){
+				pu[v] = u;
+				pv[u] = v;
 				return true;
 			}
 		}
 		for(auto u: adj[v]){
-			if(cur[pb[u]] != id && dfs(pb[u])){
-				pa[v] = u;
-				pb[u] = v;
+			if(cur[pv[u]] != id && dfs(pv[u])){
+				pu[v] = u;
+				pv[u] = v;
 				return true;
 			}
 		}
@@ -3974,75 +3974,100 @@ struct matching{
 		while(true){
 			++ id;
 			int augment = 0;
-			for(int u = 0; u < n; ++ u) if(pa[u] == -1 && dfs(u)) ++ augment;
+			for(int u = 0; u < n; ++ u) if(pu[u] == -1 && dfs(u)) ++ augment;
 			if(!augment) break;
 			flow += augment;
 		}
 		return flow;
 	}
 	int run_once(int v){
-		if(pa[v] != -1) return 0;
+		if(pu[v] != -1) return 0;
 		++ id;
 		return dfs(v);
+	}
+	pair<vector<int>, vector<int>> minimum_vertex_cover(){
+		solve();
+		vector<int> L, R, visL(n), visR(m);
+		function<void(int)> dfs = [&](int u){
+			visL[u] = true;
+			for(auto v: adj[u]){
+				if(v != pu[u] && !visR[v]){
+					visR[v] = true;
+					if(~pv[v]) dfs(pv[v]);
+				}
+			}
+		};
+		for(int u = 0; u < n; ++ u) if(!visL[u] && pu[u] == -1) dfs(u);
+		for(int u = 0; u < n; ++ u) if(!visL[u]) L.push_back(u);
+		for(int v = 0; v < m; ++ v) if(visR[v]) R.push_back(v);
+		return {L, R};
 	}
 };
 
 // 156485479_4_4_4
 // Hopcroft Karp Algorithm / Fast Bipartite Matching
 // Call solve() for maximum matching
-// u from the left vertex set is matched with p[u] on the right (-1 if not matched)
-// v from the right vertex set is matched with p[v] on the left (-1 if not matched)
+// u from the left vertex set is matched with pu[u] on the right (-1 if not matched)
+// v from the right vertex set is matched with pv[v] on the left (-1 if not matched)
 // O( sqrt(V) * E )
 struct hopcroft_karp{
 	int n, m, flow = 0;
 	vector<vector<int>> adj;
-	vector<int> pa, pb, A, B, cur, next;
-	hopcroft_karp(int n, int m): n(n), m(m), adj(n), pa(n, -1), pb(m, -1), A(n), B(m){ }
-	void insert(int from, int to){
+	vector<int> pu, pv, U, V, cur, next;
+	hopcroft_karp(int n, int m): n(n), m(m), adj(n), pu(n, -1), pv(m, -1), U(n), V(m){ }
+	int insert(int from, int to){
 		adj[from].push_back(to);
+		return int(adj[from].size()) - 1;
 	}
 	bool bfs(){
-		fill(A.begin(), A.end(), 0), fill(B.begin(), B.end(), 0);
+		fill(U.begin(), U.end(), 0), fill(V.begin(), V.end(), 0);
 		cur.clear();
-		// Find the starting nodes for BFS (i.e. layer 0).
-		for(auto a: pb) if(a != -1) A[a] = -1;
-		for(int a = 0; a < n; ++ a) if(!A[a]) cur.push_back(a);
+		// Find the starting nodes for VFS (i.e. layer 0).
+		for(auto u: pv) if(u != -1) U[u] = -1;
+		for(int u = 0; u < n; ++ u) if(!U[u]) cur.push_back(u);
 		// Find all layers using bfs.
 		for(int layer = 1; ; ++ layer){
 			bool islast = 0;
 			next.clear();
-			for(auto a: cur) for(auto b: adj[a]){
-				if(pb[b] == -1){
-					B[b] = layer;
+			for(auto u: cur) for(auto v: adj[u]){
+				if(pv[v] == -1){
+					V[v] = layer;
 					islast = 1;
 				}
-				else if(pb[b] != a && !B[b]){
-					B[b] = layer;
-					next.push_back(pb[b]);
+				else if(pv[v] != u && !V[v]){
+					V[v] = layer;
+					next.push_back(pv[v]);
 				}
 			}
 			if(islast) return true;
 			if(next.empty()) return false;
-			for(auto a: next) A[a] = layer;
+			for(auto u: next) U[u] = layer;
 			cur.swap(next);
 		}
 	}
-	bool dfs(int a, int L, vector<int>& A, vector<int>& B){
-		if(A[a] != L) return false;
-		A[a] = -1;
-		for(auto b: adj[a]) if(B[b] == L + 1){
-			B[b] = 0;
-			if(pb[b] == -1 || dfs(pb[b], L + 1, A, B)){
-				pa[a] = b;
-				pb[b] = a;
+	bool dfs(int u, int L){
+		if(U[u] != L) return false;
+		U[u] = -1;
+		for(auto v: adj[u]) if(V[v] == L + 1){
+			V[v] = 0;
+			if(pv[v] == -1 || dfs(pv[v], L + 1)){
+				pu[u] = v;
+				pv[v] = u;
 				return true;
 			}
 		}
 		return false;
 	}
 	int solve(){
-		while(bfs()) for(int a = 0; a < n; ++ a) flow += dfs(a, 0, A, B);
+		while(bfs()) for(int u = 0; u < n; ++ u) flow += dfs(u, 0);
 		return flow;
+	}
+	pair<vector<int>, vector<int>> minimum_vertex_cover(){
+		solve();
+		vector<int> L, R;
+		for(int u = 0; u < n; ++ u) if(!~U[u]) L.push_back(u);
+		for(int v = 0; v < m; ++ v) if(V[v]) R.push_back(v);
+		return {L, R};
 	}
 };
 
@@ -4051,7 +4076,7 @@ struct hopcroft_karp{
 // O(n^2 m)
 // Reads the adjacency matrix of the graph
 template<typename Graph>
-pair<long long, vector<int>> hungarian(const Graph &adj) {
+pair<long long, vector<int>> hungarian(const Graph &adj){
 	if(adj.empty()) return {0, {}};
 	int n = int(adj.size()) + 1, m = int(adj[0].size()) + 1;
 	vector<long long> u(n), v(m);
@@ -4510,20 +4535,7 @@ bool isomorphic(const vector<vector<vector<int>>> &adj){
 // 156485479_4_6
 // Minimum Spanning Forest
 // O(m log n)
-struct disjoint_set{
-	vector<int> p;
-	disjoint_set(int n): p(n, -1){ }
-	bool share(int a, int b){ return root(a) == root(b); }
-	int sz(int u){ return -p[root(u)]; }
-	int root(int u){ return p[u] < 0 ? u : p[u] = root(p[u]); }
-	bool merge(int u, int v){
-		u = root(u), v = root(v);
-		if(u == v) return false;
-		if(p[u] > p[v]) swap(u, v);
-		p[u] += p[v], p[v] = u;
-		return true;
-	}
-};
+// Requires disjoint_set
 template<typename T = long long>
 struct minimum_spanning_forest{
 	int n;
