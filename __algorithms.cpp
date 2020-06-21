@@ -392,47 +392,47 @@ array<vector<int>, 2> linearsieve(int n){
 // 156485479_1_4
 // Combinatorics
 // O(N) preprocessing
-long long modexp(long long b, long long e, const long long &mod){
-	long long res = 1;
-	for(; e; b = b * b % mod, e >>= 1) if(e & 1) res = res * b % mod;
-	return res;
-}
-template<int SZ>
+template<int SZ, typename Zp>
 struct combinatorics{
-	const long long mod;
-	vector<long long> inv, fact, invfact;
-	vector<vector<long long>> stir1, stir2;
-	combinatorics(long long mod): mod(mod), inv(SZ + 1, 1), fact(SZ + 1, 1), invfact(SZ + 1, 1){
-		for(long long i = 2; i <= SZ; ++ i){
-			inv[i] = (mod - mod / i * inv[mod % i] % mod) % mod;
-			fact[i] = fact[i - 1] * i % mod;
-			invfact[i] = invfact[i - 1] * inv[i] % mod;
+	vector<Zp> inv, fact, invfact;
+	vector<vector<Zp>> stir1, stir2;
+	combinatorics(): inv(SZ << 1 | 1, 1), fact(SZ << 1 | 1, 1), invfact(SZ << 1 | 1, 1){
+		for(int i = 1; i <= SZ << 1; ++ i) fact[i] = fact[i - 1] * i;
+		invfact[SZ << 1] = 1 / fact[SZ << 1];
+		for(int i = (SZ << 1) - 1; i >= 0; -- i){
+			invfact[i] = invfact[i + 1] * (i + 1);
+			inv[i + 1] = invfact[i + 1] * fact[i];
 		}
 	}
-	long long C(int n, int k){ return n < k ? 0 : fact[n] * invfact[k] % mod * invfact[n - k] % mod; }
-	long long P(int n, int k){ return n < k ? 0 : fact[n] * invfact[n - k] % mod; }
-	long long H(int n, int k){ return C(n + k - 1, k); }
-	long long naive_C(long long n, long long k){
-		if(n < k) return 0;
-		long long res = 1;
-		k = min(k, n - k);
-		for(int i = n; i > n - k; -- i) res = res * i % mod;
-		return res * invfact[k] % mod;
-	}
-	long long naive_P(long long n, int k){
-		if(n < k) return 0;
-		long long res = 1;
-		for(int i = n; i > n - k; -- i) res = res * i % mod;
+	Zp C(int n, int k){ return n < k ? 0 : fact[n] * invfact[k] * invfact[n - k]; }
+	Zp P(int n, int k){ return n < k ? 0 : fact[n] * invfact[n - k]; }
+	Zp H(int n, int k){ return C(n + k - 1, k); }
+	vector<Zp> precalc_power(int base){
+		vector<Zp> res(SZ << 1 | 1, 1);
+		for(auto i = 1; i <= SZ << 1; ++ i) res[i] = res[i - 1] * base;
 		return res;
 	}
-	long long naive_H(long long n, long long k){ return naive_C(n + k - 1, k); }
-	bool parity_C(long long n, long long k){ return n < k ? 0 : k & (n - k) ^ 1; }
+	Zp naive_C(long long n, long long k){
+		if(n < k) return 0;
+		Zp res = 1;
+		k = min(k, n - k);
+		for(int i = n; i > n - k; -- i) res *= i;
+		return res * invfact[k];
+	}
+	Zp naive_P(long long n, int k){
+		if(n < k) return 0;
+		Zp res = 1;
+		for(int i = n; i > n - k; -- i) res *= i;
+		return res;
+	}
+	Zp naive_H(long long n, long long k){ return naive_C(n + k - 1, k); }
+	bool parity_C(long long n, long long k){ return n < k ? 0 : k & n - k ^ 1; }
 	// Catalan's Trapzoids
 	// # of bitstrings of n Xs and k Ys such that in each initial segment, (# of X) + m > (# of Y) 
-	long long Cat(int n, int k, int m = 1){
+	Zp Cat(int n, int k, int m = 1){
 		if(m <= 0) return 0;
 		else if(k >= 0 && k < m) return C(n + k, k);
-		else if(k < n + m) return (C(n + k, k) - C(n + k, k - m) + mod) % mod;
+		else if(k < n + m) return C(n + k, k) - C(n + k, k - m);
 		else return 0;
 	}
 	// Stirling number
@@ -445,28 +445,25 @@ struct combinatorics{
 	void precalc_stir(int n, int k){
 		auto &s = FIRST ? stir1 : stir2;
 		pre[!FIRST] = true;
-		s.resize(n + 1, vector<long long>(k + 1));
-		s[0][0] = 1;
+		s.resize(n + 1, vector<Zp>(k + 1, 1));
 		for(int i = 1; i <= n; ++ i) for(int j = 1; j <= k; ++ j){
-			s[i][j] = ((FIRST ? i - 1 : j) * s[i - 1][j] + s[i - 1][j - 1]) % mod;
+			s[i][j] = (FIRST ? i - 1 : j) * s[i - 1][j] + s[i - 1][j - 1];
 		}
 	}
 	// unsigned
-	long long Stir1(int n, int k){
+	Zp Stir1(int n, int k){
 		if(n < k) return 0;
 		assert(pre[0]);
 		return stir1[n][k];
 	}
-	long long Stir2(long long n, int k){
+	Zp Stir2(long long n, int k){
 		if(n < k) return 0;
 		if(pre[1] && n < int(stir2.size())) return stir2[n][k];
-		long long res = 0;
-		for(int i = 0, sign = 1; i <= k; ++ i, sign *= -1){
-			res = (res + sign * C(k, i) * modexp(k - i, n, mod) % mod + mod) % mod;
-		}
-		return res * invfact[k] % mod;
+		Zp res = 0;
+		for(int i = 0, sign = 1; i <= k; ++ i, sign *= -1) res += sign * C(k, i) * (Zp(k - i) ^ n);
+		return res * invfact[k];
 	}
-	bool parity_Stir2(long long n, long long k){ return n < k ? 0 : k ? !((n - k) & (k - 1 >> 1)) : 0; }
+	bool parity_Stir2(long long n, long long k){ return n < k ? 0 : k ? !(n - k & k - 1 >> 1) : 0; }
 };
 
 // 156485479_1_5
@@ -2249,6 +2246,7 @@ struct bigint{
 
 // 156485479_2_9
 // Modular Arithmetics
+// Credit: Tourist
 template<typename T>
 struct Z_p{
 	using Type = typename decay<decltype(T::value)>::type;
@@ -2761,7 +2759,7 @@ struct lazy_segment{
 		return lval[0] == rval[0] ? Q{lval[0], lval[1] + rval[1]} : min(lval, rval);
 	}
 	Q aop(const Q &val, const R &r0, const L &x, const R &r1){ // r1 always contain r0
-		return {min(val[0] + x, numeric_limits<int>::max() / 2), val[1]};
+		return {val[0] + x, val[1]};
 	}
 	const pair<L, Q> id{0, Q{numeric_limits<int>::max() / 2, 0}};
 	Q init(const int &p){
@@ -5079,10 +5077,10 @@ vector<int> toposort(const Graph &adj){
 // Lexicographically Smallest Topological Sort / Return returns less than n elements if there's a cycle
 // O(V log V + E)
 template<typename Graph>
-vector<int> toposort(const Graph &radj){
-	int n = radj.size();
+vector<int> toposort(const Graph &adj){
+	int n = adj.size();
 	vector<int> indeg(n), res;
-	for(int u = 0; u < n; ++ u) for(auto v: radj[u]) ++ indeg[v];
+	for(int u = 0; u < n; ++ u) for(auto v: adj[u]) ++ indeg[v];
 	priority_queue<int, vector<int>, greater<>> q;
 	for(int u = 0; u < n; ++ u) if (!indeg[u]) q.push(u);
 	while(q.size() > 0){
