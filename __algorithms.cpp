@@ -392,10 +392,11 @@ array<vector<int>, 2> linearsieve(int n){
 // 156485479_1_4
 // Combinatorics
 // O(N) preprocessing
-template<int SZ, typename Zp>
+// Requires Z_p
+template<int SZ, typename T = Zp>
 struct combinatorics{
-	vector<Zp> inv, fact, invfact;
-	vector<vector<Zp>> stir1, stir2;
+	vector<T> inv, fact, invfact;
+	vector<vector<T>> stir1, stir2;
 	combinatorics(): inv(SZ << 1 | 1, 1), fact(SZ << 1 | 1, 1), invfact(SZ << 1 | 1, 1){
 		for(int i = 1; i <= SZ << 1; ++ i) fact[i] = fact[i - 1] * i;
 		invfact[SZ << 1] = 1 / fact[SZ << 1];
@@ -404,32 +405,32 @@ struct combinatorics{
 			inv[i + 1] = invfact[i + 1] * fact[i];
 		}
 	}
-	Zp C(int n, int k){ return n < k ? 0 : fact[n] * invfact[k] * invfact[n - k]; }
-	Zp P(int n, int k){ return n < k ? 0 : fact[n] * invfact[n - k]; }
-	Zp H(int n, int k){ return C(n + k - 1, k); }
-	vector<Zp> precalc_power(int base){
-		vector<Zp> res(SZ << 1 | 1, 1);
+	T C(int n, int k){ return n < k ? 0 : fact[n] * invfact[k] * invfact[n - k]; }
+	T P(int n, int k){ return n < k ? 0 : fact[n] * invfact[n - k]; }
+	T H(int n, int k){ return C(n + k - 1, k); }
+	vector<T> precalc_power(int base){
+		vector<T> res(SZ << 1 | 1, 1);
 		for(auto i = 1; i <= SZ << 1; ++ i) res[i] = res[i - 1] * base;
 		return res;
 	}
-	Zp naive_C(long long n, long long k){
+	T naive_C(long long n, long long k){
 		if(n < k) return 0;
-		Zp res = 1;
+		T res = 1;
 		k = min(k, n - k);
 		for(int i = n; i > n - k; -- i) res *= i;
 		return res * invfact[k];
 	}
-	Zp naive_P(long long n, int k){
+	T naive_P(long long n, int k){
 		if(n < k) return 0;
-		Zp res = 1;
+		T res = 1;
 		for(int i = n; i > n - k; -- i) res *= i;
 		return res;
 	}
-	Zp naive_H(long long n, long long k){ return naive_C(n + k - 1, k); }
+	T naive_H(long long n, long long k){ return naive_C(n + k - 1, k); }
 	bool parity_C(long long n, long long k){ return n < k ? 0 : k & n - k ^ 1; }
 	// Catalan's Trapzoids
 	// # of bitstrings of n Xs and k Ys such that in each initial segment, (# of X) + m > (# of Y) 
-	Zp Cat(int n, int k, int m = 1){
+	T Cat(int n, int k, int m = 1){
 		if(m <= 0) return 0;
 		else if(k >= 0 && k < m) return C(n + k, k);
 		else if(k < n + m) return C(n + k, k) - C(n + k, k - m);
@@ -445,21 +446,21 @@ struct combinatorics{
 	void precalc_stir(int n, int k){
 		auto &s = FIRST ? stir1 : stir2;
 		pre[!FIRST] = true;
-		s.resize(n + 1, vector<Zp>(k + 1, 1));
+		s.resize(n + 1, vector<T>(k + 1, 1));
 		for(int i = 1; i <= n; ++ i) for(int j = 1; j <= k; ++ j){
 			s[i][j] = (FIRST ? i - 1 : j) * s[i - 1][j] + s[i - 1][j - 1];
 		}
 	}
 	// unsigned
-	Zp Stir1(int n, int k){
+	T Stir1(int n, int k){
 		if(n < k) return 0;
 		assert(pre[0]);
 		return stir1[n][k];
 	}
-	Zp Stir2(long long n, int k){
+	T Stir2(long long n, int k){
 		if(n < k) return 0;
 		if(pre[1] && n < int(stir2.size())) return stir2[n][k];
-		Zp res = 0;
+		T res = 0;
 		for(int i = 0, sign = 1; i <= k; ++ i, sign *= -1) res += sign * C(k, i) * (Zp(k - i) ^ n);
 		return res * invfact[k];
 	}
