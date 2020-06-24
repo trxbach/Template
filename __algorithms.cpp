@@ -156,7 +156,7 @@ Category
 
 
 4. Graph
-	4.1. Strongly Connected Component ( Tarjan's Algorithm )
+	4.1. Strongly Connected Component ( Tarjan's Algorithm ) / Strong Augmentation
 		156485479_4_1
 	4.2. Biconnected Component
 		156485479_4_2
@@ -408,22 +408,22 @@ struct combinatorics{
 	T C(int n, int k){ return n < k ? 0 : fact[n] * invfact[k] * invfact[n - k]; }
 	T P(int n, int k){ return n < k ? 0 : fact[n] * invfact[n - k]; }
 	T H(int n, int k){ return C(n + k - 1, k); }
-	vector<T> precalc_power(int base){
-		vector<T> res(SZ << 1 | 1, 1);
-		for(auto i = 1; i <= SZ << 1; ++ i) res[i] = res[i - 1] * base;
+	vector<T> precalc_power(int base, int n = SZ << 1){
+		vector<T> res(n + 1, 1);
+		for(auto i = 1; i <= n; ++ i) res[i] = res[i - 1] * base;
 		return res;
 	}
 	T naive_C(long long n, long long k){
 		if(n < k) return 0;
 		T res = 1;
 		k = min(k, n - k);
-		for(int i = n; i > n - k; -- i) res *= i;
+		for(long long i = n; i > n - k; -- i) res *= i;
 		return res * invfact[k];
 	}
 	T naive_P(long long n, int k){
 		if(n < k) return 0;
 		T res = 1;
-		for(int i = n; i > n - k; -- i) res *= i;
+		for(long long i = n; i > n - k; -- i) res *= i;
 		return res;
 	}
 	T naive_H(long long n, long long k){ return naive_C(n + k - 1, k); }
@@ -3667,17 +3667,18 @@ struct unital_sorter{
 };
 
 // 156485479_4_1
-// Strongly Connected Component ( Tarjan's Algorithm ) / Processes SCCs in reverse topological order
-// O(n + m)
+// Strongly Connected Component ( Tarjan's Algorithm ) / Condensation
+// Processes SCCs in reverse topological order
+// O(V + E)
 template<typename Graph, typename Process_SCC>
-int scc(const Graph &adj, Process_SCC f){
+int SCC(const Graph &adj, Process_SCC f){
 	int n = int(adj.size());
 	vector<int> val(n), comp(n, -1), z, cur;
 	int timer = 0, ncomps = 0;
-	auto dfs = [&](auto &dfs, int u)->int{
+	function<int(int)> dfs = [&](int u){
 		int low = val[u] = ++ timer, v;
 		z.push_back(u);
-		for(auto v: adj[u]) if(comp[v] < 0) low = min(low, val[v] ?: dfs(dfs, v));
+		for(auto v: adj[u]) if(comp[v] < 0) low = min(low, val[v] ?: dfs(v));
 		if(low == val[u]){
 			do{
 				v = z.back(); z.pop_back();
@@ -3690,15 +3691,78 @@ int scc(const Graph &adj, Process_SCC f){
 		}
 		return val[u] = low;
 	};
-	for(int u = 0; u < n; ++ u) if(comp[u] < 0) dfs(dfs, u);
+	for(int u = 0; u < n; ++ u) if(comp[u] < 0) dfs(u);
 	return ncomps;
+}
+template<typename Graph>
+tuple<vector<vector<int>>, vector<int>, vector<vector<int>>>
+condensation(const Graph &adj){
+	vector<vector<int>> scc;
+	int n = int(adj.size()), k = SCC(adj, [&](const vector<int> &c){ scc.push_back(c); });
+	reverse(scc.begin(), scc.end());
+	vector<int> numb(n);
+	vector<vector<int>> cadj(k);
+	for(int i = 0; i < k; ++ i) for(auto u: scc[i]) numb[u] = i;
+	for(int u = 0; u < n; ++ u) for(auto v: adj[u]) if(numb[u] ^ numb[v]) cadj[numb[u]].push_back(numb[v]);
+	return {scc, numb, cadj};
+}
+// Strong Augmentation
+// O(V + E)
+// Requires SCC
+template<typename Graph>
+vector<array<int, 2>> strong_augmentation(const Graph &adj){
+	auto [scc, numb, cadj] = condensation(adj);
+	if(int(scc.size()) == 1) return {};
+	int n = int(adj.size()), k = int(scc.size());
+	vector<int> is_src(k, true), is_snk(k), src, snk;
+	for(int u = 0; u < k; ++ u) for(auto v: cadj[u]) is_src[v] = false;
+	for(int u = 0; u < k; ++ u){
+		if(cadj[u].empty()) is_snk[u] = true, snk.push_back(u);
+		if(is_src[u]) src.push_back(u);
+	}
+	int s = int(src.size()), t = int(snk.size());
+	bool is_rev = false;
+	if(s > t){
+		is_rev = true;
+		vector<vector<int>> rcadj(k);
+		for(int u = 0; u < k; ++ u) for(auto v: cadj[u]) rcadj[v].push_back(u);
+		swap(cadj, rcadj), swap(src, snk), swap(is_src, is_snk), swap(s, t);
+	}
+	vector<int> vis(k), ord_src, ord_snk;
+	for(auto u: src) if(!vis[u]){
+		int pu = -1;
+		function<void(int)> get_sink = [&](int u){
+			vis[u] = true;
+			if(is_snk[u]) pu = u;
+			for(auto v: cadj[u]) if(!~pu && !vis[v]) get_sink(v);
+		};
+		get_sink(u);
+		if(~pu) ord_src.push_back(u), ord_snk.push_back(pu), vis[u] = vis[pu] = 2;
+	}
+	int cnt = int(ord_src.size());
+	for(auto u: src) if(vis[u] ^ 2) ord_src.push_back(u);
+	for(auto v: snk) if(vis[v] ^ 2) ord_snk.push_back(v);
+	vector<array<int, 2>> res;
+	auto add_edge = [&](int u, int v){
+		if(is_rev) swap(u, v);
+		res.push_back({scc[u][0], scc[v][0]});
+	};
+	for(int i = 1; i < cnt; ++ i) add_edge(ord_snk[i - 1], ord_src[i]);
+	for(int i = cnt; i < s; ++ i) add_edge(ord_snk[i], ord_src[i]);
+	if(s ^ t){
+		add_edge(ord_snk[cnt - 1], ord_snk[s]);
+		for(int i = s + 1; i < t; ++ i) add_edge(ord_snk[i - 1], ord_snk[i]);
+		add_edge(ord_snk.back(), ord_src[0]);
+	}
+	else add_edge(ord_snk[cnt - 1], ord_src[0]);
+	return res;
 }
 
 // 156485479_4_2
 // Biconnected Components / adj[u]: list of [vertex, edgenum]
-// O(n + m)
+// O(V + E)
 template<typename Graph, typename Process_BCC, typename Process_Bridge = function<void(int, int, int)>>
-int bcc(const Graph &adj, Process_BCC f, Process_Bridge g = [](int u, int v, int e){ }){
+int BCC(const Graph &adj, Process_BCC f, Process_Bridge g = [](int u, int v, int e){ }){
 	int n = int(adj.size());
 	vector<int> num(n), st;
 	int timer = 0, ncomps = 0;
@@ -3854,6 +3918,7 @@ struct dinic{
 // 156485479_4_4_2
 // Minimum Cost Maximum Flow Algorithm
 // O(Augmenting Paths) * O(SPFA)
+// Credit: Tourist
 template<typename T, typename C>
 struct mcmf{
 	static constexpr T eps = (T) 1e-9;
@@ -4732,6 +4797,9 @@ vector<array<int, 2>> compressed_tree(LCA &lca, vector<int> &subset){
 // 156485479_4_5_9
 // Pruefer Code
 // O(V) for both
+// Number of labeled tree of N vertices: N^(N-2)
+// Number of ways to make a graph of N vertices and K components of size
+// s_1, ..., s_k connected: PI(s_i)N^(K-2)
 // Credit: CP-Algorithms
 template<typename Graph>
 vector<int> pruefer_code(const Graph &adj){
@@ -5690,6 +5758,58 @@ Str lcs(vector<Str> a){
 
 // 156485479_5_9
 // Suffix Tree
+// O(Alphabet_size * Length)
+// Credit: KACTL
+// TODO: Find a problem requiring suffix tree
+// TODO: Change this into vector format
+struct suffix_tree{
+	enum { N = 200010, ALPHA = 26 }; // N ~ 2*maxlen+10
+	int toi(char c){ return c - 'a'; }
+	string a; // v = cur node, q = cur position
+	int t[N][ALPHA],l[N],r[N],p[N],s[N],v=0,q=0,m=2;
+	void ukkadd(int i, int c) { suff:
+		if(r[v]<=q){
+			if (t[v][c]==-1) { t[v][c]=m;  l[m]=i;
+				p[m++]=v; v=s[v]; q=r[v];  goto suff; }
+			v=t[v][c]; q=l[v];
+		}
+		if (q==-1 || c==toi(a[q])) q++; else {
+			l[m+1]=i;  p[m+1]=m;  l[m]=l[v];  r[m]=q;
+			p[m]=p[v];  t[m][c]=m+1;  t[m][toi(a[q])]=v;
+			l[v]=q;  p[v]=m;  t[p[m]][toi(a[l[m]])]=m;
+			v=s[p[m]];  q=l[m];
+			while (q<r[m]) { v=t[v][toi(a[q])];  q+=r[v]-l[v]; }
+			if (q==r[m])  s[m]=v;  else s[m]=m+2;
+			q=r[v]-(q-r[m]);  m+=2;  goto suff;
+		}
+	}
+	suffix_tree(string a) : a(a) {
+		fill(r,r+N,sz(a));
+		memset(s, 0, sizeof s);
+		memset(t, -1, sizeof t);
+		fill(t[1],t[1]+ALPHA,0);
+		s[0] = 1; l[0] = l[1] = -1; r[0] = r[1] = p[0] = p[1] = 0;
+		rep(i,0,sz(a)) ukkadd(i, toi(a[i]));
+	}
+
+	// example: find longest common substring (uses ALPHA = 28)
+	pii best;
+	int lcs(int node, int i1, int i2, int olen) {
+		if (l[node] <= i1 && i1 < r[node]) return 1;
+		if (l[node] <= i2 && i2 < r[node]) return 2;
+		int mask = 0, len = node ? olen + (r[node] - l[node]) : 0;
+		rep(c,0,ALPHA) if (t[node][c] != -1)
+			mask |= lcs(t[node][c], i1, i2, len);
+		if (mask == 3)
+			best = max(best, {len, r[node] - len});
+		return mask;
+	}
+	static pii LCS(string s, string t) {
+		SuffixTree st(s + (char)('z' + 1) + t + (char)('z' + 2));
+		st.lcs(0, sz(s), sz(s) + 1 + sz(t), 0);
+		return st.best;
+	}
+};
 	
 // 156485479_5_10
 // Palindrome Automaton / Eertree

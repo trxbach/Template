@@ -17,7 +17,7 @@ int main(int argc, char *argv[]){
 		auto p1 = high_resolution_clock::now();
 		system(("./" + bad_sol + "<./in>./stress/out_bad").c_str());
 		auto p2 = high_resolution_clock::now();
-		system(("./" + checker + "<./stress/out_bad>./stress/_res").c_str());
+		system(("printf \"\\n\" | cat ./in - ./stress/out_bad | ./" + checker + ">./stress/_res").c_str());
 		ifstream _res("./stress/_res"), badin("./stress/out_bad");
 		int res;
 		_res >> res;
