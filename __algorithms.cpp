@@ -156,7 +156,7 @@ Category
 
 
 4. Graph
-	4.1. Strongly Connected Component ( Tarjan's Algorithm ) / Strong Augmentation
+	4.1. Strongly Connected Component ( Tarjan's Algorithm ) / Condensation / Strong Augmentation
 		156485479_4_1
 	4.2. Biconnected Component
 		156485479_4_2
