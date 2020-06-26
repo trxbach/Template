@@ -4368,7 +4368,9 @@ struct heavy_light_decomposition{
 	BO bin_op;
 	const T id;
 	template<typename Graph>
-	heavy_light_decomposition(const Graph &adj, DS &tr, BO bin_op, T id): n(int(adj.size())), adj(adj), par(n, -1), sz(n, 1), depth(n), next(n), pos(n), tr(tr), bin_op(bin_op), id(id){ }
+	heavy_light_decomposition(const Graph &adj, DS &tr, BO bin_op, T id): n(int(adj.size())), adj(adj), par(n, -1), sz(n, 1), depth(n), next(n), pos(n), tr(tr), bin_op(bin_op), id(id){
+		dfs_sz(0), dfs_hld(0);
+	}
 	void dfs_sz(int u){
 		if(par[u] != -1) adj[u].erase(find(adj[u].begin(), adj[u].end(), par[u]));
 		for(auto &v: adj[u]){
@@ -4386,9 +4388,6 @@ struct heavy_light_decomposition{
 			next[v] = (v == adj[u][0] ? next[u] : v);
 			dfs_hld(v);
 		}
-	}
-	void init(){
-		dfs_sz(root), dfs_hld(root);
 	}
 	template<typename Process>
 	void processpath(int u, int v, Process act){
