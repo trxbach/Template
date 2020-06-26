@@ -1811,6 +1811,7 @@ struct line_container: multiset<line, less<>>{
 // 156485479_2_6_1_3
 // Li Chao Tree
 // O(log N) per update and query
+// Credit: Benq
 struct line{
 	long long d, k;
 	line(long long d = 0, long long k = -(long long)9e18): d(d), k(k){ }
@@ -1859,6 +1860,7 @@ struct lichao{
 // Must satisfy opt[j] <= opt[j + 1]
 // Special case: dp[j][i] must be a Monge array ( if one interval contains the other, it's better to resolve them )
 // O(N log N)
+// Credit: cp-algorithms.com
 template<bool GET_MAX = true>
 void DCDP(vector<long long> &dp, vector<long long> &dp_next, auto cost, int low, int high, int opt_low, int opt_high){
 	if(low >= high) return;
@@ -1970,6 +1972,7 @@ auto kadane(IT begin, IT end, T init = 0){
 
 // 156485479_2_8
 // Big Integer
+// Credit: https://gist.github.com/ar-pa/957297fb3f88996ead11
 const int base = 1e9;
 const int base_digits = 9; 
 struct bigint{
@@ -2422,7 +2425,7 @@ struct subinterval{
 
 // 156485479_2_11_1
 // Matroid Intersection
-// Credit: tfg ( https://github.com/tfg50/Competitive-Programming/blob/master/Biblioteca/Math/MatroidIntersection.cpp )
+// Credit: tfg/chilli/pajenegod ( https://github.com/tfg50/Competitive-Programming/blob/master/Biblioteca/Math/MatroidIntersection.cpp )
 // Examples of Matroids
 struct ColorMat{
 	vector<int> cnt, clr;
@@ -2515,6 +2518,7 @@ vector<int> LIS(const vector<T> &a){
 // Sparse Table
 // The binary operator must be idempotent and associative
 // O(n log n) preprocessing, O(1) per query
+// Credit: Kactl
 template<typename T, typename BO>
 struct sparse_table{
 	int n;
@@ -2564,6 +2568,7 @@ struct sparse_table{
 // 156485479_3_2_1
 // Iterative Segment Tree
 // O(n) processing, O(log n) per query
+// Credit: https://codeforces.com/blog/entry/18051
 template<typename T, typename BO>
 struct segment{
 	int n;
@@ -2603,6 +2608,7 @@ struct segment{
 // 156485479_3_2_2
 // Iterative Segment Tree with Reversed Operation ( Commutative Operation Only )
 // O(n) Preprocessing, O(1) per query
+// Credit: https://codeforces.com/blog/entry/18051
 template<typename T, typename BO>
 struct segment{
 	int n;
@@ -2743,6 +2749,7 @@ struct segment{
 // 156485479_3_2_5_1
 // Iterative Lazy Segment Tree
 // O(n) processing, O(log n) per query
+// Credit: https://codeforces.com/blog/entry/18051
 struct lazy_segment{
 	int n, h;
 	vector<int> roots;
@@ -4274,6 +4281,7 @@ struct weighted_lca{
 // Binary Lifting
 // Also works for graphs with outdegree 1 for all vertices.
 // O(n log n) preprocessing, O(log n) per lca query
+// Credit: Benq
 struct binary_lift{
 	int n, lg;
 	vector<vector<int>> up;
