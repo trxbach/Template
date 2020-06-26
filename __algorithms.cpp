@@ -251,16 +251,19 @@ Category
 		6.4.1. Find a Pair of Intersecting Segments ( INCOMPLETE )
 			156485479_6_4_1
 
-
-7. Miscellaneous
-	7.1. Custom Hash Function for unordered_set and unordered map
+7. Heuristics Algorithms
+	7.1. Maximum Independent Set
 		156485479_7_1
-	7.2. Bump Allocator
-		156485479_7_2
-	7.3. Debug
-		156485479_7_3
-	7.4. Random Generator
-		156485479_7_4
+
+8. Miscellaneous
+	8.1. Custom Hash Function for unordered_set and unordered map
+		156485479_8_1
+	8.2. Bump Allocator
+		156485479_8_2
+	8.3. Debug
+		156485479_8_3
+	8.4. Random Generator
+		156485479_8_4
 
 
 ***************************************************************************************************************/
@@ -331,14 +334,7 @@ ll euclid(ll a, ll b, ll &x, ll &y){
 }
 // solutions to ax + by = c where x in [xlow, xhigh] and y in [ylow, yhigh]
 // cnt, leftsol, rightsol, gcd of a and b
-typedef long long ll;
-ll euclid(ll a, ll b, ll &x, ll &y){
-	if(b){
-		ll d = euclid(b, a % b, y, x);
-		return y -= a / b * x, d;
-	}
-	return x = 1, y = 0, a;
-}
+// Requires euclid
 array<ll, 6> solve_linear_diophantine(ll a, ll b, ll c, ll xlow, ll xhigh, ll ylow, ll yhigh){
 	ll x, y, g = euclid(abs(a), abs(b), x, y);
 	array<ll, 6> no_sol{0, 0, 0, 0, 0, g};
@@ -410,7 +406,7 @@ struct combinatorics{
 	T H(int n, int k){ return C(n + k - 1, k); }
 	vector<T> precalc_power(int base, int n = SZ << 1){
 		vector<T> res(n + 1, 1);
-		for(auto i = 1; i <= n; ++ i) res[i] = res[i - 1] * base;
+		for(int i = 1; i <= n; ++ i) res[i] = res[i - 1] * base;
 		return res;
 	}
 	T naive_C(long long n, long long k){
@@ -1780,6 +1776,7 @@ struct sorted_line_container: deque<line>{
 // 156485479_2_6_1_2
 // Line Container / Add lines of form d*x + k and query max at pos x
 // O(log N) per query
+// Credit: KACTL
 struct line{
 	mutable long long d, k, p;
 	bool operator<(const line &otr) const{ return d < otr.d; }
@@ -2752,19 +2749,19 @@ struct lazy_segment{
 
 #define R array<int, 2>		// Range type
 #define L int 				// Lazy type
-#define Q array<int, 2>		// Query type
+#define Q pair<array<int, 2>, int>		// Query type min, first occurence, max
 	L lop(const L &lazy, const R &r0, const L &x, const R &r1){ // r1 always contain r0
 		return lazy + x;
 	}
 	Q qop(const Q &lval, const R &r0, const Q &rval, const R &r1){ // always r0[1] == r1[0]
-		return lval[0] == rval[0] ? Q{lval[0], lval[1] + rval[1]} : min(lval, rval);
+		return {min(lval.first, rval.first), max(lval.second, rval.second)};
 	}
 	Q aop(const Q &val, const R &r0, const L &x, const R &r1){ // r1 always contain r0
-		return {val[0] + x, val[1]};
+		return {{val.first[0] + x, val.first[1]}, val.second + x};
 	}
-	const pair<L, Q> id{0, Q{numeric_limits<int>::max() / 2, 0}};
+	const pair<L, Q> id{0, Q{{{numeric_limits<int>::max() / 2, 0}}, 0}};
 	Q init(const int &p){
-		return {0, 1};
+		return {{0, p}, 0};
 	}
 
 	vector<R> range;
@@ -2803,17 +2800,18 @@ struct lazy_segment{
 			for(int i = r; i >= l; -- i) refresh(i);
 		}
 	}
-	void push(int l, int r){
-		int s = h;
-		for(l += n, r += n - 1; s > 0; -- s){
-			for(int i = l >> s; i <= r >> s; ++ i) if(lazy[i] != id.first){
-				val[i << 1] = aop(val[i << 1], range[i << 1], lazy[i], range[i]);
-				lazy[i << 1] = lop(lazy[i << 1], range[i << 1], lazy[i], range[i]);
-				val[i << 1 | 1] = aop(val[i << 1 | 1], range[i << 1 | 1], lazy[i], range[i]);
-				lazy[i << 1 | 1] = lop(lazy[i << 1 | 1], range[i << 1 | 1], lazy[i], range[i]);
-				lazy[i] = id.first;
-			}
+	void push(int p){ // push internal node p
+		if(lazy[p] != id.first){
+			val[p << 1] = aop(val[p << 1], range[p << 1], lazy[p], range[p]);
+			lazy[p << 1] = lop(lazy[p << 1], range[p << 1], lazy[p], range[p]);
+			val[p << 1 | 1] = aop(val[p << 1 | 1], range[p << 1 | 1], lazy[p], range[p]);
+			lazy[p << 1 | 1] = lop(lazy[p << 1 | 1], range[p << 1 | 1], lazy[p], range[p]);
+			lazy[p] = id.first;
 		}
+	}
+	void push(int l, int r){ // push the range [l, r)
+		int s = h;
+		for(l += n, r += n - 1; s > 0; -- s) for(int i = l >> s; i <= r >> s; ++ i) push(i);
 	}
 	void update(int l, int r, L x){
 		if(l >= r) return;
@@ -2842,8 +2840,7 @@ struct lazy_segment{
 		}
 	}
 	Q query(int l, int r){
-		push(l, l + 1);
-		push(r - 1, r);
+		push(l, l + 1), push(r - 1, r);
 		Q resl = id.second, resr = id.second;
 		R l_range{l, l}, r_range{r, r};
 		for(l += n, r += n; l < r; l >>= 1, r >>= 1){
@@ -2854,7 +2851,7 @@ struct lazy_segment{
 	}
 	void print(){
 		for(int u = 0; u < 2 * n; ++ u){
-			//cout << u << "-th node represent [" << range[u][0] << ", " << range[u][1] << "), val = " << val[u] << ", lazy = " << lazy[u] << "\n";
+			// cout << u << "-th node represent [" << range[u][0] << ", " << range[u][1] << "), val = " << format(val[u]) << ", lazy = " << lazy[u] << "\n";
 		}
 	}
 #undef R
@@ -4364,19 +4361,14 @@ struct weighted_binary_lift{
 // Requires lazy_segment or dynamic lazy_segment
 template<typename DS, typename BO, typename T, int VALS_IN_EDGES = 1>
 struct heavy_light_decomposition{
-	int n, root;
+	int n;
 	vector<vector<int>> adj;
 	vector<int> par, sz, depth, next, pos, rpos;
 	DS &tr;
 	BO bin_op;
 	const T id;
-	heavy_light_decomposition(int n, int root, DS &tr, BO bin_op, T id): n(n), root(root), adj(n), par(n, -1), sz(n, 1), depth(n), next(n), pos(n), tr(tr), bin_op(bin_op), id(id){
-		this->root = next[root] = root;
-	}
-	void insert(int u, int v){
-		adj[u].push_back(v);
-		adj[v].push_back(u);
-	}
+	template<typename Graph>
+	heavy_light_decomposition(const Graph &adj, DS &tr, BO bin_op, T id): n(int(adj.size())), adj(adj), par(n, -1), sz(n, 1), depth(n), next(n), pos(n), tr(tr), bin_op(bin_op), id(id){ }
 	void dfs_sz(int u){
 		if(par[u] != -1) adj[u].erase(find(adj[u].begin(), adj[u].end(), par[u]));
 		for(auto &v: adj[u]){
@@ -6345,6 +6337,43 @@ ostream &operator<<(ostream &out, const P &p){
 // Find a Pair of Intersecting Segments
 
 // 156485479_7_1
+// Maximum Independent Set
+// http://ceur-ws.org/Vol-2098/paper12.pdf
+template<int SZ>
+bitset<SZ> maximum_independent_set_heuristic(vector<bitset<SZ>> adj){
+	int n = int(adj.size()), Est = 0;
+	vector<int> k(n), m(n);
+	bitset<SZ> V0, S;
+	V0.set();
+	while(V0.any()){
+		for(int u = V0._Find_first(); u < n; u = V0._Find_next(u)){
+			static vector<int> cur;
+			cur.clear();
+			for(int v = adj[u]._Find_first(); v != n; v = adj[u]._Find_next(v)) cur.push_back(v);
+			k[u] = int(cur.size()), m[u] = 0;
+			for(int i = 0; i < k[u]; ++ i) for(int j = i + 1; j < k[u]; ++ j) if(!adj[cur[i]][cur[j]]) ++ m[u];
+		}
+		int v0 = V0._Find_first();
+		for(int u = V0._Find_next(v0); u < n; u = V0._Find_next(u)){
+			if(m[v0] > m[u] || m[v0] == m[u] && k[v0] < k[u]) v0 = u;
+		}
+		S.set(v0);
+		Est += m[v0];
+		static vector<int> cur;
+		cur.clear();
+		for(int u = adj[v0]._Find_first(); u != n; u = adj[v0]._Find_next(u)) cur.push_back(u);
+		for(int u = V0._Find_first(); u < n; u = V0._Find_next(u)){
+			adj[u].reset(v0);
+			for(auto v: cur) adj[u].reset(v);
+		}
+		adj[v0].reset();
+		V0.reset(v0);
+		for(auto u: cur) V0.reset(u), adj[u].reset();
+	}
+	return S;
+}
+
+// 156485479_8_1
 // Custom Hash Function for unordered_set and unordered map
 struct custom_hash{
 	static uint64_t splitmix64(uint64_t x){
@@ -6393,7 +6422,7 @@ cc_hash_table                 : around 35
 gp_hash_table                 : around 20
 */
 
-// 156485479_7_2
+// 156485479_8_2
 // Bump Allocator
 static char BUFF[220 << 20];
 void *operator new(size_t s){
@@ -6403,7 +6432,7 @@ void *operator new(size_t s){
 }
 void operator delete(void *){ }
 
-// 156485479_7_3
+// 156485479_8_3
 // DEBUG BEGIN
 template<class L, class R>
 istream &operator>>(istream &in, pair<L, R> &p){
@@ -6442,9 +6471,9 @@ ostream &operator<<(enable_if_t<!is_same_v<T<Args...>, string>, ostream> &out, c
 }
 // DEBUG END
 
-// 156485479_7_4
+// 156485479_8_4
 // Random Generators
-namespace generator{
+namespace graph_generator{
 	int rand_int(int low, int high){ // generate random integer in [low, high)
 		return rng() % (high - low) + low;
 	}
@@ -6456,6 +6485,11 @@ namespace generator{
 	vector<array<int, 3>> generate_weighted_tree(int n, int wlow = 1, int whigh = 6){
 		vector<array<int, 3>> res;
 		for(int u = 1; u < n; ++ u) res.push_back({u, rand_int(0, u), rand_int(wlow, whigh)});
+		return res;
+	}
+	vector<array<int, 2>> generate_graph(int n, int m){
+		vector<array<int, 2>> res(m);
+		for(auto &[u, v]: res) u = rng() % n, v = rng() % n;
 		return res;
 	}
 	vector<array<int, 2>> generate_simply_connected_graph(int n, int m){
@@ -6481,4 +6515,4 @@ namespace generator{
 		return res;
 	}
 }
-using namespace generator;
+using namespace graph_generator;
