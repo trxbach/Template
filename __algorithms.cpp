@@ -4359,6 +4359,7 @@ struct weighted_binary_lift{
 // Heavy Light Decomposition / HLD
 // O(N + M) processing, O(log^2 N) per query
 // Requires lazy_segment or dynamic_lazy_segment
+// Credit: Benq
 template<typename DS, typename BO, typename T, int VALS_IN_EDGES = 0>
 struct heavy_light_decomposition{
 	int n;
