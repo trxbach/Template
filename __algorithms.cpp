@@ -4356,10 +4356,10 @@ struct weighted_binary_lift{
 };
 
 // 156485479_4_5_3
-// Heavy Light Decomposition
+// Heavy Light Decomposition / HLD
 // O(N + M) processing, O(log^2 N) per query
-// Requires lazy_segment or dynamic lazy_segment
-template<typename DS, typename BO, typename T, int VALS_IN_EDGES = 1>
+// Requires lazy_segment or dynamic_lazy_segment
+template<typename DS, typename BO, typename T, int VALS_IN_EDGES = 0>
 struct heavy_light_decomposition{
 	int n;
 	vector<vector<int>> adj;
