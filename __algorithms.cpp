@@ -4244,7 +4244,7 @@ struct lca{
 		tie(u, v) = minmax(time[u], time[v]);
 		return path[rmq.query(u, v)];
 	}
-	int dist(int u, int v){ return depth[u] + depth[v] - 2 * depth[query(u, v)]; }
+	int dist(int u, int v, int w = -1){ return depth[u] + depth[v] - 2 * depth[~w ? w : query(u, v)]; }
 };
 // For Weighted Tree
 // Requires sparse_table
@@ -4271,8 +4271,8 @@ struct weighted_lca{
 		tie(u, v) = minmax(time[u], time[v]);
 		return path[rmq.query(u, v)];
 	}
-	pair<int, long long> dist(int u, int v){
-		int l = query(u, v);
+	pair<int, long long> dist(int u, int v, int w = -1){
+		int l = ~w ? w : query(u, v);
 		return {depth[u] + depth[v] - 2 * depth[l], dist[u] + dist[v] - 2 * dist[l]};
 	}
 };
@@ -4306,8 +4306,8 @@ struct binary_lift{
 		for(int d = lg; d >= 0; -- d) if(up[u][d] != up[v][d]) u = up[u][d], v = up[v][d];
 		return u == v ? u : up[u][0];
 	}
-	int dist(int u, int v){
-		return depth[u] + depth[v] - 2 * depth[lca(u, v)];
+	int dist(int u, int v, int w = -1){
+		return depth[u] + depth[v] - 2 * depth[~w ? w : lca(u, v)];
 	}
 	int trace_up(int u, int dist){
 		for(int d = lg; d >= 0; -- d) if(dist & (1 << d)) u = up[u][d];
@@ -4358,8 +4358,8 @@ struct weighted_binary_lift{
 		if(u != v) res = bin_op(bin_op(res, up[u][0].second), up[v][0].second), u = up[u][0].first;
 		return {u, bin_op(res, val[u])};
 	}
-	int dist(int u, int v){
-		return depth[u] + depth[v] - 2 * depth[query(u, v).first];
+	int dist(int u, int v, int w = -1){
+		return depth[u] + depth[v] - 2 * depth[~w ? w : query(u, v).first];
 	}
 };
 
@@ -4370,18 +4370,18 @@ struct weighted_binary_lift{
 // Credit: Benq
 template<typename DS, typename BO, typename T, int VALS_IN_EDGES = 0>
 struct heavy_light_decomposition{
-	int n;
+	int n, root;
 	vector<vector<int>> adj;
 	vector<int> par, sz, depth, next, pos, rpos;
 	DS &tr;
 	BO bin_op;
 	const T id;
 	template<typename Graph>
-	heavy_light_decomposition(const Graph &adj, DS &tr, BO bin_op, T id): n(int(adj.size())), adj(adj), par(n, -1), sz(n, 1), depth(n), next(n), pos(n), tr(tr), bin_op(bin_op), id(id){
-		dfs_sz(0), dfs_hld(0);
+	heavy_light_decomposition(const Graph &adj, DS &tr, BO bin_op, T id, int root = 0): n(int(adj.size())), adj(adj), root(root), par(n, -1), sz(n, 1), depth(n), next(n, root), pos(n), tr(tr), bin_op(bin_op), id(id){
+		dfs_sz(root), dfs_hld(root);
 	}
 	void dfs_sz(int u){
-		if(par[u] != -1) adj[u].erase(find(adj[u].begin(), adj[u].end(), par[u]));
+		if(~par[u]) adj[u].erase(find(adj[u].begin(), adj[u].end(), par[u]));
 		for(auto &v: adj[u]){
 			par[v] = u, depth[v] = depth[u] + 1;
 			dfs_sz(v);
@@ -4397,6 +4397,13 @@ struct heavy_light_decomposition{
 			next[v] = (v == adj[u][0] ? next[u] : v);
 			dfs_hld(v);
 		}
+	}
+	int lca(int u, int v){
+		for(; next[u] != next[v]; v = par[next[v]]) if(depth[next[u]] > depth[next[v]]) swap(u, v);
+		return depth[u] < depth[v] ? u : v;
+	}
+	int dist(int u, int v, int w = -1){
+		return depth[u] + depth[v] - 2 * depth[~w ? w : lca(u, v)];
 	}
 	template<typename Process>
 	void processpath(int u, int v, Process act){
@@ -4448,11 +4455,11 @@ vector<int> centroid(const vector<vector<int>> &adj){
 struct centroid_decomposition{
 	int n, root;
 	vector<int> dead, sz, par, cpar;
-	vector<vector<int>> adj, cchild, dist;
-	centroid_decomposition(int n): n(n), adj(n), dead(n), sz(n), par(n), cchild(n), cpar(n), dist(n){ }
-	void insert(int u, int v){
-		adj[u].push_back(v);
-		adj[v].push_back(u);
+	const vector<vector<int>> &adj;
+	vector<vector<int>> cchild, dist;
+	template<typename Graph>
+	centroid_decomposition(const Graph &adj): n(int(adj.size())), adj(adj), dead(n), sz(n), par(n), cchild(n), cpar(n), dist(n){
+		dfs_centroid(0, -1);
 	}
 	void dfs_sz(int u){
 		sz[u] = 1;
@@ -4468,9 +4475,7 @@ struct centroid_decomposition{
 		int s = sz[u];
 		while(1){
 			int w = 0, msz = 0;
-			for(auto v: adj[u]) if(!dead[v] && v != par[u] && msz < sz[v]){
-				w = v, msz = sz[v];
-			}
+			for(auto v: adj[u]) if(!dead[v] && v != par[u] && msz < sz[v]) w = v, msz = sz[v];
 			if(msz * 2 <= s) return u;
 			u = w;
 		}
@@ -4485,12 +4490,8 @@ struct centroid_decomposition{
 		if(p != -1) cchild[p].push_back(u);
 		else root = u;
 		dist[u].push_back(0);
-		int d = 0;
 		for(auto v: adj[u]) if(!dead[v]) dfs_dist(v, u);
 		for(auto v: adj[u]) if(!dead[v]) dfs_centroid(v, u);
-	}
-	void init(){
-		dfs_centroid(0, -1);
 	}
 };
 
@@ -6441,42 +6442,39 @@ void *operator new(size_t s){
 void operator delete(void *){ }
 
 // 156485479_8_3
+// Debugger
+
 // DEBUG BEGIN
-template<class L, class R>
-istream &operator>>(istream &in, pair<L, R> &p){
-	return in >> p.first >> p.second;
+template<typename L, typename R>
+ostream &operator<<(ostream &out, pair<L, R> p){
+	return out << "(" << p.first << ", " << p.second << ")";
 }
-template<class Tuple, size_t ...Is>
-void read_tuple(istream &in, Tuple &t, index_sequence<Is...>){
-	((in >> get<Is>(t)), ...);
+template<typename Tuple, size_t ...Is>
+void print_tuple(ostream &out, Tuple t, index_sequence<Is...>){
+	((out << (Is ? ", " : "") << get<Is>(t)), ...);
 }
-template<class ...Args>
-istream &operator>>(istream &in, tuple<Args...> &t){
-	read_tuple(in, t, index_sequence_for<Args...>{});
-	return in;
+template<typename ...Args>
+ostream &operator<<(ostream &out, tuple<Args...> t){
+	out << "(", print_tuple(out, t, index_sequence_for<Args...>{}); return out << ")";
 }
-template<class ...Args, template<class...> class T>
-istream &operator>>(enable_if_t<!is_same_v<T<Args...>, string>, istream> &in, T<Args...> &arr){
-	for(auto &x: arr) in >> x; return in;
+template<typename ...Args, template<typename...> typename T>
+ostream &operator<<(enable_if_t<!is_same_v<T<Args...>, string>, ostream> &out, T<Args...> arr){
+	out << "{"; for(auto &x: arr) out << x << " ";
+	return out << (arr.size() ? "\b" : "") << "}";
 }
-template<class L, class R>
-ostream &operator<<(ostream &out, const pair<L, R> &p){
-	return out << "(" << p.first << " " << p.second << ")";
+template<size_t S>
+ostream &operator<<(ostream &out, bitset<S> b){
+	for(int i = 0; i < S; ++ i) out << b[i];
+	return out;
 }
-template<class Tuple, size_t ...Is>
-void print_tuple(ostream &out, const Tuple &t, index_sequence<Is...>){
-	((out << (Is ? " " : "") << get<Is>(t)), ...);
-}
-template<class ...Args>
-ostream &operator<<(ostream &out, const tuple<Args...> &t){
-	out << "<"; print_tuple(out, t, index_sequence_for<Args...>{});
-	return out << ">";
-}
-template<class ...Args, template<class...> class T>
-ostream &operator<<(enable_if_t<!is_same_v<T<Args...>, string>, ostream> &out, const T<Args...> &arr){
-	out << "["; for(auto &x: arr) out << x << " ";
-	return out << (arr.size() ? "\b" : "") << "]\n";
-}
+void debug_out(){ cerr << "\b\b " << endl; }
+template<typename Head, typename... Tail>
+void debug_out(Head H, Tail... T){ cerr << H << ", ", debug_out(T...); }
+#ifdef LOCAL
+#define debug(...) cerr << "[" << #__VA_ARGS__ << "]: ", debug_out(__VA_ARGS__)
+#else
+#define debug(...) 42
+#endif
 // DEBUG END
 
 // 156485479_8_4
