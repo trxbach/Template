@@ -14,28 +14,26 @@ Category
 		156485479_1_1
 	1.2. Extended Euclidean Algorithm / Linear Diophantine Equation
 		156485479_1_2
-	1.3. Linear Sieve
+	1.3. Number Theory
 		156485479_1_3
 	1.4. Combinatorics
 		156485479_1_4
-	1.5. Euler Totient Function
-		156485479_1_5
-	1.6. Millar Rabin Primality Test / Pollard Rho Algorithm
+	1.5. Millar Rabin Primality Test / Pollard Rho Algorithm
 		156485479_1_6
-	1.7. Tonelli Shanks Algorithm ( Solution to x^2 = a mod p )
+	1.6. Tonelli Shanks Algorithm ( Solution to x^2 = a mod p )
 		156485479_1_7
-	1.8. Chinese Remainder Theorem
+	1.7. Chinese Remainder Theorem
 		156485479_1_8
-	1.9. Lehman Factorization
+	1.8. Lehman Factorization
 		156485479_1_9
-	1.10. Mobius Function
-		156485479_1_10
-	1.11. Polynomial Class
+	1.9. Polynomial Class
 		156485479_1_11
-	1.12. Discrete Log
+	1.10. Discrete Log
 		156485479_1_12
-	1.13. Continued Fraction
+	1.11. Continued Fraction
 		156485479_1_13
+	1.12. Meissel–Lehmer Algorithm / Fast Computaion of pi(N)
+		156485479_1_14
 
 
 2. Numeric
@@ -250,6 +248,8 @@ Category
 	6.4. Line Sweep
 		6.4.1. Find a Pair of Intersecting Segments ( INCOMPLETE )
 			156485479_6_4_1
+		6.4.2. Find the Closest Pair of Points
+			156485479_6_4_2
 
 7. Heuristics Algorithms
 	7.1. Maximum Independent Set
@@ -371,19 +371,94 @@ array<ll, 6> solve_linear_diophantine(ll a, ll b, ll c, ll xlow, ll xhigh, ll yl
 }
 
 // 156485479_1_3
-// Run linear sieve up to n
-// O(n)
-array<vector<int>, 2> linearsieve(int n){
-	vector<int> lpf(n + 1), prime;
-	prime.reserve(n + 1);
-	for(int i = 2; i <= n; ++ i){
-		if(!lpf[i]) lpf[i] = i, prime.push_back(i);
-		for(int j = 0; j < int(prime.size()) && prime[j] <= lpf[i] && i * prime[j] <= n; ++ j){
-			lpf[i * prime[j]] = prime[j];
+// Number Theory
+struct number_theory{
+	// least prime factor, primes, mobius function, totient function, number of multiples
+	int n;
+	vector<int> lpf, prime, mu, phi;
+	// O(n)
+	number_theory(int n): n(n), lpf(n + 1), mu(n + 1, 1), phi(n + 1, 1){
+		for(int i = 2; i <= n; ++ i){
+			if(!lpf[i]) lpf[i] = i, prime.push_back(i);
+			if(i / lpf[i] % lpf[i]) mu[i] = -mu[i / lpf[i]], phi[i] = phi[i / lpf[i]] * (lpf[i] - 1);
+			else mu[i] = 0, phi[i] = phi[i / lpf[i]] * lpf[i];
+			for(int j = 0; j < int(prime.size()) && prime[j] <= lpf[i] && prime[j] * i <= n; ++ j) lpf[prime[j] * i] = prime[j];
 		}
 	}
-	return {lpf, prime};
-}
+	// O(sqrt(x))
+	int mu_large(long long x){
+		int res = 1;
+		for(long long i = 2; i * i <= x; ++ i) if(x % i == 0){
+			if(x / i % i) return 0;
+			x /= i, res = -res;
+		}
+		if(x > 1) res = -res;
+		return res;
+	}
+	// O(sqrt(x))
+	long long phi_large(long long x){
+		long long res = x;
+		for(long long i = 2; i * i <= x; ++ i) if(x % i == 0){
+			while(x % i == 0) x /= i;
+			res -= res / i;
+		}
+		if(x > 1) res -= res / x;
+		return res;
+	}
+	// O(n log n)
+	template<typename IT>
+	auto convolute(IT begin0, IT end0, IT begin1, IT end1){
+		int n = distance(begin0, end0);
+		assert(n == distance(begin1, end1));
+		vector<typename iterator_traits<IT>::value_type> res(n + 1);
+		for(int x = 1; x <= n; ++ x) for(int y = 1; x * y <= n; ++ y) res[x * y] += *(begin0 + x) * *(begin1 + y);
+		return res;
+	}
+	// O(n log n log k)
+	template<typename IT>
+	auto conv_exp(IT begin, IT end, long long e){
+		vector<typename iterator_traits<IT>::value_type> res(n + 1), p(begin, end);
+		res[1] = 1;
+		for(; e; e >>= 1, p = convolute(p.begin(), p.end(), p.begin(), p.end())) if(e & 1) res = convolute(res.begin(), res.end(), p.begin(), p.end());
+		return res;
+	}
+	// O(n log n)
+	template<typename IT>
+	void mobius_transform(IT begin, IT end){
+		int n = distance(begin, end);
+		vector<typename iterator_traits<IT>::value_type> res(n + 1);
+		for(int x = 1; x <= n; ++ x) for(int mx = x; mx <= n; mx += x) res[mx] += *(begin + x);
+		move(res.begin(), res.end(), begin);
+	}
+	// O(n log n)
+	template<typename IT>
+	void inverse_transform(IT begin, IT end){
+		int n = distance(begin, end);
+		vector<typename iterator_traits<IT>::value_type> res(n + 1);
+		for(int x = 1; x <= n; ++ x) for(int y = 1; x * y <= n; ++ y) res[x * y] += *(begin + x) * mu[y];
+		move(res.begin(), res.end(), begin);
+	}
+	vector<int> mul_cnt;
+	bool mul_cnt_ready = false;
+	// O(n log n)
+	template<typename IT>
+	void init_mul_cnt(IT begin, IT end){
+		mul_cnt_ready = true;
+		vector<int> cnt(n + 1);
+		mul_cnt.assign(n + 1, 0);
+		for(; begin != end; ++ begin) ++ cnt[*begin];
+		for(int x = 1; x <= n; ++ x) for(int mx = x; mx <= n; mx += x) mul_cnt[x] += cnt[mx];
+	}
+	// Requires Z_p
+	// O((n / g) log k)
+	template<typename T>
+	T count_tuples_with_gcd(int k, int g = 1){
+		assert(mul_cnt_ready);
+		T res = 0;
+		for(int x = 1; x <= n / g; ++ x) res += mu[x] * (T(mul_cnt[x * g]) ^ k);
+		return res;
+	}
+};
 
 // 156485479_1_4
 // Combinatorics
@@ -464,38 +539,6 @@ struct combinatorics{
 };
 
 // 156485479_1_5
-// Euler Totient Function
-// O(sqrt(x))
-long long phi(long long x){
-	long long res = x;
-	for(long long i = 2; i * i <= x; ++ i) if(x % i == 0){
-		while(x % i == 0) x /= i;
-		res -= res / i;
-	}
-	if(x > 1) res -= res / x;
-	return res;
-}
-// Calculate phi(x) for all 1 <= x <= n
-// O(n)
-array<vector<int>, 2> linearsieve(int n){
-	vector<int> lpf(n + 1), prime;
-	prime.reserve(n + 1);
-	for(int i = 2; i <= n; ++ i){
-		if(!lpf[i]) lpf[i] = i, prime.push_back(i);
-		for(int j = 0; j < int(prime.size()) && prime[j] <= lpf[i] && i * prime[j] <= n; ++ j){
-			lpf[i * prime[j]] = prime[j];
-		}
-	}
-	return {lpf, prime};
-}
-array<vector<int>, 3> process_phi(int n){
-	auto [lpf, prime] = linearsieve(n);
-	vector<int> phi(n + 1, 1);
-	for(int i = 3; i <= n; ++ i) phi[i] = phi[i / lpf[i]] * (i / lpf[i] % lpf[i] ? lpf[i] - 1 : lpf[i]);
-	return {phi, lpf, prime};
-}
-
-// 156485479_1_6
 // Millar Rabin Primality Test / Pollard Rho Algorithm
 // 7 times slower than a^b mod m / O(n^{1/4}) gcd calls
 typedef unsigned long long ull;
@@ -538,7 +581,7 @@ vector<ull> factorize(ull n){
 	return l;
 }
 
-// 156485479_1_7
+// 156485479_1_6
 // Tonelli Shanks Algorithm ( Solution to x^2 = a mod p )
 // O(log^2 p)
 long long modexp(long long b, long long e, const long long &mod){
@@ -571,7 +614,7 @@ long long sqrt(long long a, long long p){
 	}
 }
 
-// 156485479_1_8
+// 156485479_1_7
 // Chinese Remainder Theorem (Return a number x which satisfies x = a mod m & x = b mod n)
 // All the values has to be less than 2^30
 // O(log(m + n))
@@ -596,7 +639,7 @@ ll crt(ll a, ll m, ll b, ll n){
 	return d * crt_coprime(0LL, m/d, b/d, n/d) + a;
 }
 
-// 156485479_1_9
+// 156485479_1_8
 // Lehman Factorization / return a prime divisor of x
 // x has to be equal or less than 10^14
 // O(N^1/3)
@@ -617,28 +660,7 @@ long long primefactor(long long x){
 	return x;
 }
 
-// 156485479_1_10
-// Mobius Function
-// O(n)
-array<vector<int>, 2> linearsieve(int n){
-	vector<int> lpf(n + 1), prime;
-	prime.reserve(n + 1);
-	for(int i = 2; i <= n; ++ i){
-		if(!lpf[i]) lpf[i] = i, prime.push_back(i);
-		for(int j = 0; j < int(prime.size()) && prime[j] <= lpf[i] && i * prime[j] <= n; ++ j){
-			lpf[i * prime[j]] = prime[j];
-		}
-	}
-	return {lpf, prime};
-}
-array<vector<int>, 3> process_mobius(int n){
-	auto [lpf, prime] = linearsieve(n);
-	vector<int> mobius(n + 1, 1);
-	for(int i = 2; i <= n; ++ i) mobius[i] = (i / lpf[i] % lpf[i] ? -mobius[i / lpf[i]] : 0);
-	return {mobius, lpf, prime};
-}
-
-// 156485479_1_11
+// 156485479_1_9
 // Polynomial Class
 namespace algebra {
 	int mod;
@@ -1133,7 +1155,7 @@ using namespace algebra;
 typedef poly<modular> polym;
 mod = 1e9 + 7;
 
-// 156485479_1_12
+// 156485479_1_10
 // Discrete Log
 // O(sqrt(mod) log mod)
 // a and mod must be relatively prime
@@ -1156,7 +1178,7 @@ int discrete_log(int a, int b, int mod){
 	return -1;
 }
 
-// 156485479_1_13
+// 156485479_1_11
 // Continued Fraction
 typedef array<long long, 2> frac;
 struct continued_fraction{
@@ -1199,6 +1221,94 @@ frac best_rational_within(frac low, frac high){
 		auto c = frac_t.convergent(int(t.size()));
 		if(frac_cmp(low, c) && frac_cmp(c, high)) return c;
 	}
+}
+
+// 156485479_1_12
+// Meissel–Lehmer Algorithm
+// Fast Calculation of Prime Counting Fucntion, or sum of F(p) where F is a multiplicative function
+// O(n^(2/3 + eps)) time complexity and O(n^(1/3 + eps)) space complexity for all eps > 0. (Correct me if I'm wrong)
+// Credit: chemthan
+template<typename T = long long>
+struct meissel_lehmer{
+	const int maxx = 1e2 + 5, maxy = 1e5 + 5, maxn = 1e7 + 5;
+	vector<int> lpf, prime, cn;
+	vector<T> sum;
+	vector<vector<T>> f;
+	T F(long long x){
+		return 1;
+	}
+	T sum_F(long long x){
+		return x;
+	}
+	meissel_lehmer(): sum(maxn), f(maxx, vector<T>(maxy)), cn(maxn){
+		tie(lpf, prime) = linearsieve(maxn - 1);
+		for(int i = 2, cnt = 0; i < maxn; ++ i){
+			sum[i] = sum[i - 1];
+			if(lpf[i] == i) sum[i] += F(i), ++ cnt;
+			cn[i] = cnt;
+		}
+		for(int i = 0; i < maxx; ++ i) for(int j = 0; j < maxy; ++ j){
+			f[i][j] = i ? f[i - 1][j] - f[i - 1][j / prime[i - 1]] * F(prime[i - 1]) : sum_F(j);
+		}
+	}
+	T legendre_sum(long long m, int n){
+		if(!n) return sum_F(m);
+		if(m <= prime[n - 1]) return F(1);
+		if(m < maxy && n < maxx) return f[n][m];
+		return legendre_sum(m, n - 1) - legendre_sum(m / prime[n - 1], n - 1) * F(prime[n - 1]);
+	}
+	T pi(long long m){
+		if(m <= maxn) return sum[m];
+		int x = sqrt(m + 0.9), y = cbrt(m + 0.9), a = cn[y];
+		T res = legendre_sum(m, a) - F(1) + sum[y];
+		for(int i = a; prime[i] <= x; ++ i) res -= (pi(m / prime[i]) - pi(prime[i] - 1)) * F(prime[i]);
+		return res;
+	}
+};
+// Fast Computaion of pi(N)
+long long pi(const long long N){
+	if(N <= 1) return 0;
+	if(N == 2) return 1;
+	const int v = sqrtl(N);
+	int s = (v + 1) / 2;
+	vector<int> smalls(s), roughs(s);
+	vector<long long> larges(s);
+	for(int i = 0; i < s; ++ i) smalls[i] = i, roughs[i] = 2 * i + 1, larges[i] = (N / (2 * i + 1) - 1) / 2;
+	vector<bool> skip(v + 1);
+	const auto divide = [](long long n, long long d){ return int(n / d); };
+	const auto half = [](int n){ return n - 1 >> 1; };
+	int pc = 0;
+	for(int p = 3; p <= v; p += 2) if(!skip[p]){
+		int q = p * p;
+		if((long long)(q) * q > N) break;
+		skip[p] = true;
+		for(int i = q; i <= v; i += 2 * p) skip[i] = true;
+		int ns = 0;
+		for(int k = 0; k < s; ++ k){
+			int i = roughs[k];
+			if(skip[i]) continue;
+			long long d = (long long)(i) * p;
+			larges[ns] = larges[k] - (d <= v ? larges[smalls[d >> 1] - pc] : smalls[half(divide(N, d))]) + pc;
+			roughs[ns ++] = i;
+		}
+		s = ns;
+		for(int i = half(v), j = v / p - 1 | 1; j >= p; j -= 2){
+			int c = smalls[j >> 1] - pc;
+			for(int e = j * p >> 1; i >= e; --i) smalls[i] -= c;
+		}
+		++ pc;
+	}
+	larges[0] += (long long)(s + 2 * (pc - 1)) * (s - 1) / 2;
+	for(int k = 1; k < s; ++ k) larges[0] -= larges[k];
+	for(int l = 1; l < s; ++ l){
+		int q = roughs[l];
+		long long M = N / q, t = 0;
+		int e = smalls[half(M / q)] - pc;
+		if(e < l + 1) break;
+		for(int k = l + 1; k <= e; ++ k) t += smalls[half(divide(M, roughs[k]))];
+		larges[0] += t - (long long)(e - l) * (pc + l - 1);
+	}
+	return larges[0] + 1;
 }
 
 // 156485479_2_1
@@ -2821,7 +2931,7 @@ struct lazy_segment{
 		for(l += n, r += n - 1; s > 0; -- s) for(int i = l >> s; i <= r >> s; ++ i) push(i);
 	}
 	void update(int l, int r, L x){
-		if(l >= r) return;
+		if(l >= r || x == id.first) return;
 		const R update_range{l, r};
 		push(l, l + 1), push(r - 1, r);
 		bool cl = false, cr = false;
@@ -2919,7 +3029,7 @@ struct dynamic_lazy_segment{
 		}
 	}
 	void update(B ql, B qr, L x){
-		if(qr <= low || high <= ql) return;
+		if(qr <= low || high <= ql || x == id.first) return;
 		if(ql <= low && high <= qr){
 			lazy = lop(lazy, R{low, high}, x, R{ql, qr});
 			val = aop(val, R{low, high}, x, R{ql, qr});
@@ -6345,6 +6455,36 @@ ostream &operator<<(ostream &out, const P &p){
 // 156485479_6_4_1
 // Find a Pair of Intersecting Segments
 
+// 156485479_6_4_2
+// Find the Closest Pair of Points
+// O(N log N)
+long long ClosestPair(vector<pair<int, int>> pts){
+    int n = pts.size();
+    sort(pts.begin(), pts.end());
+    set<pair<int, int>> s;
+
+    long long best_dist = 1e18;
+    int j = 0;
+    for (int i = 0; i < n; ++i) {
+        int d = ceil(sqrt(best_dist));
+        while (pts[i].first - pts[j].first >= best_dist) {
+            s.erase({pts[j].second, pts[j].first});
+            j += 1;
+        }
+
+        auto it1 = s.lower_bound({pts[i].second - d, pts[i].first});
+        auto it2 = s.upper_bound({pts[i].second + d, pts[i].first});
+        
+        for (auto it = it1; it != it2; ++it) {
+            int dx = pts[i].first - it->second;
+            int dy = pts[i].second - it->first;
+            best_dist = min(best_dist, 1LL * dx * dx + 1LL * dy * dy);      
+        } 
+        s.insert({pts[i].second, pts[i].first}); 
+    }
+    return best_dist;
+}
+
 // 156485479_7_1
 // Maximum Independent Set
 // http://ceur-ws.org/Vol-2098/paper12.pdf
@@ -6459,8 +6599,8 @@ ostream &operator<<(ostream &out, tuple<Args...> t){
 }
 template<typename ...Args, template<typename...> typename T>
 ostream &operator<<(enable_if_t<!is_same_v<T<Args...>, string>, ostream> &out, T<Args...> arr){
-	out << "{"; for(auto &x: arr) out << x << " ";
-	return out << (arr.size() ? "\b" : "") << "}";
+	out << "{"; for(auto &x: arr) out << x << ", ";
+	return out << (arr.size() ? "\b\b" : "") << "}";
 }
 template<size_t S>
 ostream &operator<<(ostream &out, bitset<S> b){
