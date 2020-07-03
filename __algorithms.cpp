@@ -372,17 +372,17 @@ array<ll, 6> solve_linear_diophantine(ll a, ll b, ll c, ll xlow, ll xhigh, ll yl
 
 // 156485479_1_3
 // Number Theory
+template<int SZ>
 struct number_theory{
 	// least prime factor, primes, mobius function, totient function, number of multiples
-	int n;
 	vector<int> lpf, prime, mu, phi;
-	// O(n)
-	number_theory(int n): n(n), lpf(n + 1), mu(n + 1, 1), phi(n + 1, 1){
-		for(int i = 2; i <= n; ++ i){
+	// O(SZ)
+	number_theory(): lpf(SZ + 1), mu(SZ + 1, 1), phi(SZ + 1, 1){
+		for(int i = 2; i <= SZ; ++ i){
 			if(!lpf[i]) lpf[i] = i, prime.push_back(i);
 			if(i / lpf[i] % lpf[i]) mu[i] = -mu[i / lpf[i]], phi[i] = phi[i / lpf[i]] * (lpf[i] - 1);
 			else mu[i] = 0, phi[i] = phi[i / lpf[i]] * lpf[i];
-			for(int j = 0; j < int(prime.size()) && prime[j] <= lpf[i] && prime[j] * i <= n; ++ j) lpf[prime[j] * i] = prime[j];
+			for(int j = 0; j < int(prime.size()) && prime[j] <= lpf[i] && prime[j] * i <= SZ; ++ j) lpf[prime[j] * i] = prime[j];
 		}
 	}
 	// O(sqrt(x))
@@ -410,14 +410,15 @@ struct number_theory{
 	auto convolute(IT begin0, IT end0, IT begin1, IT end1){
 		int n = distance(begin0, end0);
 		assert(n == distance(begin1, end1));
-		vector<typename iterator_traits<IT>::value_type> res(n + 1);
-		for(int x = 1; x <= n; ++ x) for(int y = 1; x * y <= n; ++ y) res[x * y] += *(begin0 + x) * *(begin1 + y);
+		vector<typename iterator_traits<IT>::value_type> res(n);
+		for(int x = 1; x < n; ++ x) for(int y = 1; x * y < n; ++ y) res[x * y] += *(begin0 + x) * *(begin1 + y);
 		return res;
 	}
 	// O(n log n log k)
 	template<typename IT>
 	auto conv_exp(IT begin, IT end, long long e){
-		vector<typename iterator_traits<IT>::value_type> res(n + 1), p(begin, end);
+		int n = distance(begin, end);
+		vector<typename iterator_traits<IT>::value_type> res(n), p(begin, end);
 		res[1] = 1;
 		for(; e; e >>= 1, p = convolute(p.begin(), p.end(), p.begin(), p.end())) if(e & 1) res = convolute(res.begin(), res.end(), p.begin(), p.end());
 		return res;
@@ -426,36 +427,36 @@ struct number_theory{
 	template<typename IT>
 	void mobius_transform(IT begin, IT end){
 		int n = distance(begin, end);
-		vector<typename iterator_traits<IT>::value_type> res(n + 1);
-		for(int x = 1; x <= n; ++ x) for(int mx = x; mx <= n; mx += x) res[mx] += *(begin + x);
+		vector<typename iterator_traits<IT>::value_type> res(n);
+		for(int x = 1; x < n; ++ x) for(int mx = x; mx < n; mx += x) res[mx] += *(begin + x);
 		move(res.begin(), res.end(), begin);
 	}
 	// O(n log n)
 	template<typename IT>
 	void inverse_transform(IT begin, IT end){
 		int n = distance(begin, end);
-		vector<typename iterator_traits<IT>::value_type> res(n + 1);
-		for(int x = 1; x <= n; ++ x) for(int y = 1; x * y <= n; ++ y) res[x * y] += *(begin + x) * mu[y];
+		vector<typename iterator_traits<IT>::value_type> res(n);
+		for(int x = 1; x < n; ++ x) for(int y = 1; x * y < n; ++ y) res[x * y] += *(begin + x) * mu[y];
 		move(res.begin(), res.end(), begin);
 	}
 	vector<int> mul_cnt;
 	bool mul_cnt_ready = false;
-	// O(n log n)
+	// O(SZ log SZ)
 	template<typename IT>
 	void init_mul_cnt(IT begin, IT end){
 		mul_cnt_ready = true;
-		vector<int> cnt(n + 1);
-		mul_cnt.assign(n + 1, 0);
+		vector<int> cnt(SZ + 1);
+		mul_cnt.assign(SZ + 1, 0);
 		for(; begin != end; ++ begin) ++ cnt[*begin];
-		for(int x = 1; x <= n; ++ x) for(int mx = x; mx <= n; mx += x) mul_cnt[x] += cnt[mx];
+		for(int x = 1; x <= SZ; ++ x) for(int mx = x; mx <= SZ; mx += x) mul_cnt[x] += cnt[mx];
 	}
 	// Requires Z_p
-	// O((n / g) log k)
+	// O((SZ / g) log k)
 	template<typename T>
 	T count_tuples_with_gcd(int k, int g = 1){
 		assert(mul_cnt_ready);
 		T res = 0;
-		for(int x = 1; x <= n / g; ++ x) res += mu[x] * (T(mul_cnt[x * g]) ^ k);
+		for(int x = 1; x <= SZ / g; ++ x) res += mu[x] * (T(mul_cnt[x * g]) ^ k);
 		return res;
 	}
 };
