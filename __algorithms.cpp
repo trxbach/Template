@@ -69,7 +69,7 @@ Category
 				2.4.2.1.2.
 					156485479_2_4_2_1_2
 			2.4.2.2. Fast Interpolation
-				156485479_2_4_2_2 ( INCOMPLETE )
+				156485479_2_4_2_2 < INCOMPLETE >
 	2.5. Binary Search
 		156485479_2_5
 	2.6. DP Optimization
@@ -99,7 +99,7 @@ Category
 	2.11. Matroid
 		2.11.1. Matroid Intersection
 			156485479_2_11_1
-		2.11.2. Matroid Union ( INCOMPLETE )
+		2.11.2. Matroid Union < INCOMPLETE >
 			156485479_2_11_2
 	2.12. LIS
 		156485479_2_12
@@ -149,7 +149,7 @@ Category
 		156485479_3_11
 	3.12. Unital Sorter
 		156485479_3_12
-	3.13. AAA Tree ( INCOMPLETE )
+	3.13. AAA Tree < INCOMPLETE >
 		156485479_3_13
 
 
@@ -171,11 +171,11 @@ Category
 			156485479_4_4_4
 		4.4.5. Hungarian Algorithm / Minimum Cost Maximum Matching ( WARNING: UNTESTED )
 			156485479_4_4_5
-		4.4.6. Global Min Cut ( WARNING: UNTESTED )
+		4.4.6. Global Min Cut < UNTESTED >
 			156485479_4_4_6
-		4.4.7. Gomory-Hu Tree ( INCOMPLETE )
+		4.4.7. Gomory-Hu Tree < INCOMPLETE >
 			156485479_4_4_7
-		4.4.8. General Matching ( INCOMPLETE )
+		4.4.8. General Matching < INCOMPLETE >
 			156485479_4_4_8
 	4.5. Tree Algorithms
 		4.5.1. LCA ( Unweighted / Weighted )
@@ -214,7 +214,7 @@ Category
 5. String
 	5.1. Lexicographically Minimal Rotation
 		156485479_5_1
-	5.2. Palindromic Substrings ( Manacher's Algorithm )
+	5.2. Manacher's Algorithm ( Find All Palindromic Substrings )
 		156485479_5_2
 	5.3. Suffix Array and Kasai's Algorithm
 		156485479_5_3
@@ -228,14 +228,16 @@ Category
 		156485479_5_7
 	5.8. Suffix Automaton
 		156485479_5_8
-	5.9. Suffix Tree ( WARNING: UNTESTED )
+	5.9. Suffix Tree < UNTESTED >
 		156485479_5_9
-	5.10. Palindrome Automaton / Eertree
+	5.10. Palindrome Automaton / Eertree < UNTESTED >
 		156485479_5_10
-	5.11. Levenshtein Automaton ( INCOMPLETE )
+	5.11. Levenshtein Automaton < INCOMPLETE >
 		156485479_5_11
 	5.12. Burrows Wheeler Transform / Inverse
 		156485479_5_12
+	5.13. Main Lorentz Algorithm ( Find All Tandem ( Square ) Substrings )
+		156485479_5_13
 
 
 6. Geometry
@@ -243,12 +245,12 @@ Category
 		156485479_6_1
 	6.2. Convex Hull and Minkowski Addition
 		156485479_6_2
-	6.3. KD Tree ( WARNING: UNTESTED )
+	6.3. KD Tree < UNTESTED >
 		156485479_6_3
 	6.4. Line Sweep
-		6.4.1. Find a Pair of Intersecting Segments ( INCOMPLETE )
+		6.4.1. Find a Pair of Intersecting Segments < INCOMPLETE >
 			156485479_6_4_1
-		6.4.2. Find the Closest Pair of Points
+		6.4.2. Find the Closest Pair of Points < UNTESTED >
 			156485479_6_4_2
 
 7. Heuristics Algorithms
@@ -374,10 +376,8 @@ array<ll, 6> solve_linear_diophantine(ll a, ll b, ll c, ll xlow, ll xhigh, ll yl
 // Number Theory
 template<int SZ>
 struct number_theory{
-	// least prime factor, primes, mobius function, totient function, number of multiples
-	vector<int> lpf, prime, mu, phi;
-	// O(SZ)
-	number_theory(): lpf(SZ + 1), mu(SZ + 1, 1), phi(SZ + 1, 1){
+	vector<int> lpf, prime, mu, phi; // least prime factor, primes, mobius function, totient function, number of multiples
+	number_theory(): lpf(SZ + 1), mu(SZ + 1, 1), phi(SZ + 1, 1){ // O(SZ)
 		for(int i = 2; i <= SZ; ++ i){
 			if(!lpf[i]) lpf[i] = i, prime.push_back(i);
 			if(i / lpf[i] % lpf[i]) mu[i] = -mu[i / lpf[i]], phi[i] = phi[i / lpf[i]] * (lpf[i] - 1);
@@ -385,8 +385,7 @@ struct number_theory{
 			for(int j = 0; j < int(prime.size()) && prime[j] <= lpf[i] && prime[j] * i <= SZ; ++ j) lpf[prime[j] * i] = prime[j];
 		}
 	}
-	// O(sqrt(x))
-	int mu_large(long long x){
+	int mu_large(long long x){ // O(sqrt(x))
 		int res = 1;
 		for(long long i = 2; i * i <= x; ++ i) if(x % i == 0){
 			if(x / i % i) return 0;
@@ -395,8 +394,7 @@ struct number_theory{
 		if(x > 1) res = -res;
 		return res;
 	}
-	// O(sqrt(x))
-	long long phi_large(long long x){
+	long long phi_large(long long x){ // O(sqrt(x))
 		long long res = x;
 		for(long long i = 2; i * i <= x; ++ i) if(x % i == 0){
 			while(x % i == 0) x /= i;
@@ -405,8 +403,7 @@ struct number_theory{
 		if(x > 1) res -= res / x;
 		return res;
 	}
-	// O(n log n)
-	template<typename IT>
+	template<typename IT> // O(n log n)
 	auto convolute(IT begin0, IT end0, IT begin1, IT end1){
 		int n = distance(begin0, end0);
 		assert(n == distance(begin1, end1));
@@ -414,8 +411,7 @@ struct number_theory{
 		for(int x = 1; x < n; ++ x) for(int y = 1; x * y < n; ++ y) res[x * y] += *(begin0 + x) * *(begin1 + y);
 		return res;
 	}
-	// O(n log n log k)
-	template<typename IT>
+	template<typename IT> // O(n log n log k)
 	auto conv_exp(IT begin, IT end, long long e){
 		int n = distance(begin, end);
 		vector<typename iterator_traits<IT>::value_type> res(n), p(begin, end);
@@ -423,16 +419,14 @@ struct number_theory{
 		for(; e; e >>= 1, p = convolute(p.begin(), p.end(), p.begin(), p.end())) if(e & 1) res = convolute(res.begin(), res.end(), p.begin(), p.end());
 		return res;
 	}
-	// O(n log n)
-	template<typename IT>
+	template<typename IT> // O(n log n)
 	void mobius_transform(IT begin, IT end){
 		int n = distance(begin, end);
 		vector<typename iterator_traits<IT>::value_type> res(n);
 		for(int x = 1; x < n; ++ x) for(int mx = x; mx < n; mx += x) res[mx] += *(begin + x);
 		move(res.begin(), res.end(), begin);
 	}
-	// O(n log n)
-	template<typename IT>
+	template<typename IT> // O(n log n)
 	void inverse_transform(IT begin, IT end){
 		int n = distance(begin, end);
 		vector<typename iterator_traits<IT>::value_type> res(n);
@@ -441,8 +435,7 @@ struct number_theory{
 	}
 	vector<int> mul_cnt;
 	bool mul_cnt_ready = false;
-	// O(SZ log SZ)
-	template<typename IT>
+	template<typename IT> // O(SZ log SZ)
 	void init_mul_cnt(IT begin, IT end){
 		mul_cnt_ready = true;
 		vector<int> cnt(SZ + 1);
@@ -450,9 +443,7 @@ struct number_theory{
 		for(; begin != end; ++ begin) ++ cnt[*begin];
 		for(int x = 1; x <= SZ; ++ x) for(int mx = x; mx <= SZ; mx += x) mul_cnt[x] += cnt[mx];
 	}
-	// Requires Z_p
-	// O((SZ / g) log k)
-	template<typename T>
+	template<typename T> // Requires Z_p, O((SZ / g) log k)
 	T count_tuples_with_gcd(int k, int g = 1){
 		assert(mul_cnt_ready);
 		T res = 0;
@@ -2681,18 +2672,18 @@ struct sparse_table{
 // O(n) processing, O(log n) per query
 // Credit: https://codeforces.com/blog/entry/18051
 template<typename T, typename BO>
-struct segment{
+struct segment_tree{
 	int n;
 	BO bin_op;
 	T id;
 	vector<T> val;
 	vector<int> roots;
 	template<typename IT>
-	segment(IT begin, IT end, BO bin_op, T id): n(distance(begin, end)), bin_op(bin_op), id(id), val(n << 1, id){
+	segment_tree(IT begin, IT end, BO bin_op, T id): n(distance(begin, end)), bin_op(bin_op), id(id), val(n << 1, id){
 		for(int i = 0; i < n; ++ i) val[i + n] = *(begin ++);
 		for(int i = n - 1; i > 0; -- i) val[i] = bin_op(val[i << 1], val[i << 1 | 1]);
 	}
-	segment(int n, BO bin_op, T id): n(n), bin_op(bin_op), id(id), val(n << 1, id){ }
+	segment_tree(int n, BO bin_op, T id): n(n), bin_op(bin_op), id(id), val(n << 1, id){ }
 	void init_roots(){
 		vector<int> roots_r;
 		for(auto l = n, r = n << 1; l < r; l >>= 1, r >>= 1){
@@ -2721,17 +2712,17 @@ struct segment{
 // O(n) Preprocessing, O(1) per query
 // Credit: https://codeforces.com/blog/entry/18051
 template<typename T, typename BO>
-struct segment{
+struct reverse_segment_tree{
 	int n;
 	BO bin_op;
 	T id;
 	vector<T> val;
 	vector<int> roots;
 	template<typename IT>
-	segment(IT begin, IT end, BO bin_op, T id): n(distance(begin, end)), bin_op(bin_op), id(id), val(n << 1, id){
+	reverse_segment_tree(IT begin, IT end, BO bin_op, T id): n(distance(begin, end)), bin_op(bin_op), id(id), val(n << 1, id){
 		for(int i = 0; i < n; ++ i) val[i + n] = *(begin ++);
 	}
-	segment(int n, BO bin_op, T id): n(n), bin_op(bin_op), id(id), val(n << 1, id){ }
+	reverse_segment_tree(int n, BO bin_op, T id): n(n), bin_op(bin_op), id(id), val(n << 1, id){ }
 	void init_roots(){
 		vector<int> roots_r;
 		for(auto l = n, r = n << 1; l < r; l >>= 1, r >>= 1){
@@ -2764,12 +2755,12 @@ struct segment{
 // Iterative 2D Segment Tree ( Only for commutative group )
 // O(nm) processing, O(log nm) per query
 template<typename T, typename BO>
-struct segment{
+struct segment_tree_2d{
 	int n, m;
 	BO bin_op;
 	T id;
 	vector<vector<T>> val;
-	segment(const vector<vector<T>> &arr, BO bin_op, T id): n(arr.size()), m(arr[0].size()), bin_op(bin_op), id(id), val(n << 1, vector<T>(m << 1, id)){
+	segment_tree_2d(const vector<vector<T>> &arr, BO bin_op, T id): n(arr.size()), m(arr[0].size()), bin_op(bin_op), id(id), val(n << 1, vector<T>(m << 1, id)){
 		for(int i = 0; i < n; ++ i) for(int j = 0; j < m; ++ j) val[i + n][j + m] = arr[i][j];
 		for(int i = n - 1; i > 0; -- i) for(int j = 0; j < m; ++ j) val[i][j + m] = bin_op(val[i << 1][j + m], val[i << 1 | 1][j + m]);
 		for(int i = 1; i < n << 1; ++ i) for(int j = m - 1; j > 0; -- j) val[i][j] = bin_op(val[i][j << 1], val[i][j << 1 | 1]);
@@ -2810,16 +2801,16 @@ struct segment{
 // Simple Recursive Segment Tree
 // O(n) preprocessing, O(log n) per query
 template<typename T, typename BO>
-struct segment{
+struct recursive_segment_tree{
 	int n;
 	BO bin_op;
 	T id;
 	vector<T> val;
 	template<typename IT>
-	segment(IT begin, IT end, BO bin_op, T id): n(distance(begin, end)), bin_op(bin_op), id(id), val(n << 2, id){
+	recursive_segment_tree(IT begin, IT end, BO bin_op, T id): n(distance(begin, end)), bin_op(bin_op), id(id), val(n << 2, id){
 		build(begin, end, 1, 0, n);
 	}
-	segment(int n, BO bin_op, T id): n(n), bin_op(bin_op), id(id), val(n << 2, id){ }
+	recursive_segment_tree(int n, BO bin_op, T id): n(n), bin_op(bin_op), id(id), val(n << 2, id){ }
 	template<typename IT>
 	void build(IT begin, IT end, int u, int left, int right){
 		if(left + 1 == right) val[u] = *begin;
@@ -2861,7 +2852,7 @@ struct segment{
 // Iterative Lazy Segment Tree
 // O(n) processing, O(log n) per query
 // Credit: https://codeforces.com/blog/entry/18051
-struct lazy_segment{
+struct lazy_segment_tree{
 	int n, h;
 	vector<int> roots;
 
@@ -2886,12 +2877,12 @@ struct lazy_segment{
 	vector<L> lazy;
 	vector<Q> val;
 	template<typename IT>
-	lazy_segment(IT begin, IT end): n(distance(begin, end)), h(__lg(n) + 1), range(n << 1), lazy(n << 1, id.first), val(n, id.second){
+	lazy_segment_tree(IT begin, IT end): n(distance(begin, end)), h(__lg(n) + 1), range(n << 1), lazy(n << 1, id.first), val(n, id.second){
 		init_range();
 		val.insert(val.end(), begin, end);
 		build(0, n);
 	}
-	lazy_segment(int n): n(n), h(__lg(n) + 1), range(n << 1), lazy(n << 1, id.first), val(n << 1){
+	lazy_segment_tree(int n): n(n), h(__lg(n) + 1), range(n << 1), lazy(n << 1, id.first), val(n << 1){
 		init_range();
 		for(int i = n; i < n << 1; ++ i) val[i] = init(i - n);
 		build(0, n);
@@ -2980,7 +2971,7 @@ struct lazy_segment{
 // 156485479_3_2_5_2
 // Dynamic Lazy Segment Tree
 // O(1) or O(n) processing, O(log L) or O(log n) per query
-struct dynamic_lazy_segment{
+struct dynamic_lazy_segment_tree{
 
 #define B int           // Base coordinate type
 #define R array<B, 2>   // Range type
@@ -3000,19 +2991,19 @@ struct dynamic_lazy_segment{
 		return {0, r - l};
 	}
 
-	dynamic_lazy_segment *l = 0, *r = 0;
+	dynamic_lazy_segment_tree *l = 0, *r = 0;
 	B low, high;
 	L lazy = id.first;
 	Q val;
-	dynamic_lazy_segment(B low, B high): low(low), high(high), val(init(low, high)){ }
+	dynamic_lazy_segment_tree(B low, B high): low(low), high(high), val(init(low, high)){ }
 	template<typename IT>
-	dynamic_lazy_segment(IT begin, IT end, B low, B high): low(low), high(high){
+	dynamic_lazy_segment_tree(IT begin, IT end, B low, B high): low(low), high(high){
 		assert(end - begin == high - low);
 		if(high - low > 1){
 			IT inter = begin + (end - begin >> 1);
 			B mid = low + (high - low >> 1);
-			l = new dynamic_lazy_segment(begin, inter, low, mid);
-			r = new dynamic_lazy_segment(inter, end, mid, high);
+			l = new dynamic_lazy_segment_tree(begin, inter, low, mid);
+			r = new dynamic_lazy_segment_tree(inter, end, mid, high);
 			val = qop(l->val, R{low, mid}, r->val, R{mid, high});
 		}
 		else val = *begin;
@@ -3020,8 +3011,8 @@ struct dynamic_lazy_segment{
 	void push(){
 		if(!l){
 			B mid = low + (high - low >> 1);
-			l = new dynamic_lazy_segment(low, mid);
-			r = new dynamic_lazy_segment(mid, high);
+			l = new dynamic_lazy_segment_tree(low, mid);
+			r = new dynamic_lazy_segment_tree(mid, high);
 		}
 		if(lazy != id.first){
 			l->update(low, high, lazy);
@@ -3071,15 +3062,15 @@ struct node{
 	}
 };
 template<typename T, typename BO>
-struct persistent_segment: vector<node<T> *>{
+struct persistent_segment_tree: vector<node<T> *>{
 	int n;
 	BO bin_op;
 	T id;
 	template<typename IT>
-	persistent_segment(IT begin, IT end, BO bin_op, T id): n(distance(begin, end)), bin_op(bin_op), id(id){
+	persistent_segment_tree(IT begin, IT end, BO bin_op, T id): n(distance(begin, end)), bin_op(bin_op), id(id){
 		this->push_back(build(begin, end, 0, n));
 	}
-	persistent_segment(int n, BO bin_op, T id): n(n), bin_op(bin_op), id(id){
+	persistent_segment_tree(int n, BO bin_op, T id): n(n), bin_op(bin_op), id(id){
 		vector<int> temp(n, id);
 		this->push_back(build(temp.begin(), temp.end(), 0, n));
 	}
@@ -3141,17 +3132,17 @@ struct persistent_segment: vector<node<T> *>{
 // Only works on a commutative group
 // O(n log n) preprocessing, O(log n) per query
 template<typename T, typename BO, typename IO>
-struct fenwick{
+struct fenwick_tree{
 	int n;
 	BO bin_op;
 	IO inv_op;
 	T id;
 	vector<T> val;
 	template<typename IT>
-	fenwick(IT begin, IT end, BO bin_op, IO inv_op, T id): n(distance(begin, end)), bin_op(bin_op), inv_op(inv_op), id(id), val(n + 1, id){
+	fenwick_tree(IT begin, IT end, BO bin_op, IO inv_op, T id): n(distance(begin, end)), bin_op(bin_op), inv_op(inv_op), id(id), val(n + 1, id){
 		for(int i = 0; i < n; ++ i) update(i, *(begin ++));
 	}
-	fenwick(int n, BO bin_op, IO inv_op, T id): n(n), bin_op(bin_op), inv_op(inv_op), id(id), val(n + 1, id){ }
+	fenwick_tree(int n, BO bin_op, IO inv_op, T id): n(n), bin_op(bin_op), inv_op(inv_op), id(id), val(n + 1, id){ }
 	template<bool increment = true>
 	void update(int p, T x){
 		if(!increment) x = inv_op(x, query(p, p + 1));
@@ -3170,15 +3161,15 @@ struct fenwick{
 // 156485479_3_3_2
 // Fenwick Tree Supporting Range Queries of The Same Type
 // O(n log n) preprocessing, O(log n) per query
-// Requires fenwick
+// Requires fenwick_tree
 template<typename T, typename BO, typename IO, typename MO>
-struct range_fenwick{
+struct range_fenwick_tree{
 	fenwick<T, BO, IO> tr1, tr2;
 	BO bin_op;
 	IO inv_op;
 	MO multi_op;
 	T id;
-	range_fenwick(int n, BO bin_op, IO inv_op, MO multi_op, T id):
+	range_fenwick_tree(int n, BO bin_op, IO inv_op, MO multi_op, T id):
 		tr1(n, bin_op, inv_op, id),
 		tr2(n, bin_op, inv_op, id),
 		bin_op(bin_op), inv_op(inv_op), id(id){}
@@ -3200,13 +3191,13 @@ struct range_fenwick{
 // 2D Fenwick Tree ( Only for Commutative Group )
 // O(nm log nm) preprocessing, O(log n log m) per query
 template<typename T, typename BO, typename IO>
-struct fenwick_2d{
+struct fenwick_tree_2d{
 	int n, m;
 	BO bin_op;
 	IO inv_op;
 	T id;
 	vector<vector<T>> val;
-	fenwick_2d(const vector<vector<T>> &arr, BO bin_op, IO inv_op, T id): n(arr.size()), m(arr[0].size()), bin_op(bin_op), inv_op(inv_op), id(id), val(n + 1, vector<T>(m + 1)){
+	fenwick_tree_2d(const vector<vector<T>> &arr, BO bin_op, IO inv_op, T id): n(arr.size()), m(arr[0].size()), bin_op(bin_op), inv_op(inv_op), id(id), val(n + 1, vector<T>(m + 1)){
 		for(int i = 0; i < n; ++ i) for(int j = 0; j < m; ++ j) update(i, j, arr[i][j]);
 	}
 	template<bool increment = true>
@@ -3251,12 +3242,12 @@ struct node{
 	}
 };
 template<typename T, typename Compare = less<>>
-struct wavelet{
+struct wavelet_tree{
 	int n;
 	node<T> *root;
 	Compare cmp;
 	template<typename IT>
-	wavelet(IT begin, IT end, Compare cmp = less<>()): n(distance(begin, end)), cmp(cmp){
+	wavelet_tree(IT begin, IT end, Compare cmp = less<>()): n(distance(begin, end)), cmp(cmp){
 		root = new node<T>(begin, end, *min_element(begin, end, cmp), *max_element(begin, end, cmp) + 1, cmp);
 	}
 	// Return the # of elements less than x in the range [ql, qr)
@@ -3350,7 +3341,7 @@ struct monotone_stack: vector<T>{
 // 156485479_3_7
 // Distinct Value Query, Less-than-k Query (Offline, Online)
 // O(n log n) processing
-// Requires fenwick
+// Requires fenwick_tree
 // TYPE: {0: distinct value query, 1: less-than-k query with numbers in range [0, n), 2: arbitrary range less-than-k query}
 template<typename T, int TYPE = 0>
 struct offline_less_than_k_query{
@@ -3396,13 +3387,13 @@ struct offline_less_than_k_query{
 	}
 };
 // Online
-// Requires persistent_segment
+// Requires persistent_segment_tree
 // TYPE: {0: distinct value query, 1: less-than-k query with numbers in range [0, n), 2: arbitrary range less-than-k query}
 template<typename T, int TYPE = 0>
 struct less_than_k_query{
 	int n;
 	vector<node<T> *> p;
-	persistent_segment<int, plus<>> tr;
+	persistent_segment_tree<int, plus<>> tr;
 	vector<T> comp;
 	template<typename IT>
 	less_than_k_query(IT begin, IT end): n(distance(begin, end)), p(n + 1), tr(n, plus<>(), 0){
@@ -3683,7 +3674,7 @@ struct node: splay_tree<node *>{
 // Link Cut Trees
 // Amortized O(log n) per operation
 // Credit: DGC
-// Requires Splay Tree
+// Requires splay_tree
 template<typename node>
 struct link_cut_tree{
 	bool connected(node *u, node *v){ return lca(u, v) != NULL; }
@@ -4477,7 +4468,7 @@ struct weighted_binary_lift{
 // 156485479_4_5_3
 // Heavy Light Decomposition / HLD
 // O(N + M) processing, O(log^2 N) per query
-// Requires lazy_segment or dynamic_lazy_segment
+// Requires lazy_segment_tree or dynamic_lazy_segment_tree
 // Credit: Benq
 template<typename DS, typename BO, typename T, int VALS_IN_EDGES = 0>
 struct heavy_light_decomposition{
@@ -4882,8 +4873,7 @@ struct minimum_spanning_arborescence{
 // O(S log S)
 // Returns a list of (parent, original index) where parent of root = root
 // Credit: KACTL
-// Requires sparse_table
-// Requires lca / weighted_lca
+// Requires sparse_table, lca, and weighted_lca
 template<typename LCA>
 vector<array<int, 2>> compressed_tree(LCA &lca, vector<int> &subset){
 	static vector<int> rev; rev.resize(int(lca.time.size()));
@@ -5425,14 +5415,16 @@ int min_rotation(Str s){
 }
 
 // 156485479_5_2
-// All Palindromic Substrings ( Manacher's Algorithm )
+// Manacher's Algorithm ( Find All Palindromic Substrings )
+// p[0][i]: half length of even pal substring around i, p[1][i]: odd rounded down
 // O(N)
+// Credit: KACTL
 template<typename Str>
 array<vector<int>, 2> manacher(const Str &s){
 	int n = int(s.size());
 	array<vector<int>, 2> p = {vector<int>(n + 1), vector<int>(n)};
 	for(int z = 0; z < 2; ++ z){
-		for(int i = 0 ,l = 0 , r = 0; i < n; ++ i){
+		for(int i = 0, l = 0, r = 0; i < n; ++ i){
 			int t = r - i + !z;
 			if(i < r) p[z][i] = min(t, p[z][l + t]);
 			int L = i - p[z][i], R = i + p[z][i] - !z;
@@ -5446,7 +5438,7 @@ array<vector<int>, 2> manacher(const Str &s){
 // 156485479_5_3
 // Suffix Array and Kasai's Algorithm for LCP
 // O((N + W) log N) processing, O(1) per query
-// delim must be smaller than the characters on s
+// Credit: KACTL
 // Requires sparse_table
 template<typename Str>
 struct suffix_array{
@@ -6010,6 +6002,27 @@ Str ibwt(const Str &s, typename Str::value_type delim = '$'){
 	for(int i = 0; i < n - 1; ++ i) res[i] = s[cur = next[cur]];
 	return move(res);
 };
+
+// 156485479_5_13
+// Main Lorentz Algorithm ( Find All Tandem ( Square ) Substrings )
+// No two intervals with the same period intersect or touch.
+// O(n log n)
+// Credit: Benq
+// Requires sparse_table and suffix_array
+template<typename Str>
+vector<array<int,3>> main_lorentz(const Str &s){
+	int n = int(s.size());
+	suffix_array sa(s), rsa(Str(s.rbegin(), s.rend()));
+	vector<array<int,3>> res;
+	for(int p = 1; p << 1 <= n; ++ p){ // do in O(n / p) for period p
+		for(int i = 0, lst = -1; i + p <= n; i += p){
+			int l = i - rsa.query(n - i - p, n - i), r = i - p + sa.query(i, i + p);
+			if(l > r || l == lst) continue;
+			res.push_back({lst = l, r + 1, p});
+		} // s.substr(i, p) == s.substr(i + p, p) for each i in [l, r)
+	}
+	return res;
+} 
 
 // 156485479_6_1
 // 2D Geometry Classes
