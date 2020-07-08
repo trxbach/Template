@@ -1220,44 +1220,46 @@ frac best_rational_within(frac low, frac high){
 // Fast Calculation of Prime Counting Fucntion, or sum of F(p) where F is a multiplicative function
 // O(n^(2/3 + eps)) time complexity and O(n^(1/3 + eps)) space complexity for all eps > 0. (Correct me if I'm wrong)
 // Credit: chemthan
-template<typename T = long long>
+// Requires number_theory
+template<typename NT, typename T = long long>
 struct meissel_lehmer{
 	const int maxx = 1e2 + 5, maxy = 1e5 + 5, maxn = 1e7 + 5;
-	vector<int> lpf, prime, cn;
+	vector<int> cn;
 	vector<T> sum;
 	vector<vector<T>> f;
+	NT &nt;
 	T F(long long x){
 		return 1;
 	}
 	T sum_F(long long x){
 		return x;
 	}
-	meissel_lehmer(): sum(maxn), f(maxx, vector<T>(maxy)), cn(maxn){
-		tie(lpf, prime) = linearsieve(maxn - 1);
+	meissel_lehmer(NT &nt): nt(nt), sum(maxn), f(maxx, vector<T>(maxy)), cn(maxn){
 		for(int i = 2, cnt = 0; i < maxn; ++ i){
 			sum[i] = sum[i - 1];
-			if(lpf[i] == i) sum[i] += F(i), ++ cnt;
+			if(nt.lpf[i] == i) sum[i] += F(i), ++ cnt;
 			cn[i] = cnt;
 		}
 		for(int i = 0; i < maxx; ++ i) for(int j = 0; j < maxy; ++ j){
-			f[i][j] = i ? f[i - 1][j] - f[i - 1][j / prime[i - 1]] * F(prime[i - 1]) : sum_F(j);
+			f[i][j] = i ? f[i - 1][j] - f[i - 1][j / nt.prime[i - 1]] * F(nt.prime[i - 1]) : sum_F(j);
 		}
 	}
 	T legendre_sum(long long m, int n){
 		if(!n) return sum_F(m);
-		if(m <= prime[n - 1]) return F(1);
+		if(m <= nt.prime[n - 1]) return F(1);
 		if(m < maxy && n < maxx) return f[n][m];
-		return legendre_sum(m, n - 1) - legendre_sum(m / prime[n - 1], n - 1) * F(prime[n - 1]);
+		return legendre_sum(m, n - 1) - legendre_sum(m / nt.prime[n - 1], n - 1) * F(nt.prime[n - 1]);
 	}
 	T pi(long long m){
 		if(m <= maxn) return sum[m];
 		int x = sqrt(m + 0.9), y = cbrt(m + 0.9), a = cn[y];
 		T res = legendre_sum(m, a) - F(1) + sum[y];
-		for(int i = a; prime[i] <= x; ++ i) res -= (pi(m / prime[i]) - pi(prime[i] - 1)) * F(prime[i]);
+		for(int i = a; nt.prime[i] <= x; ++ i) res -= (pi(m / nt.prime[i]) - pi(nt.prime[i] - 1)) * F(nt.prime[i]);
 		return res;
 	}
 };
 // Fast Computaion of pi(N)
+// Credit: https://judge.yosupo.jp/submission/12916
 long long pi(const long long N){
 	if(N <= 1) return 0;
 	if(N == 2) return 1;
@@ -3376,7 +3378,7 @@ struct offline_less_than_k_query{
 	template<typename Action>
 	void solve(Action ans){ // ans(index, answer)
 		sort(queries.begin(), queries.end()), sort(event.begin(), event.end(), greater<>());
-		fenwick tr(n, plus<>(), minus<>(), 0);
+		fenwick_tree tr(n, plus<>(), minus<>(), 0);
 		for(auto &[k, ql, qr, i]: queries){
 			while(!event.empty() && event.back().first < k){
 				tr.update(event.back().second, 1);
@@ -4554,6 +4556,7 @@ vector<int> centroid(const vector<vector<int>> &adj){
 }
 // Centroid Decomposition
 // O(n log n) processing
+// Credit: Benq
 struct centroid_decomposition{
 	int n, root;
 	vector<int> dead, sz, par, cpar;
@@ -4601,7 +4604,7 @@ struct centroid_decomposition{
 // AHU Algorithm ( Rooted Tree Isomorphism ) / Tree Isomorphism
 // O(n)
 void radix_sort(vector<pair<int, vector<int>>> &arr){
-	int n = int(arr.size()), mxval = 0, mxsz = 1 + accumulate(arr.begin(), arr.end(), 0, [](int x, const pair<int, vector<int>> &y){return max(x, y.second.size());});
+	int n = int(arr.size()), mxval = 0, mxsz = 1 + accumulate(arr.begin(), arr.end(), 0, [](int x, const pair<int, vector<int>> &y){return max(x, int(y.second.size()));});
 	vector<vector<int>> occur(mxsz);
 	for(int i = 0; i < n; ++ i){
 		occur[arr[i].second.size()].push_back(i);
@@ -4873,7 +4876,7 @@ struct minimum_spanning_arborescence{
 // O(S log S)
 // Returns a list of (parent, original index) where parent of root = root
 // Credit: KACTL
-// Requires sparse_table, lca, and weighted_lca
+// Requires sparse_table and lca and weighted_lca
 template<typename LCA>
 vector<array<int, 2>> compressed_tree(LCA &lca, vector<int> &subset){
 	static vector<int> rev; rev.resize(int(lca.time.size()));
@@ -6472,31 +6475,27 @@ ostream &operator<<(ostream &out, const P &p){
 // 156485479_6_4_2
 // Find the Closest Pair of Points
 // O(N log N)
-long long ClosestPair(vector<pair<int, int>> pts){
-    int n = pts.size();
-    sort(pts.begin(), pts.end());
-    set<pair<int, int>> s;
-
-    long long best_dist = 1e18;
-    int j = 0;
-    for (int i = 0; i < n; ++i) {
-        int d = ceil(sqrt(best_dist));
-        while (pts[i].first - pts[j].first >= best_dist) {
-            s.erase({pts[j].second, pts[j].first});
-            j += 1;
-        }
-
-        auto it1 = s.lower_bound({pts[i].second - d, pts[i].first});
-        auto it2 = s.upper_bound({pts[i].second + d, pts[i].first});
-        
-        for (auto it = it1; it != it2; ++it) {
-            int dx = pts[i].first - it->second;
-            int dy = pts[i].second - it->first;
-            best_dist = min(best_dist, 1LL * dx * dx + 1LL * dy * dy);      
-        } 
-        s.insert({pts[i].second, pts[i].first}); 
-    }
-    return best_dist;
+// Requires geometry
+template<typename T, typename IT>
+auto closest_pair(IT begin, IT end){
+	using P = typename iterator_traits<IT>::value_type;
+	auto a = vector<P>(begin, end);
+	sort(a.begin(), a.end(), [](const P &p, const P &q){ return p.y < q.y; });
+	if(auto it = a.begin(); (it = adjacent_find(a.begin(), a.end())) != a.end()) return tuple<T, P, P>{0, *it, *next(it)};
+	tuple<T, P, P> res{numeric_limits<T>::max(), {}, {}};
+	set<P> s;
+	int j = 0;
+	for(const auto &p: a){
+		T d = 1 + sqrt(get<0>(res));
+		while(a[j].y <= p.y - d) s.erase(a[j ++]);
+		auto low = s.lower_bound({p.x - d, p.y}), high = s.upper_bound({p.x + d, p.y});
+		for(; low != high; ++ low){
+			T dx = (*low).x - p.x, dy = (*low).y - p.y;
+			res = min(res, {dx * dx + dy * dy, *low, p});
+		}
+		s.insert(p);
+	}
+	return res;
 }
 
 // 156485479_7_1
@@ -6613,6 +6612,11 @@ ostream &operator<<(ostream &out, tuple<Args...> t){
 }
 template<typename ...Args, template<typename...> typename T>
 ostream &operator<<(enable_if_t<!is_same_v<T<Args...>, string>, ostream> &out, T<Args...> arr){
+	out << "{"; for(auto &x: arr) out << x << ", ";
+	return out << (arr.size() ? "\b\b" : "") << "}";
+}
+template<typename T, size_t N>
+ostream &operator<<(ostream &out, array<T, N> arr){
 	out << "{"; for(auto &x: arr) out << x << ", ";
 	return out << (arr.size() ? "\b\b" : "") << "}";
 }
