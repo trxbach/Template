@@ -6475,6 +6475,7 @@ ostream &operator<<(ostream &out, const P &p){
 // 156485479_6_4_2
 // Find the Closest Pair of Points
 // O(N log N)
+// Credit: KACTL
 // Requires geometry
 template<typename T, typename IT>
 auto closest_pair(IT begin, IT end){
@@ -6489,10 +6490,7 @@ auto closest_pair(IT begin, IT end){
 		T d = 1 + sqrt(get<0>(res));
 		while(a[j].y <= p.y - d) s.erase(a[j ++]);
 		auto low = s.lower_bound({p.x - d, p.y}), high = s.upper_bound({p.x + d, p.y});
-		for(; low != high; ++ low){
-			T dx = (*low).x - p.x, dy = (*low).y - p.y;
-			res = min(res, {dx * dx + dy * dy, *low, p});
-		}
+		for(; low != high; ++ low) res = min(res, {squared_distance(*low, p), *low, p});
 		s.insert(p);
 	}
 	return res;
