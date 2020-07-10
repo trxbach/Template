@@ -53,23 +53,14 @@ Category
 			156485479_2_3_2
 		2.3.3. Entries in a finite field of characteristic 2
 			156485479_2_3_3
-	2.4. Polynomial
-		2.4.1. Convolution
-			2.4.1.1 Addition Convolution
-				2.4.1.1.1. Fast Fourier Transform
-					156485479_2_4_1_1_1
-				2.4.1.1.2. Number Theoric Transform
-					156485479_2_4_1_1_2
-			2.4.1.2. Bitwise Convolution ( Fast Walsh Hadamard Transform, FWHT )
+	2.4. Convolution
+		2.4.1. Addition Convolution
+			2.4.1.1 Fast Fourier Transform
+				156485479_2_4_1_1
+			2.4.1.2. Number Theoric Transform
 				156485479_2_4_1_2
-		2.4.2. Interpolation
-			2.4.2.1. Slow Interpolation
-				2.4.2.1.1.
-					156485479_2_4_2_1_1
-				2.4.2.1.2.
-					156485479_2_4_2_1_2
-			2.4.2.2. Fast Interpolation
-				156485479_2_4_2_2 < INCOMPLETE >
+		2.4.2. Bitwise Convolution ( Fast Walsh Hadamard Transform, FWHT )
+				156485479_2_4_2
 	2.5. Binary Search
 		156485479_2_5
 	2.6. DP Optimization
@@ -654,11 +645,11 @@ long long primefactor(long long x){
 
 // 156485479_1_9
 // Polynomial Class
-namespace algebra {
-	int mod;
-	const int inf = 1e9;
-	const int magic = 500; // threshold for sizes to run the naive algo
-	namespace fft {
+// Credit: cp-algorithms.com
+// Requires Z_p and ntt
+namespace algebra{
+	const int inf = 1e9, magic = 500; // threshold for sizes to run the naive algo
+	namespace fft{
 		const int maxn = 1 << 18;
 		typedef double ftype;
 		typedef complex<ftype> point;
@@ -688,11 +679,7 @@ namespace algebra {
 		template<typename T>
 		void mul_slow(vector<T> &a, const vector<T> &b){
 			vector<T> res(int(a.size() + b.size()) - 1);
-			for(size_t i = 0; i < a.size(); ++ i){
-				for(size_t j = 0; j < int(b.size()); ++ j){
-					res[i + j] += a[i] * b[j];
-				}
-			}
+			for(size_t i = 0; i < a.size(); ++ i) for(size_t j = 0; j < int(b.size()); ++ j) res[i + j] += a[i] * b[j];
 			a = res;
 		}
 		template<typename T>
@@ -701,23 +688,24 @@ namespace algebra {
 				mul_slow(a, b);
 				return;
 			}
-			init();
-			static const int shift = 15, mask = (1 << shift) - 1;
 			size_t n = a.size() + b.size() - 1;
 			while(__builtin_popcount(n) != 1) ++ n;
 			a.resize(n);
+			///* // For Z_p
+			a = a * b;
+			//*/
+			/* // for real coefficients
+			init();
+			static const int shift = 15, mask = (1 << shift) - 1;
 			static point A[maxn], B[maxn];
 			static point C[maxn], D[maxn];
 			for(size_t i = 0; i < n; ++ i){
 				A[i] = point(a[i] & mask, a[i] >> shift);
-				if(i < b.size()) {
-					B[i] = point(b[i] & mask, b[i] >> shift);
-				} else {
-					B[i] = 0;
-				}
+				if(i < b.size()) B[i] = point(b[i] & mask, b[i] >> shift);
+				else B[i] = 0;
 			}
 			fft(A, C, n); fft(B, D, n);
-			for(size_t i = 0; i < n; i++) {
+			for(size_t i = 0; i < n; ++ i){
 				point c0 = C[i] + conj(C[(n - i) % n]);
 				point c1 = C[i] - conj(C[(n - i) % n]);
 				point d0 = D[i] + conj(D[(n - i) % n]);
@@ -726,389 +714,271 @@ namespace algebra {
 				B[i] = c0 * d1 + d0 * c1;
 			}
 			fft(A, C, n); fft(B, D, n);
-			reverse(C + 1, C + n);
-			reverse(D + 1, D + n);
+			reverse(C + 1, C + n), reverse(D + 1, D + n);
 			int t = 4 * n;
-			for(size_t i = 0; i < n; i++) {
+			for(size_t i = 0; i < n; ++ i){
 				long long A0 = llround(real(C[i]) / t);
 				T A1 = llround(imag(D[i]) / t);
 				T A2 = llround(imag(C[i]) / t);
 				a[i] = A0 + (A1 << shift) + (A2 << 2 * shift);
 			}
-			return;
+			*/
 		}
 	}
 	template<typename T>
-	T bpow(T x, size_t n) {
-		return n ? n % 2 ? x * bpow(x, n - 1) : bpow(x * x, n / 2) : T(1);
+	T bpow(T x, size_t n){
+		return x ^ n;
+		// return n ? n & 1 ? x * bpow(x, n - 1) : bpow(x * x, n >> 1) : T(1);
 	}
 	template<typename T>
-	T bpow(T x, size_t n, T m) {
-		return n ? n % 2 ? x * bpow(x, n - 1, m) % m : bpow(x * x % m, n / 2, m) : T(1);
-	}
-	template<typename T>
-	T gcd(const T &a, const T &b) {
-		return b == T(0) ? a : gcd(b, a % b);
-	}
-	template<typename T>
-	T nCr(T n, int r) { // runs in O(r)
-		T res(1);
-		for(int i = 0; i < r; i++) {
-			res *= (n - T(i));
-			res /= (i + 1);
-		}
-		return res;
-	}
-
-	struct modular {
-		long long r;
-		modular() : r(0) {}
-		modular(long long rr) : r(rr) {if(abs(r) >= mod) r %= mod; if(r < 0) r += mod;}
-		modular inv() const {return bpow(*this, mod - 2);}
-		modular operator * (const modular &t) const {return (r * t.r) % mod;}
-		modular operator / (const modular &t) const {return *this * t.inv();}
-		modular operator += (const modular &t) {r += t.r; if(r >= mod) r -= mod; return *this;}
-		modular operator -= (const modular &t) {r -= t.r; if(r < 0) r += mod; return *this;}
-		modular operator + (const modular &t) const {return modular(*this) += t;}
-		modular operator - (const modular &t) const {return modular(*this) -= t;}
-		modular operator *= (const modular &t) {return *this = *this * t;}
-		modular operator /= (const modular &t) {return *this = *this / t;}
-		
-		bool operator == (const modular &t) const {return r == t.r;}
-		bool operator != (const modular &t) const {return r != t.r;}
-		
-		operator long long() const {return r;}
-	};
-
-	istream& operator >> (istream &in, modular &x) {
-		return in >> x.r;
-	}
-	
-	
-	template<typename T>
-	struct poly {
+	struct polynomial{
 		vector<T> a;
-		
-		void normalize() { // get rid of leading zeroes
-			while(!a.empty() && a.back() == T(0)) {
-				a.pop_back();
-			}
+		void normalize(){ // get rid of leading zeroes
+			while(!a.empty() && a.back() == T(0)) a.pop_back();
 		}
-		
-		poly(){}
-		poly(T a0) : a{a0}{normalize();}
-		poly(vector<T> t) : a(t){normalize();}
-		
-		poly operator += (const poly &t) {
+		polynomial(){}
+		polynomial(T a0): a{a0}{ normalize(); }
+		polynomial(const vector<T> &t) :a(t){ normalize(); }
+		polynomial &operator=(const polynomial &t){
+			a = t.a;
+			return *this;
+		}
+		polynomial &operator+=(const polynomial &t){
 			a.resize(max(a.size(), t.a.size()));
-			for(size_t i = 0; i < t.a.size(); i++) {
-				a[i] += t.a[i];
-			}
+			for(size_t i = 0; i < t.a.size(); ++ i) a[i] += t.a[i];
 			normalize();
 			return *this;
 		}
-		poly operator -= (const poly &t) {
+		polynomial &operator-=(const polynomial &t){
 			a.resize(max(a.size(), t.a.size()));
-			for(size_t i = 0; i < t.a.size(); i++) {
-				a[i] -= t.a[i];
-			}
+			for(size_t i = 0; i < t.a.size(); ++ i) a[i] -= t.a[i];
 			normalize();
 			return *this;
 		}
-		poly operator + (const poly &t) const {return poly(*this) += t;}
-		poly operator - (const poly &t) const {return poly(*this) -= t;}
-		
-		poly mod_xk(size_t k) const { // get same polynomial mod x^k
-			k = min(k, a.size());
-			return vector<T>(begin(a), begin(a) + k);
+		polynomial operator+(const polynomial &t) const{ return polynomial(*this) += t; }
+		polynomial operator-(const polynomial &t) const{ return polynomial(*this) -= t; }
+		polynomial mod_xk(size_t k) const{ // get same polynomialnomial mod x^k
+			return vector<T>(begin(a), begin(a) + min(k, a.size()));
 		}
-		poly mul_xk(size_t k) const { // multiply by x^k
-			poly res(*this);
+		polynomial mul_xk(size_t k) const{ // multiply by x^k
+			polynomial res(*this);
 			res.a.insert(begin(res.a), k, 0);
 			return res;
 		}
-		poly div_xk(size_t k) const { // divide by x^k, dropping coefficients
-			k = min(k, a.size());
-			return vector<T>(begin(a) + k, end(a));
+		polynomial div_xk(size_t k) const{ // divide by x^k, dropping coefficients
+			return vector<T>(begin(a) + min(k, a.size()), end(a));
 		}
-		poly substr(size_t l, size_t r) const { // return mod_xk(r).div_xk(l)
-			l = min(l, a.size());
-			r = min(r, a.size());
-			return vector<T>(begin(a) + l, begin(a) + r);
+		polynomial substr(size_t l, size_t r) const{ // return mod_xk(r).div_xk(l)
+			return vector<T>(begin(a) + min(l, a.size()), begin(a) + min(r, a.size()));
 		}
-		poly inv(size_t n) const { // get inverse series mod x^n
+		polynomial inv(size_t n) const{ // get inverse series mod x^n
 			assert(!is_zero());
-			poly ans = a[0].inv();
+			polynomial ans = 1 / a[0];
 			size_t a = 1;
-			while(a < n) {
-				poly C = (ans * mod_xk(2 * a)).substr(a, 2 * a);
+			while(a < n){
+				polynomial C = (ans * mod_xk(2 * a)).substr(a, 2 * a);
 				ans -= (ans * C).mod_xk(a).mul_xk(a);
 				a *= 2;
 			}
 			return ans.mod_xk(n);
 		}
-		
-		poly operator *= (const poly &t) {fft::mul(a, t.a); normalize(); return *this;}
-		poly operator * (const poly &t) const {return poly(*this) *= t;}
-		
-		poly reverse(size_t n, bool rev = 0) const { // reverses and leaves only n terms
-			poly res(*this);
-			if(rev) { // If rev = 1 then tail goes to head
+		polynomial operator*=(const polynomial &t){ fft::mul(a, t.a); normalize(); return *this; }
+		polynomial operator*(const polynomial &t) const{return polynomial(*this) *= t; }
+		polynomial reverse(size_t n, bool rev = 0) const{ // reverses and leaves only n terms
+			polynomial res(*this);
+			if(rev){ // If rev = 1 then tail goes to head
 				res.a.resize(max(n, res.a.size()));
 			}
 			std::reverse(res.a.begin(), res.a.end());
 			return res.mod_xk(n);
 		}
-		
-		pair<poly, poly> divmod_slow(const poly &b) const { // when divisor or quotient is small
-			vector<T> A(a);
-			vector<T> res;
-			while(A.size() >= b.a.size()) {
-				res.push_back(A.back() / b.a.back());
-				if(res.back() != T(0)) {
-					for(size_t i = 0; i < b.a.size(); i++) {
-						A[A.size() - i - 1] -= res.back() * b.a[b.a.size() - i - 1];
-					}
-				}
+		pair<polynomial, polynomial> divmod_slow(const polynomial &b) const{ // when divisor or quotient is small
+			vector<T> A(a), res;
+			for(T invx = 1 / b.a.back(); A.size() >= b.a.size(); ){
+				res.push_back(A.back() * invx);
+				if(res.back() != T(0)) for(size_t i = 0; i < b.a.size(); ++ i) A[A.size() - i - 1] -= res.back() * b.a[b.a.size() - i - 1];
 				A.pop_back();
 			}
 			std::reverse(begin(res), end(res));
 			return {res, A};
 		}
-		
-		pair<poly, poly> divmod(const poly &b) const { // returns quotiend and remainder of a mod b
-			if(deg() < b.deg()) {
-				return {poly{0}, *this};
-			}
+		pair<polynomial, polynomial> divmod(const polynomial &b) const{ // returns quotiend and remainder of a mod b
+			if(deg() < b.deg()) return {polynomial{0}, *this};
 			int d = deg() - b.deg();
-			if(min(d, b.deg()) < magic) {
-				return divmod_slow(b);
-			}
-			poly D = (reverse(d + 1) * b.reverse(d + 1).inv(d + 1)).mod_xk(d + 1).reverse(d + 1, 1);
+			if(min(d, b.deg()) < magic) return divmod_slow(b);
+			polynomial D = (reverse(d + 1) * b.reverse(d + 1).inv(d + 1)).mod_xk(d + 1).reverse(d + 1, 1);
 			return {D, *this - D * b};
 		}
-		
-		poly operator / (const poly &t) const {return divmod(t).first;}
-		poly operator % (const poly &t) const {return divmod(t).second;}
-		poly operator /= (const poly &t) {return *this = divmod(t).first;}
-		poly operator %= (const poly &t) {return *this = divmod(t).second;}
-		poly operator *= (const T &x) {
-			for(auto &it: a) {
-				it *= x;
-			}
+		polynomial operator/(const polynomial &t) const{ return divmod(t).first; }
+		polynomial operator%(const polynomial &t) const{ return divmod(t).second; }
+		polynomial &operator/=(const polynomial &t){ return *this = divmod(t).first; }
+		polynomial &operator%=(const polynomial &t){ return *this = divmod(t).second; }
+		polynomial &operator*=(const T &x){
+			for(auto &it: a) it *= x;
 			normalize();
 			return *this;
 		}
-		poly operator /= (const T &x) {
-			for(auto &it: a) {
-				it /= x;
-			}
+		polynomial &operator/=(const T &x){
+			T invx = 1 / x;
+			for(auto &it: a) it *= invx;
 			normalize();
 			return *this;
 		}
-		poly operator * (const T &x) const {return poly(*this) *= x;}
-		poly operator / (const T &x) const {return poly(*this) /= x;}
-		
-		void print() const {
-			for(auto it: a) {
-				cout << it << ' ';
-			}
+		polynomial operator*(const T &x) const{ return polynomial(*this) *= x; }
+		polynomial operator/(const T &x) const{ return polynomial(*this) /= x; }
+		void print() const{
+			for(auto it: a) cout << it << ' ';
 			cout << endl;
 		}
-		T eval(T x) const { // evaluates in single point x
+		T eval(T x) const{ // evaluates in single point x
 			T res(0);
-			for(int i = int(a.size()) - 1; i >= 0; i--) {
-				res *= x;
-				res += a[i];
-			}
+			for(int i = int(a.size()) - 1; i >= 0; -- i) res = res * x + a[i];
 			return res;
 		}
-		
-		T& lead() { // leading coefficient
+		T &lead(){ // leading coefficient
 			return a.back();
 		}
-		int deg() const { // degree
-			return a.empty() ? -inf : a.size() - 1;
+		int deg() const{ // degree
+			return a.empty() ? -inf : int(a.size()) - 1;
 		}
-		bool is_zero() const { // is polynomial zero
+		bool is_zero() const{ // is polynomialnomial zero
 			return a.empty();
 		}
-		T operator [](int idx) const {
-			return idx >= (int)a.size() || idx < 0 ? T(0) : a[idx];
+		T coef(int idx) const{
+			return idx >= int(a.size()) || idx < 0 ? T(0) : a[idx];
 		}
-		
-		T& coef(size_t idx) { // mutable reference at coefficient
+		T &operator[](int idx){ // mutable reference at idx
 			return a[idx];
 		}
-		bool operator == (const poly &t) const {return a == t.a;}
-		bool operator != (const poly &t) const {return a != t.a;}
-		
-		poly deriv() { // calculate derivative
+		bool operator==(const polynomial &t) const{ return a == t.a; }
+		bool operator!=(const polynomial &t) const{ return a != t.a; }
+		polynomial derivative(){ // calculate derivative
 			vector<T> res;
-			for(int i = 1; i <= deg(); i++) {
-				res.push_back(T(i) * a[i]);
-			}
+			for(int i = 1; i <= deg(); ++ i) res.push_back(T(i) * a[i]);
 			return res;
 		}
-		poly integr() { // calculate integral with C = 0
+		polynomial antiderivative(){ // calculate integral with C = 0
 			vector<T> res = {0};
-			for(int i = 0; i <= deg(); i++) {
-				res.push_back(a[i] / T(i + 1));
-			}
+			static vector<T> inv(2, 1);
+			while(int(inv.size()) < deg() + 2) inv.push_back(-(mod / int(inv.size())) * inv[mod % int(inv.size())]);
+			for(int i = 0; i <= deg(); ++ i) res.push_back(a[i] / T(i + 1));
+			// for(int i = 0; i <= deg(); ++ i) res.push_back(a[i] / T(i + 1));
 			return res;
 		}
-		size_t leading_xk() const { // Let p(x) = x^k * t(x), return k
-			if(is_zero()) {
-				return inf;
-			}
+		size_t leading_xk() const{ // Let p(x) = x^k * t(x), return k
+			if(is_zero()) return inf;
 			int res = 0;
-			while(a[res] == T(0)) {
-				res++;
-			}
+			while(a[res] == T(0)) ++ res;
 			return res;
 		}
-		poly log(size_t n) { // calculate log p(x) mod x^n
+		polynomial log(size_t n){ // calculate log p(x) mod x^n
 			assert(a[0] == T(1));
-			return (deriv().mod_xk(n) * inv(n)).integr().mod_xk(n);
+			return (derivative().mod_xk(n) * inv(n)).antiderivative().mod_xk(n);
 		}
-		poly exp(size_t n) { // calculate exp p(x) mod x^n
-			if(is_zero()) {
-				return T(1);
-			}
+		polynomial exp(size_t n){ // calculate exp p(x) mod x^n
+			if(is_zero()) return T(1);
 			assert(a[0] == T(0));
-			poly ans = T(1);
+			polynomial ans = T(1);
 			size_t a = 1;
-			while(a < n) {
-				poly C = ans.log(2 * a).div_xk(a) - substr(a, 2 * a);
+			while(a < n){
+				polynomial C = ans.log(2 * a).div_xk(a) - substr(a, 2 * a);
 				ans -= (ans * C).mod_xk(a).mul_xk(a);
 				a *= 2;
 			}
 			return ans.mod_xk(n);
-			
 		}
-		poly pow_slow(size_t k, size_t n) { // if k is small
+		polynomial pow_slow(size_t k, size_t n){ // if k is small
 			return k ? k % 2 ? (*this * pow_slow(k - 1, n)).mod_xk(n) : (*this * *this).mod_xk(n).pow_slow(k / 2, n) : T(1);
 		}
-		poly pow(size_t k, size_t n) { // calculate p^k(n) mod x^n
-			if(is_zero()) {
-				return *this;
-			}
-			if(k < magic) {
-				return pow_slow(k, n);
-			}
+		polynomial pow(size_t k, size_t n){ // calculate p^k(n) mod x^n
+			if(is_zero())return *this;
+			if(k < magic) return pow_slow(k, n);
 			int i = leading_xk();
 			T j = a[i];
-			poly t = div_xk(i) / j;
+			polynomial t = div_xk(i) / j;
 			return bpow(j, k) * (t.log(n) * T(k)).exp(n).mul_xk(i * k).mod_xk(n);
 		}
-		poly mulx(T x) { // component-wise multiplication with x^k
+		polynomial mulx(T x){ // component-wise multiplication with x^k
 			T cur = 1;
-			poly res(*this);
-			for(int i = 0; i <= deg(); i++) {
-				res.coef(i) *= cur;
-				cur *= x;
-			}
+			polynomial res(*this);
+			for(int i = 0; i <= deg(); ++ i) res.coef(i) *= cur, cur *= x;
 			return res;
 		}
-		poly mulx_sq(T x) { // component-wise multiplication with x^{k^2}
-			T cur = x;
-			T total = 1;
-			T xx = x * x;
-			poly res(*this);
-			for(int i = 0; i <= deg(); i++) {
-				res.coef(i) *= total;
-				total *= cur;
-				cur *= xx;
-			}
+		polynomial mulx_sq(T x){ // component-wise multiplication with x^{k^2}
+			T cur = x, total = 1, xx = x * x;
+			polynomial res(*this);
+			for(int i = 0; i <= deg(); ++ i) res.coef(i) *= total, total *= cur, cur *= xx;
 			return res;
 		}
-		vector<T> chirpz_even(T z, int n) { // P(1), P(z^2), P(z^4), ..., P(z^2(n-1))
+		vector<T> chirpz_even(T z, int n){ // P(1), P(z^2), P(z^4), ..., P(z^2(n-1))
 			int m = deg();
-			if(is_zero()) {
-				return vector<T>(n, 0);
-			}
+			if(is_zero()) return vector<T>(n, 0);
 			vector<T> vv(m + n);
-			T zi = z.inv();
-			T zz = zi * zi;
-			T cur = zi;
-			T total = 1;
-			for(int i = 0; i <= max(n - 1, m); i++) {
-				if(i <= m) {vv[m - i] = total;}
-				if(i < n) {vv[m + i] = total;}
-				total *= cur;
-				cur *= zz;
+			T zi = 1 / z, zz = zi * zi, cur = zi, total = 1;
+			for(int i = 0; i <= max(n - 1, m); ++ i){
+				if(i <= m){ vv[m - i] = total; }
+				if(i < n){ vv[m + i] = total; }
+				total *= cur, cur *= zz;
 			}
-			poly w = (mulx_sq(z) * vv).substr(m, m + n).mulx_sq(z);
+			polynomial w = (mulx_sq(z) * vv).substr(m, m + n).mulx_sq(z);
 			vector<T> res(n);
-			for(int i = 0; i < n; i++) {
-				res[i] = w[i];
-			}
+			for(int i = 0; i < n; ++ i) res[i] = w[i];
 			return res;
 		}
-		vector<T> chirpz(T z, int n) { // P(1), P(z), P(z^2), ..., P(z^(n-1))
-			auto even = chirpz_even(z, (n + 1) / 2);
-			auto odd = mulx(z).chirpz_even(z, n / 2);
+		vector<T> chirpz(T z, int n){ // P(1), P(z), P(z^2), ..., P(z^(n-1))
+			auto even = chirpz_even(z, n + 1 >> 1);
+			auto odd = mulx(z).chirpz_even(z, n >> 1);
 			vector<T> ans(n);
-			for(int i = 0; i < n / 2; i++) {
-				ans[2 * i] = even[i];
-				ans[2 * i + 1] = odd[i];
-			}
-			if(n % 2 == 1) {
-				ans[n - 1] = even.back();
-			}
+			for(int i = 0; i < n >> 1; ++ i) ans[i << 1] = even[i], ans[i << 1 | 1] = odd[i];
+			if(n & 1) ans[n - 1] = even.back();
 			return ans;
 		}
 		template<typename iter>
-		vector<T> eval(vector<poly> &tree, int v, iter l, iter r) { // auxiliary evaluation function
-			if(r - l == 1) {
-				return {eval(*l)};
-			} else {
-				auto m = l + (r - l) / 2;
-				auto A = (*this % tree[2 * v]).eval(tree, 2 * v, l, m);
-				auto B = (*this % tree[2 * v + 1]).eval(tree, 2 * v + 1, m, r);
+		vector<T> eval(vector<polynomial> &tree, int v, iter l, iter r){ // auxiliary evaluation function
+			if(r - l == 1) return {eval(*l)};
+			else{
+				auto m = l + (r - l >> 1);
+				auto A = (*this % tree[v << 1]).eval(tree, v << 1, l, m);
+				auto B = (*this % tree[v << 1 | 1]).eval(tree, v << 1 | 1, m, r);
 				A.insert(end(A), begin(B), end(B));
 				return A;
 			}
 		}
-		vector<T> eval(vector<T> x) { // evaluate polynomial in (x1, ..., xn)
+		vector<T> eval(const vector<T> &x){ // evaluate polynomialnomial in (x1, ..., xn)
 			int n = x.size();
-			if(is_zero()) {
-				return vector<T>(n, T(0));
-			}
-			vector<poly> tree(4 * n);
+			if(is_zero()) return vector<T>(n, T(0));
+			vector<polynomial> tree(n << 2);
 			build(tree, 1, begin(x), end(x));
 			return eval(tree, 1, begin(x), end(x));
 		}
 		template<typename iter>
-		poly inter(vector<poly> &tree, int v, iter l, iter r, iter ly, iter ry) { // auxiliary interpolation function
-			if(r - l == 1) {
-				return {*ly / a[0]};
-			} else {
-				auto m = l + (r - l) / 2;
-				auto my = ly + (ry - ly) / 2;
-				auto A = (*this % tree[2 * v]).inter(tree, 2 * v, l, m, ly, my);
-				auto B = (*this % tree[2 * v + 1]).inter(tree, 2 * v + 1, m, r, my, ry);
-				return A * tree[2 * v + 1] + B * tree[2 * v];
+		polynomial inter(const vector<polynomial> &tree, int v, iter l, iter r, iter ly, iter ry){ // auxiliary interpolation function
+			if(r - l == 1) return {*ly / a[0]};
+			else{
+				auto m = l + (r - l >> 1);
+				auto my = ly + (ry - ly >> 1);
+				auto A = (*this % tree[v << 1]).inter(tree, v << 1, l, m, ly, my);
+				auto B = (*this % tree[v << 1 | 1]).inter(tree, v << 1 | 1, m, r, my, ry);
+				return A * tree[v << 1 | 1] + B * tree[v << 1];
 			}
 		}
 	};
 	template<typename T>
-	poly<T> operator * (const T& a, const poly<T>& b) {
-		return b * a;
+	polynomial<T> operator*(const T& a, const polynomial<T>& b){
+		auto res(b);
+		for(auto &it: res.a) it = a * it;
+		res.normalize();
+		return res;
 	}
-	
 	template<typename T>
-	poly<T> xk(int k) { // return x^k
-		return poly<T>{1}.mul_xk(k);
+	polynomial<T> xk(int k){ // return x^k
+		return polynomial<T>{1}.mul_xk(k);
 	}
-
 	template<typename T>
-	T resultant(poly<T> a, poly<T> b) { // computes resultant of a and b
-		if(b.is_zero()) {
-			return 0;
-		} else if(b.deg() == 0) {
-			return bpow(b.lead(), a.deg());
-		} else {
+	T resultant(polynomial<T> a, polynomial<T> b){ // computes resultant of a and b
+		if(b.is_zero()) return 0;
+		else if(b.deg() == 0) return bpow(b.lead(), a.deg());
+		else{
 			int pw = a.deg();
 			a %= b;
 			pw -= a.deg();
@@ -1118,34 +988,30 @@ namespace algebra {
 		}
 	}
 	template<typename iter>
-	poly<typename iter::value_type> kmul(iter L, iter R) { // computes (x-a1)(x-a2)...(x-an) without building tree
-		if(R - L == 1) {
-			return vector<typename iter::value_type>{-*L, 1};
-		} else {
-			iter M = L + (R - L) / 2;
+	polynomial<typename iter::value_type> kmul(iter L, iter R){ // computes (x-a1)(x-a2)...(x-an) without building tree
+		if(R - L == 1) return vector<typename iter::value_type>{-*L, 1};
+		else{
+			iter M = L + (R - L >> 1);
 			return kmul(L, M) * kmul(M, R);
 		}
 	}
 	template<typename T, typename iter>
-	poly<T> build(vector<poly<T>> &res, int v, iter L, iter R) { // builds evaluation tree for (x-a1)(x-a2)...(x-an)
-		if(R - L == 1) {
-			return res[v] = vector<T>{-*L, 1};
-		} else {
-			iter M = L + (R - L) / 2;
-			return res[v] = build(res, 2 * v, L, M) * build(res, 2 * v + 1, M, R);
+	polynomial<T> &build(vector<polynomial<T>> &res, int v, iter L, iter R){ // builds evaluation tree for (x-a1)(x-a2)...(x-an)
+		if(R - L == 1) return res[v] = vector<T>{-*L, 1};
+		else{
+			iter M = L + (R - L >> 1);
+			return res[v] = build(res, v << 1, L, M) * build(res, v << 1 | 1, M, R);
 		}
 	}
 	template<typename T>
-	poly<T> inter(vector<T> x, vector<T> y) { // interpolates minimum polynomial from (xi, yi) pairs
+	polynomial<T> inter(const vector<T> &x, const vector<T> &y){ // interpolates minimum polynomialnomial from (xi, yi) pairs
 		int n = x.size();
-		vector<poly<T>> tree(4 * n);
-		return build(tree, 1, begin(x), end(x)).deriv().inter(tree, 1, begin(x), end(x), begin(y), end(y));
+		vector<polynomial<T>> tree(n << 2);
+		return build(tree, 1, begin(x), end(x)).derivative().inter(tree, 1, begin(x), end(x), begin(y), end(y));
 	}
 };
-
 using namespace algebra;
-typedef poly<modular> polym;
-mod = 1e9 + 7;
+using poly = polynomial<Zp>;
 
 // 156485479_1_10
 // Discrete Log
@@ -1650,7 +1516,7 @@ struct matrix: vector<bitset<SZ>>{
 	}
 };
 
-// 156485479_2_4_1_1_1
+// 156485479_2_4_1_1
 // Fast Fourier Transformation.
 // Size must be a power of two.
 // O(n log n)
@@ -1679,9 +1545,11 @@ void fft(IT begin, IT end, const bool invert = false){
 	if(invert) for(auto it = begin; it != end; ++ it) *it /= n;
 }
 template<typename Poly>
-Poly polymul(const Poly &a, const Poly &b){
-	vector<cd> f(a.begin(), a.end()), g(b.begin(), b.end());
-	f.resize(1 << __lg(a.size() + b.size()) + 1), g.resize(f.size());
+Poly operator*(const Poly &a, const Poly &b){
+	vector<cd> f(a), g(b);
+	int n = max(int(a.size()) + int(b.size()) - 1, 1);
+	if(__builtin_popcount(n) != 1) n = 1 << __lg(n) + 1;
+	f.resize(n), g.resize(n);
 	fft(f.begin(), f.end()), fft(g.begin(), g.end());
 	for(int i = 0; i < n; ++ i) f[i] *= g[i];
 	fft(f.begin(), f.end(), true);
@@ -1691,7 +1559,7 @@ Poly polymul(const Poly &a, const Poly &b){
 	return res;
 }
 
-// 156485479_2_4_1_1_2
+// 156485479_2_4_1_2
 // Number Theoric Transformation
 // Use (998244353: 15311432, 1 << 23, 469870224) or (7340033: 5, 1 << 20, 4404020)
 // Size must be a power of two
@@ -1723,8 +1591,19 @@ void ntt(IT begin, IT end, const bool invert = false){
 		for(auto it = begin; it != end; ++ it) *it *= inv_n;
 	}
 }
+template<typename Poly>
+Poly operator*(Poly a, Poly b){
+	int n = max(int(a.size()) + int(b.size()) - 1, 1);
+	if(__builtin_popcount(n) != 1) n = 1 << __lg(n) + 1;
+	a.resize(n), b.resize(n);
+	ntt(a.begin(), a.end()), ntt(b.begin(), b.end());
+	for(int i = 0; i < n; ++ i) a[i] *= b[i];
+	ntt(a.begin(), a.end(), 1);
+	while(!a.empty() && !a.back()) a.pop_back();
+	return a;
+}
 
-// 156485479_2_4_1_2
+// 156485479_2_4_2
 // Bitwise Transformation ( Fast Walsh Hadamard Transformation, FWHT ).
 // Size must be a power of two.
 // O(n log n)
@@ -1747,59 +1626,6 @@ void fwht(IT begin, IT end, const bool invert = false){
 		for(auto it = begin; it != end; ++ it) *it *= inv_n;
 	}
 }
-
-// 156485479_2_4_2_1_1
-// Polynomial Interpolation
-// O(n ^ 2)
-vector<double> interpolate(vector<double> x, vector<double> y){
-	int n = int(x.size());
-	vector<double> res(n), temp(n);
-	for(int k = 0; k < n; ++ k) for(int i = k + 1; i < n; ++ i){
-		y[i] = (y[i] - y[k]) / (x[i] - x[k]);
-	}
-	double last = 0; temp[0] = 1;
-	for(int k = 0; k < n; ++ k) for(int i = 0; i < n; ++ i){
-		res[i] += y[k] * temp[i];
-		swap(last, temp[i]);
-		temp[i] -= last * x[k];
-	}
-	return res;
-}
-
-// 156485479_2_4_2_1_2
-// Polynomial Interpolation
-// O(n ^ 2)
-long long modexp(long long b, long long e, const long long &mod){
-	long long res = 1;
-	for(; e; b = b * b % mod, e >>= 1) if(e & 1) res = res * b % mod;
-	return res;
-}
-long long modinv(long long a, const long long &mod){
-	return modexp(a, mod - 2, mod);
-}
-vector<long long> interpolate(vector<long long> x, vector<long long> y, long long mod){
-	int n = int(x.size());
-	vector<long long> res(n), temp(n);
-	for(int k = 0; k < n; ++ k){
-		for(int i = k + 1; i < n; ++ i){
-			y[i] = (y[i] - y[k]) * modinv(x[i] - x[k], mod) % mod;
-		}
-	}
-	long long last = 0; temp[0] = 1;
-	for(int k = 0; k < n; ++ k){
-		for(int i = 0; i < n; ++ i){
-			res[i] = (res[i] + y[k] * temp[i]) % mod;
-			swap(last, temp[i]);
-			temp[i] = (temp[i] - last * x[k] % mod + mod) % mod;
-		}
-	}
-	return res;
-}
-
-// 156485479_2_4_2_2
-// Polynomial Interpolation
-// O(n log n)
-// (INCOMPLETE!)
 
 // 156485479_2_5
 // Binary Search
