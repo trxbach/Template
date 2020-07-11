@@ -2686,19 +2686,19 @@ struct lazy_segment_tree{
 
 #define R array<int, 2>		// Range type
 #define L int 				// Lazy type
-#define Q pair<array<int, 2>, int>		// Query type min, first occurence, max
+#define Q int				// Query type
 	L lop(const L &lazy, const R &r0, const L &x, const R &r1){ // r1 always contain r0
 		return lazy + x;
 	}
 	Q qop(const Q &lval, const R &r0, const Q &rval, const R &r1){ // always r0[1] == r1[0]
-		return {min(lval.first, rval.first), max(lval.second, rval.second)};
+		return lval + rval;
 	}
 	Q aop(const Q &val, const R &r0, const L &x, const R &r1){ // r1 always contain r0
-		return {{val.first[0] + x, val.first[1]}, val.second + x};
+		return val + x * (r0[1] - r0[0]);
 	}
-	const pair<L, Q> id{0, Q{{{numeric_limits<int>::max() / 2, 0}}, 0}};
+	pair<L, Q> id{0, 0};
 	Q init(const int &p){
-		return {{0, p}, 0};
+		return 0;
 	}
 
 	vector<R> range;
@@ -2804,19 +2804,19 @@ struct dynamic_lazy_segment_tree{
 #define B int           // Base coordinate type
 #define R array<B, 2>   // Range type
 #define L int           // Lazy type
-#define Q array<int, 2>     // Query type
+#define Q int 			// Query type
 	L lop(const L &lazy, const R &r0, const L &x, const R &r1){ // r1 always contain r0
 		return lazy + x;
 	}
 	Q qop(const Q &lval, const R &r0, const Q &rval, const R &r1){ // always r0[1] == r1[0]
-		return lval[0] == rval[0] ? Q{lval[0], lval[1] + rval[1]} : min(lval, rval);
+		return lval + rval;
 	}
 	Q aop(const Q &val, const R &r0, const L &x, const R &r1){ // r1 always contain r0
-		return {min(val[0] + x, numeric_limits<int>::max() / 2), val[1]};
+		return val + x * (r0[1] - r0[0]);
 	}
-	const pair<L, Q> id{0, Q{numeric_limits<int>::max() / 2, 0}};
+	static pair<L, Q> id{0, 0};
 	Q init(const B &l, const B &r){
-		return {0, r - l};
+		return 0;
 	}
 
 	dynamic_lazy_segment_tree *l = 0, *r = 0;
@@ -5807,6 +5807,7 @@ struct palindrome_automaton{
 // 156485479_5_12
 // Burrows Wheeler Transform
 // O(|S| log |S|)
+// Take all non-empty suffices of S+delim, sort it, then take the last characters.
 // Requires sparse_table and suffix_array
 template<typename Str>
 Str bwt(const Str &s, typename Str::value_type delim = '$'){
