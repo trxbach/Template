@@ -173,20 +173,22 @@ Category
 			156485479_4_5_1
 		4.5.2. Binary Lifting ( Unweighted / Weighted )
 			156485479_4_5_2
-		4.5.3. Heavy Light Decomposition
+		4.5.3. Vertex Update Path Query
 			156485479_4_5_3
-		4.5.4. Centroid / Centroid Decomposition
+		4.5.4. Heavy Light Decomposition
 			156485479_4_5_4
-		4.5.5. AHU Algorithm ( Rooted Tree Isomorphism ) / Tree Isomorphism
+		4.5.5. Centroid / Centroid Decomposition
 			156485479_4_5_5
-		4.5.6. Minimum Spanning Forest
+		4.5.6. AHU Algorithm ( Rooted Tree Isomorphism ) / Tree Isomorphism
 			156485479_4_5_6
-		4.5.7. Minimum Spanning Arborescence
+		4.5.7. Minimum Spanning Forest
 			156485479_4_5_7
-		4.5.8. Compressed Tree ( Virtual Tree, Auxiliary Tree )
+		4.5.8. Minimum Spanning Arborescence
 			156485479_4_5_8
-		4.5.9. Pruefer Code / Decode
+		4.5.9. Compressed Tree ( Virtual Tree, Auxiliary Tree )
 			156485479_4_5_9
+		4.5.10. Pruefer Code / Decode
+			156485479_4_5_10
 	4.6. Shortest Path Tree
 		4.6.1. On Sparse Graph ( Dijkstra, Bellman Ford, SPFA )
 			156485479_4_6_1
@@ -988,11 +990,11 @@ namespace algebra{
 		}
 	}
 	template<typename iter>
-	polynomial<typename iter::value_type> kmul(iter L, iter R){ // computes (x-a1)(x-a2)...(x-an) without building tree
+	polynomial<typename iter::value_type> generate(iter L, iter R){ // computes (x-a1)(x-a2)...(x-an) without building tree
 		if(R - L == 1) return vector<typename iter::value_type>{-*L, 1};
 		else{
 			iter M = L + (R - L >> 1);
-			return kmul(L, M) * kmul(M, R);
+			return generate(L, M) * generate(M, R);
 		}
 	}
 	template<typename T, typename iter>
@@ -2459,7 +2461,7 @@ struct sparse_table{
 	sparse_table(IT begin, IT end, BO bin_op, T id): n(distance(begin, end)), bin_op(bin_op), id(id), val(1, {begin, end}){
 		for(int p = 1, i = 1; p << 1 <= n; p <<= 1, ++ i){
 			val.emplace_back(n - (p << 1) + 1);
-			for(int j = 0; j < int(val[i].size()); ++ j) val[i][j] = min(val[i - 1][j], val[i - 1][j + p]);
+			for(int j = 0; j < int(val[i].size()); ++ j) val[i][j] = bin_op(val[i - 1][j], val[i - 1][j + p]);
 		}
 	}
 	sparse_table(){ }
@@ -2473,12 +2475,12 @@ struct sparse_table{
 // The binary operator must be idempotent and associative
 // O(nm log nm) processing, O(1) per query
 template<typename T, typename BO>
-struct sparse_table{
+struct sparse_table_2d{
 	int n, m;
 	BO bin_op;
 	T id;
 	vector<vector<vector<vector<T>>>> val;
-	sparse_table(const vector<vector<T>> &arr, BO bin_op, T id): n(arr.size()), m(arr[0].size()), bin_op(bin_op), id(id), val(__lg(n) + 1, vector<vector<vector<T>>>(__lg(m) + 1, arr)){
+	sparse_table_2d(const vector<vector<T>> &arr, BO bin_op, T id): n(arr.size()), m(arr[0].size()), bin_op(bin_op), id(id), val(__lg(n) + 1, vector<vector<vector<T>>>(__lg(m) + 1, arr)){
 		for(int ii = 0; ii < n; ++ ii) for(int jj = 0; jj < m; ++ jj){
 			for(int i = 0, j = 0; j < __lg(m); ++ j) val[i][j + 1][ii][jj] = bin_op(val[i][j][ii][jj], val[i][j][ii][min(m - 1, jj + (1 << j))]);
 		}
@@ -2924,35 +2926,6 @@ struct persistent_segment_tree: vector<node<T> *>{
 	}
 	void set(node<T> *u, int p, int x){ this->push_back(set(u, p, x, 0, n)); }
 	// Below assumes T is an ordered field and node stores positive values
-	
-	// min p such that query[left, p) >= x
-	template<typename IO>
-	int lower_bound(node<T> *u, T x, IO inv_op, int left, int right){
-		if(u->val < x) return right + 1;
-		if(left + 1 == right) return right;
-		int mid = left + (right - left >> 1);
-		if(u->l->val < x) return lower_bound(u->r, inv_op(x, u->l->val), inv_op, mid, right);
-		else return lower_bound(u->l, x, inv_op, left, mid);
-	}
-	// min p such that query[i, p) >= x
-	template<typename IO>
-	int lower_bound(node<T> *u, int i, T x, IO inv_op){
-		return lower_bound(u, bin_op(x, query(u, 0, min(i, n))), inv_op, 0, n);
-	}
-	// min p such that query[left, p) > x
-	template<typename IO>
-	int upper_bound(node<T> *u, T x, IO inv_op, int left, int right){
-		if(x >= u->val) return n + 1;
-		if(left + 1 == right) return right;
-		int mid = left + (right - left >> 1);
-		if(x < u->l->val) return upper_bound(u->l, x, inv_op, left, mid);
-		else return upper_bound(u->r, inv_op(x, u->l->val), inv_op, mid, right);
-	}
-	// min p such that query[i, p) > x
-	template<typename IO>
-	int upper_bound(node<T> *u, int i, T x, IO inv_op){
-		return upper_bound(u, bin_op(x, query(u, 0, min(i, n))), inv_op, 0, n);
-	}
 };
 
 // 156485479_3_3_1
@@ -2971,6 +2944,7 @@ struct fenwick_tree{
 		for(int i = 0; i < n; ++ i) update(i, *(begin ++));
 	}
 	fenwick_tree(int n, BO bin_op, IO inv_op, T id): n(n), bin_op(bin_op), inv_op(inv_op), id(id), val(n + 1, id){ }
+	fenwick_tree(){ }
 	template<bool increment = true>
 	void update(int p, T x){
 		if(!increment) x = inv_op(x, query(p, p + 1));
@@ -3254,26 +3228,10 @@ struct less_than_k_query{
 		assert(!TYPE);
 		return tr.query(p[ql], ql, qr, 0, n);
 	}
-	int lower_bound(int ql, int cnt){ // min i such that # of distinct in [l, l + i) >= cnt
-		assert(!TYPE);
-		return tr.lower_bound(p[ql], ql, cnt, minus<>());
-	}
-	int upper_bound(int ql, int cnt){ // min i such that # of distinct in [l, l + i) > cnt
-		assert(!TYPE);
-		return tr.upper_bound(p[ql], ql, cnt, minus<>());
-	}
 	// For less-than-k query
 	int query(int ql, int qr, int k){
 		assert(TYPE);
 		return tr.query(p[TYPE == 2 ? std::lower_bound(comp.begin(), comp.end(), k) - comp.begin() : k], ql, qr, 0, n);
-	}
-	int lower_bound(int ql, int k, int cnt){ // min i such that ( # of elements < k in [l, l + i) ) >= cnt
-		assert(TYPE);
-		return tr.lower_bound(p[TYPE == 2 ? std::lower_bound(comp.begin(), comp.end(), k) - comp.begin() : k], ql, cnt, minus<>());
-	}
-	int upper_bound(int ql, int k, int cnt){ // min i such that ( # of elements < k in [l, l + i) ) > cnt
-		assert(TYPE);
-		return tr.upper_bound(p[TYPE == 2 ? std::lower_bound(comp.begin(), comp.end(), k) - comp.begin() : k], ql, cnt, minus<>());
 	}
 };
 
@@ -3319,14 +3277,17 @@ vector<T> answer_query_offline(vector<Q> query, I ins, D del, A ans){
 // Treap
 // O(log N) per operation
 // Credit: KACTL
-template<typename T = int, typename L = int>
 struct treap{
+#define Q int 	// Query Type
+#define SS int 	// Subtree Sum Type
+#define L int 	// Lazy Type
 	struct node{
 		node *l = 0, *r = 0;
-		T val, subtr_val;
+		Q val;
+		SS subtr_val;
 		L lazy;
-		int priority, sz = 1, ind = 0;
-		node(T val, L lazy, int ind = 0): val(val), subtr_val(val), lazy(lazy), ind(ind), priority(rng()){ }
+		int priority = rng(), sz = 1, ind = 0;
+		node(Q val, L lazy, int ind = 0): val(val), subtr_val(val), lazy(lazy), ind(ind){ }
 	};
 	node *root = 0;
 	void push(node *u){
@@ -3349,10 +3310,10 @@ struct treap{
 		u->subtr_val = (u->l ? u->l->subtr_val : 0) + (u->r ? u->r->subtr_val : 0) + u->val;
 	};
 	template<typename IT>
-	treap(IT begin, IT end, P push, R refresh, L lazy_init = 0): push(push), refresh(refresh){
+	treap(IT begin, IT end, L lazy_init = 0){
 		root = build(begin, end, lazy_init);
 	}
-	treap(int n, P push, R refresh, T val_init = 0, L lazy_init = 0): push(push), refresh(refresh){
+	treap(int n, Q val_init = 0, L lazy_init = 0){
 		root = build(n, val_init, lazy_init);
 	}
 	void heapify(node *u){
@@ -3367,7 +3328,7 @@ struct treap{
 		}
 	}
 	template<typename IT>
-	node *build(IT begin, IT end, T lazy_init){
+	node *build(IT begin, IT end, L lazy_init){
 		if(begin == end) return 0;
 		IT mid = begin + (end - begin >> 1);
 		node *c = new node(*mid, lazy_init);
@@ -3375,7 +3336,7 @@ struct treap{
 		heapify(c), refresh(c);
 		return c;
 	}
-	node *build(int n, T val_init, T lazy_init){
+	node *build(int n, Q val_init, L lazy_init){
 		if(!n) return 0;
 		int m = n >> 1;
 		node *c = new node(val_init, lazy_init);
@@ -3386,7 +3347,8 @@ struct treap{
 	int get_sz(node *u){
 		return u ? u->sz : 0;
 	}
-	pair<node *, node *> split(node* u, int k){
+	pair<node *, node *> split(node* u, Q k){
+	// pair<node *, node *> split(node* u, int k){ // For the implicit treap
 		if(!u) return { };
 		push(u);
 		if(u->val >= k){
@@ -3425,7 +3387,14 @@ struct treap{
 		// auto [a, b] = split(u, pos); // For the implicit treap
 		return merge(merge(a, t), b);
 	}
+#undef Q
+#undef SS
+#undef L
 };
+template<typename Action>
+void for_each(treap::node *u, Action act){
+	if(u){ for_each(u->l, act), act(u), for_each(u->r, act); }
+}
 
 // 156485479_3_10
 // Splay Tree
@@ -4294,10 +4263,77 @@ struct weighted_binary_lift{
 };
 
 // 156485479_4_5_3
+// Vertex Update Path Query
+// O(N log N) processing, O(log N) per query
+// Requires sparse_table and fenwick_tree
+template<typename T, typename BO, typename IO>
+struct vertex_update_path_query{
+	int n;
+	BO bin_op;
+	IO inv_op;
+	T id;
+	vector<int> root, tin, tout, depth;
+	vector<T> val;
+	fenwick_tree<T, BO, IO> tr;
+	sparse_table<int, function<int(int, int)>> st;
+	template<typename Graph, typename IT>
+	vertex_update_path_query(const Graph &adj, IT begin, IT end, BO bin_op, IO inv_op, T id, const vector<int> &s = {0}): n(int(adj.size())), val(begin, end), root(n), bin_op(bin_op), inv_op(inv_op), id(id), tin(n), tout(n), depth(n){
+		vector<int> et;
+		for(auto &r: s){
+			function<void(int, int)> dfs = [&](int u, int p){
+				root[u] = r, tin[u] = int(et.size());
+				et.push_back(u);
+				for(auto v: adj[u]) if(v ^ p) depth[v] = depth[u] + 1, dfs(v, u), et.push_back(u);
+				tout[u] = int(et.size());
+			};
+			dfs(r, r);
+		}
+		vector<T> a(2 * n, id);
+		for(int u = 0; u < n; ++ u) a[tin[u]] = bin_op(a[tin[u]], *(begin + u)), a[tout[u]] = inv_op(a[tout[u]], *(begin + u));
+		tr = fenwick_tree(a.begin(), a.end(), bin_op, inv_op, id);
+		st = sparse_table<int, function<int(int, int)>>(et.begin(), et.end(), [&](int u, int v){ return depth[u] < depth[v] ? u : v; }, -1);
+	}
+	template<typename Graph>
+	vertex_update_path_query(const Graph &adj, BO bin_op, IO inv_op, T id, const vector<int> &s = {0}): n(int(adj.size())), val(n, id), root(n), bin_op(bin_op), inv_op(inv_op), id(id), tin(n), tout(n), depth(n){
+		vector<int> et;
+		for(auto &r: s){
+			function<void(int, int)> dfs = [&](int u, int p){
+				root[u] = r, tin[u] = int(et.size());
+				et.push_back(u);
+				for(auto v: adj[u]) if(v ^ p) depth[v] = depth[u] + 1, dfs(v, u), et.push_back(u);
+				tout[u] = int(et.size());
+			};
+			dfs(r, r);
+		}
+		tr = fenwick_tree(2 * n, bin_op, inv_op, id);
+		st = sparse_table(et.begin(), et.end(), [&](int u, int v){ return depth[u] < depth[v] ? u : v; }, -1);
+	}
+	bool is_ancestor_of(int u, int v){
+		return tin[u] <= tin[v] && tout[v] <= tout[u];
+	}
+	int lca(int u, int v){
+		if(tin[u] > tin[v]) swap(u, v);
+		if(is_ancestor_of(u, v)) return u;
+		return st.query(tout[u], tin[v]);
+	}
+	template<bool increment = true>
+	void update(int u, T x){
+		tr.template update<increment>(tin[u], x), tr.template update<increment>(tout[u], inv_op(id, x));
+		val[u] = increment ? bin_op(val[u], x) : x;
+	}
+	T query(int u, int v){
+		int w = lca(u, v), r = root[u];
+		assert(is_ancestor_of(w, u) && is_ancestor_of(w, v));
+		T x = tr.query(tin[r], tin[w] + 1);
+		return inv_op(inv_op(bin_op(bin_op(tr.query(tin[r], tin[u] + 1), tr.query(tin[r], tin[v] + 1)), val[w]), x), x);
+	}
+};
+
+// 156485479_4_5_4
 // Heavy Light Decomposition / HLD
 // O(N + M) processing, O(log^2 N) per query
-// Requires lazy_segment_tree or dynamic_lazy_segment_tree
 // Credit: Benq
+// Requires lazy_segment_tree or dynamic_lazy_segment_tree
 template<typename DS, typename BO, typename T, int VALS_IN_EDGES = 0>
 struct heavy_light_decomposition{
 	int n, root;
@@ -4360,7 +4396,7 @@ struct heavy_light_decomposition{
 	}
 };
 
-// 156485479_4_5_4
+// 156485479_4_5_5
 // Find all the centroids
 // O(n)
 vector<int> centroid(const vector<vector<int>> &adj){
@@ -4426,7 +4462,7 @@ struct centroid_decomposition{
 	}
 };
 
-// 156485479_4_5_5
+// 156485479_4_5_6
 // AHU Algorithm ( Rooted Tree Isomorphism ) / Tree Isomorphism
 // O(n)
 void radix_sort(vector<pair<int, vector<int>>> &arr){
@@ -4527,7 +4563,7 @@ bool isomorphic(const vector<vector<vector<int>>> &adj){
 	return false;
 }
 
-// 156485479_4_6
+// 156485479_4_7
 // Minimum Spanning Forest
 // O(m log n)
 // Requires disjoint_set
@@ -4623,7 +4659,7 @@ struct minimum_spanning_forest_dense{
 	}
 };
 
-// 156485479_4_5_7
+// 156485479_4_5_8
 // Minimum Spanning Arborescence
 // O(E log V)
 // Credit: KACTL
@@ -4697,7 +4733,7 @@ struct minimum_spanning_arborescence{
 	}
 };
 
-// 156485479_4_5_8
+// 156485479_4_5_9
 // Compressed Tree ( Virtual Tree, Auxiliary Tree )template<typename T, typename BO>
 // O(S log S)
 // Returns a list of (parent, original index) where parent of root = root
@@ -4725,7 +4761,7 @@ vector<array<int, 2>> compressed_tree(LCA &lca, vector<int> &subset){
 	return res;
 }
 
-// 156485479_4_5_9
+// 156485479_4_5_10
 // Pruefer Code
 // O(V) for both
 // Number of labeled tree of N vertices: N^(N-2)
@@ -6423,30 +6459,30 @@ void operator delete(void *){ }
 // Debugger
 
 // DEBUG BEGIN
-template<typename L, typename R>
-ostream &operator<<(ostream &out, pair<L, R> p){
+template<typename L, typename R> ostream &operator<<(ostream &out, pair<L, R> p){
 	return out << "(" << p.first << ", " << p.second << ")";
 }
-template<typename Tuple, size_t ...Is>
-void print_tuple(ostream &out, Tuple t, index_sequence<Is...>){
-	((out << (Is ? ", " : "") << get<Is>(t)), ...);
+template<class Tuple, size_t N> struct TuplePrinter{
+	static ostream &print(ostream &out, const Tuple &t){ return TuplePrinter<Tuple, N-1>::print(out, t) << ", " << get<N-1>(t); }
+};
+template<class Tuple> struct TuplePrinter<Tuple, 1>{
+	static ostream &print(ostream &out, const Tuple& t){ return out << get<0>(t); }
+};
+template<typename... Args> ostream &print_tuple(ostream &out, const tuple<Args...> &t){
+	return TuplePrinter<decltype(t), sizeof...(Args)>::print(out << "(", t) << ")";
 }
-template<typename ...Args>
-ostream &operator<<(ostream &out, tuple<Args...> t){
-	out << "(", print_tuple(out, t, index_sequence_for<Args...>{}); return out << ")";
+template<typename ...Args> ostream &operator<<(ostream &out, const tuple<Args...> &t){
+	return print_tuple(out, t);
 }
-template<typename ...Args, template<typename...> typename T>
-ostream &operator<<(enable_if_t<!is_same_v<T<Args...>, string>, ostream> &out, T<Args...> arr){
+template<typename ...Args, template<typename...> typename T> ostream &operator<<(enable_if_t<!is_same<T<Args...>, string>::value, ostream> &out, T<Args...> arr){
 	out << "{"; for(auto &x: arr) out << x << ", ";
 	return out << (arr.size() ? "\b\b" : "") << "}";
 }
-template<typename T, size_t N>
-ostream &operator<<(ostream &out, array<T, N> arr){
+template<typename T, size_t N> ostream &operator<<(ostream &out, array<T, N> arr){
 	out << "{"; for(auto &x: arr) out << x << ", ";
 	return out << (arr.size() ? "\b\b" : "") << "}";
 }
-template<size_t S>
-ostream &operator<<(ostream &out, bitset<S> b){
+template<size_t S> ostream &operator<<(ostream &out, bitset<S> b){
 	for(int i = 0; i < S; ++ i) out << b[i];
 	return out;
 }
