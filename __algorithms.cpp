@@ -2724,9 +2724,9 @@ struct lazy_segment_tree{
 	Q aop(const Q &val, const R &r0, const L &x, const R &r1){ // r1 always contain r0
 		return val + x * (r0[1] - r0[0]);
 	}
-	pair<L, Q> id{};
+	pair<L, Q> id{ };
 	Q init(int p){
-		return {};
+		return { };
 	}
 
 	vector<R> range;
@@ -2842,9 +2842,9 @@ struct dynamic_lazy_segment_tree{
 	Q aop(const Q &val, const R &r0, const L &x, const R &r1){ // r1 always contain r0
 		return val + x * (r0[1] - r0[0]);
 	}
-	static pair<L, Q> id{0, 0};
+	static pair<L, Q> id{ };
 	Q init(const B &l, const B &r){
-		return 0;
+		return { };
 	}
 
 	dynamic_lazy_segment_tree *l = 0, *r = 0;

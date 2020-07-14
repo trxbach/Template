@@ -12,7 +12,7 @@ int main(int argc, char* argv[]){
 	cout.flush();
 	char X;
 	cin >> X;
-	for(int i = 1; ; ++ i){
+	for(int i = 0; ; ++ i){
 		system("./stress/_gen>./in");
 		auto p1 = high_resolution_clock::now();
 		system(("./" + good_sol + "<./in>./stress/out_good.txt").c_str());
