@@ -650,7 +650,7 @@ long long primefactor(long long x){
 // Credit: cp-algorithms.com
 // Requires Z_p and ntt
 namespace algebra{
-	const int inf = 1e9, magic = 500; // threshold for sizes to run the naive algo
+	const int inf = 1e9, magic = 250; // threshold for sizes to run the naive algo
 	namespace fft{
 		const int maxn = 1 << 18;
 		typedef double ftype;
@@ -690,9 +690,6 @@ namespace algebra{
 				mul_slow(a, b);
 				return;
 			}
-			size_t n = a.size() + b.size() - 1;
-			while(__builtin_popcount(n) != 1) ++ n;
-			a.resize(n);
 			///* // For Z_p
 			a = a * b;
 			//*/
@@ -776,11 +773,8 @@ namespace algebra{
 		polynomial inv(size_t n) const{ // get inverse series mod x^n
 			assert(!is_zero());
 			polynomial ans = 1 / a[0];
-			size_t a = 1;
-			while(a < n){
-				polynomial C = (ans * mod_xk(2 * a)).substr(a, 2 * a);
-				ans -= (ans * C).mod_xk(a).mul_xk(a);
-				a *= 2;
+			for(int i = 1; i < n; i <<= 1){
+				ans = (ans * 2 - ans * ans * mod_xk(i << 1)).mod_xk(i << 1);
 			}
 			return ans.mod_xk(n);
 		}
@@ -854,17 +848,14 @@ namespace algebra{
 		}
 		bool operator==(const polynomial &t) const{ return a == t.a; }
 		bool operator!=(const polynomial &t) const{ return a != t.a; }
-		polynomial derivative(){ // calculate derivative
-			vector<T> res;
-			for(int i = 1; i <= deg(); ++ i) res.push_back(T(i) * a[i]);
+		polynomial derivative() const{ // calculate derivative
+			static vector<T> res; res.clear();
+			for(int i = 1; i <= deg(); ++ i) res.push_back(i * a[i]);
 			return res;
 		}
-		polynomial antiderivative(){ // calculate integral with C = 0
-			vector<T> res = {0};
-			static vector<T> inv(2, 1);
-			while(int(inv.size()) < deg() + 2) inv.push_back(-(mod / int(inv.size())) * inv[mod % int(inv.size())]);
-			for(int i = 0; i <= deg(); ++ i) res.push_back(a[i] / T(i + 1));
-			// for(int i = 0; i <= deg(); ++ i) res.push_back(a[i] / T(i + 1));
+		polynomial antiderivative() const{ // calculate integral with C = 0
+			static vector<T> res; res.assign(1, 0);
+			for(int i = 0; i <= deg(); ++ i) res.push_back(a[i] / (i + 1));
 			return res;
 		}
 		size_t leading_xk() const{ // Let p(x) = x^k * t(x), return k
@@ -880,12 +871,10 @@ namespace algebra{
 		polynomial exp(size_t n){ // calculate exp p(x) mod x^n
 			if(is_zero()) return T(1);
 			assert(a[0] == T(0));
-			polynomial ans = T(1);
-			size_t a = 1;
-			while(a < n){
-				polynomial C = ans.log(2 * a).div_xk(a) - substr(a, 2 * a);
+			polynomial ans = 1;
+			for(size_t a = 1; a < n; a <<= 1){
+				polynomial C = ans.log(a << 1).div_xk(a) - substr(a, a << 1);
 				ans -= (ans * C).mod_xk(a).mul_xk(a);
-				a *= 2;
 			}
 			return ans.mod_xk(n);
 		}
@@ -946,12 +935,13 @@ namespace algebra{
 				return A;
 			}
 		}
-		vector<T> eval(const vector<T> &x){ // evaluate polynomialnomial in (x1, ..., xn)
-			int n = x.size();
+		template<typename iter>
+		vector<T> eval(iter begin, iter end){ // evaluate polynomialnomial in (x1, ..., xn)
+			int n = distance(begin, end);
 			if(is_zero()) return vector<T>(n, T(0));
 			vector<polynomial> tree(n << 2);
-			build(tree, 1, begin(x), end(x));
-			return eval(tree, 1, begin(x), end(x));
+			build(tree, 1, begin, end);
+			return eval(tree, 1, begin, end);
 		}
 		template<typename iter>
 		polynomial inter(const vector<polynomial> &tree, int v, iter l, iter r, iter ly, iter ry){ // auxiliary interpolation function
@@ -2183,6 +2173,7 @@ struct bigint{
 template<typename T>
 struct Z_p{
 	using Type = typename decay<decltype(T::value)>::type;
+	static vector<Type> mod_inv; 
 	constexpr Z_p(): value(){ }
 	template<typename U> Z_p(const U &x){ value = normalize(x); }
 	template<typename U> static Type normalize(const U &x){
@@ -2240,6 +2231,7 @@ struct Z_p{
 	Z_p &operator^=(const long long &e){ return *this = *this ^ e; }
 	Z_p &operator/=(const Z_p &otr){
 		Type a = otr.value, m = mod(), u = 0, v = 1;
+		if(a < int(mod_inv.size())) return *this *= mod_inv[a];
 		while(a){
 			Type t = m / a;
 			m -= t * a; swap(a, m);
@@ -2289,9 +2281,16 @@ ModType &mod = VarMod::value;
 using Zp = Z_p<VarMod>;
 */
 
-constexpr int mod = 1e9 + 7;
-// constexpr int mod = 998244353;
+constexpr int mod = 998244353;
 using Zp = Z_p<integral_constant<decay<decltype(mod)>::type, mod>>;
+
+template<typename T> vector<typename Z_p<T>::Type> Z_p<T>::mod_inv;
+template<typename T = integral_constant<decay<decltype(mod)>::type, mod>>
+void precalc_inverse(size_t SZ){
+	auto &inv = Z_p<T>::mod_inv;
+	if(inv.empty()) inv.assign(2, 1);
+	for(; inv.size() <= SZ; ) inv.push_back((mod - 1LL * mod / int(inv.size()) * inv[mod % int(inv.size())] % mod) % mod);
+}
 
 // 156485479_2_10
 // K-Dimensional Prefix Sum
@@ -2501,19 +2500,46 @@ struct sparse_table_2d{
 // Iterative Segment Tree
 // O(n) processing, O(log n) per query
 // Credit: https://codeforces.com/blog/entry/18051
-template<typename T, typename BO>
 struct segment_tree{
 	int n;
-	BO bin_op;
-	T id;
-	vector<T> val;
 	vector<int> roots;
-	template<typename IT>
-	segment_tree(IT begin, IT end, BO bin_op, T id): n(distance(begin, end)), bin_op(bin_op), id(id), val(n << 1, id){
-		for(int i = 0; i < n; ++ i) val[i + n] = *(begin ++);
-		for(int i = n - 1; i > 0; -- i) val[i] = bin_op(val[i << 1], val[i << 1 | 1]);
+
+#define R array<int, 2> // Range Type
+#define Q int			// Query Type
+	Q bin_op(const Q &lval, const R &r0, const Q &rval, const R &r1){
+		return lval + rval;
 	}
-	segment_tree(int n, BO bin_op, T id): n(n), bin_op(bin_op), id(id), val(n << 1, id){ }
+	Q id{};
+	Q init(int p){
+		return {};
+	}
+
+	vector<R> range;
+	vector<Q> val;
+	void init_range(){
+		for(int i = n; i < n << 1; ++ i) range[i] = {i - n, i - n + 1};
+		for(int i = n - 1; i > 0; -- i) range[i] = {range[i << 1][0], range[i << 1 | 1][1]}, range[i][1] = max(range[i][0], range[i][1]);
+	}
+	void build(int l, int r){
+		for(l += n, r += n - 1; l > 1; ){
+			l >>= 1, r >>= 1;
+			for(int i = r; i >= l; -- i) val[i] = bin_op(val[i << 1], range[i << 1], val[i << 1 | 1], range[i << 1 | 1]);
+		}
+	}
+	Q operator[](int p) const{
+		return val[p + n];
+	}
+	template<typename IT>
+	segment_tree(IT begin, IT end): n(distance(begin, end)), range(n << 1), val(n << 1, id){
+		init_range();
+		for(int i = 0; i < n; ++ i) val[i + n] = *(begin ++);
+		build(0, n);
+	}
+	segment_tree(int n): n(n), range(n << 1), val(n << 1, id){
+		init_range();
+		for(int i = 0; i < n; ++ i) val[i + n] = init(i);
+		build(0, n);
+	}
 	void init_roots(){
 		vector<int> roots_r;
 		for(auto l = n, r = n << 1; l < r; l >>= 1, r >>= 1){
@@ -2522,18 +2548,18 @@ struct segment_tree{
 		}
 		roots.insert(roots.end(), roots_r.rbegin(), roots_r.rend());
 	}
-	template<bool increment = true>
-	void update(int p, T x){
-		for(p += n, val[p] = increment ? bin_op(val[p], x) : x; p >>= 1; ) val[p] = bin_op(val[p << 1], val[p << 1 | 1]);
+	void update(int p, Q x){
+		for(val[p += n] = x; p >>= 1; ) val[p] = bin_op(val[p << 1], range[p << 1], val[p << 1 | 1], range[p << 1 | 1]);
 	}
-	T query(int l, int r){
+	Q query(int l, int r){
 		if(l >= r) return id;
-		T resl = id, resr = id;
+		R range_l{l, l}, range_r{r, r};
+		Q res_l = id, res_r = id;
 		for(l += n, r += n; l < r; l >>= 1, r >>= 1){
-			if(l & 1) resl = bin_op(resl, val[l ++]);
-			if(r & 1) resr = bin_op(val[-- r], resr);
+			if(l & 1) res_l = bin_op(res_l, range_l, val[l], range[l]), range_l[1] = range[l][1], ++ l;
+			if(r & 1) -- r, res_r = bin_op(val[r], range[r], res_r, range_r), range_r[0] = range[r][0];
 		}
-		return bin_op(resl, resr);
+		return bin_op(res_l, range_l, res_r, range_r);
 	}
 };
 
@@ -2698,33 +2724,14 @@ struct lazy_segment_tree{
 	Q aop(const Q &val, const R &r0, const L &x, const R &r1){ // r1 always contain r0
 		return val + x * (r0[1] - r0[0]);
 	}
-	pair<L, Q> id{0, 0};
-	Q init(const int &p){
-		return 0;
+	pair<L, Q> id{};
+	Q init(int p){
+		return {};
 	}
 
 	vector<R> range;
 	vector<L> lazy;
 	vector<Q> val;
-	template<typename IT>
-	lazy_segment_tree(IT begin, IT end): n(distance(begin, end)), h(__lg(n) + 1), range(n << 1), lazy(n << 1, id.first), val(n, id.second){
-		init_range();
-		val.insert(val.end(), begin, end);
-		build(0, n);
-	}
-	lazy_segment_tree(int n): n(n), h(__lg(n) + 1), range(n << 1), lazy(n << 1, id.first), val(n << 1){
-		init_range();
-		for(int i = n; i < n << 1; ++ i) val[i] = init(i - n);
-		build(0, n);
-	}
-	void init_roots(){
-		vector<int> roots_r;
-		for(auto l = n, r = n << 1; l < r; l >>= 1, r >>= 1){
-			if(l & 1) roots.push_back(l ++);
-			if(r & 1) roots_r.push_back(-- r);
-		}
-		roots.insert(roots.end(), roots_r.rbegin(), roots_r.rend());
-	}
 	void init_range(){
 		for(int i = n; i < n << 1; ++ i) range[i] = {i - n, i - n + 1};
 		for(int i = n - 1; i > 0; -- i) range[i] = {range[i << 1][0], range[i << 1 | 1][1]};
@@ -2751,6 +2758,25 @@ struct lazy_segment_tree{
 	void push(int l, int r){ // push the range [l, r)
 		int s = h;
 		for(l += n, r += n - 1; s > 0; -- s) for(int i = l >> s; i <= r >> s; ++ i) push(i);
+	}
+	template<typename IT>
+	lazy_segment_tree(IT begin, IT end): n(distance(begin, end)), h(__lg(n) + 1), range(n << 1), lazy(n << 1, id.first), val(n, id.second){
+		init_range();
+		val.insert(val.end(), begin, end);
+		build(0, n);
+	}
+	lazy_segment_tree(int n): n(n), h(__lg(n) + 1), range(n << 1), lazy(n << 1, id.first), val(n << 1){
+		init_range();
+		for(int i = n; i < n << 1; ++ i) val[i] = init(i - n);
+		build(0, n);
+	}
+	void init_roots(){
+		vector<int> roots_r;
+		for(auto l = n, r = n << 1; l < r; l >>= 1, r >>= 1){
+			if(l & 1) roots.push_back(l ++);
+			if(r & 1) roots_r.push_back(-- r);
+		}
+		roots.insert(roots.end(), roots_r.rbegin(), roots_r.rend());
 	}
 	void update(int l, int r, L x){
 		if(l >= r || x == id.first) return;
@@ -2780,13 +2806,13 @@ struct lazy_segment_tree{
 	}
 	Q query(int l, int r){
 		push(l, l + 1), push(r - 1, r);
-		Q resl = id.second, resr = id.second;
-		R l_range{l, l}, r_range{r, r};
+		R range_l{l, l}, range_r{r, r};
+		Q res_l = id.second, res_r = id.second;
 		for(l += n, r += n; l < r; l >>= 1, r >>= 1){
-			if(l & 1) resl = qop(resl, l_range, val[l], range[l]), l_range[1] = range[l][1], ++ l;
-			if(r & 1) -- r, resr = qop(val[r], range[r], resr, r_range), r_range[0] = range[r][0];
+			if(l & 1) res_l = qop(res_l, range_l, val[l], range[l]), range_l[1] = range[l][1], ++ l;
+			if(r & 1) -- r, res_r = qop(val[r], range[r], res_r, range_r), range_r[0] = range[r][0];
 		}
-		return qop(resl, l_range, resr, r_range);
+		return qop(res_l, range_l, res_r, range_r);
 	}
 	void print(){
 		for(int u = 0; u < 2 * n; ++ u){

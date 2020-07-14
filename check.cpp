@@ -7,6 +7,7 @@ mt19937 rng(high_resolution_clock::now().time_since_epoch().count());
 
 int main(int argc, char *argv[]){
 	cin.tie(0)->sync_with_stdio(0);
+	const double TIME_LIMIT = 10.0;
 	string bad_sol = argv[1], checker = argv[2];
 	cout << "Print the results? Type (y) or (n): ";
 	cout.flush();
@@ -26,8 +27,9 @@ int main(int argc, char *argv[]){
 		while(badin >> t) bad.push_back(t);
 		cout << "Case #" << i << "\n";
 		cout << "Bad: " << duration<double>(p2 - p1).count() << " seconds" << endl;
-		if(!res){
-			cout << "Failed!\n";
+		if(!res || duration<double>(p2 - p1).count() > TIME_LIMIT){
+			if(!res) cout << "WRONG ANSWER\n";
+			else cout << "TIME LIMIT EXCEEDED\n";
 			cout << "Bad = ";
 			for(auto s: bad){
 				cout << s << " ";
