@@ -19,21 +19,21 @@ Category
 	1.4. Combinatorics
 		156485479_1_4
 	1.5. Millar Rabin Primality Test / Pollard Rho Algorithm
-		156485479_1_6
+		156485479_1_5
 	1.6. Tonelli Shanks Algorithm ( Solution to x^2 = a mod p )
-		156485479_1_7
+		156485479_1_6
 	1.7. Chinese Remainder Theorem
-		156485479_1_8
+		156485479_1_7
 	1.8. Lehman Factorization
-		156485479_1_9
+		156485479_1_8
 	1.9. Polynomial Class
-		156485479_1_11
+		156485479_1_9
 	1.10. Discrete Log
-		156485479_1_12
+		156485479_1_10
 	1.11. Continued Fraction
-		156485479_1_13
+		156485479_1_11
 	1.12. Meissel–Lehmer Algorithm / Fast Computaion of pi(N)
-		156485479_1_14
+		156485479_1_12
 
 
 2. Numeric
@@ -142,6 +142,8 @@ Category
 		156485479_3_12
 	3.13. AAA Tree < INCOMPLETE >
 		156485479_3_13
+	3.14. Bit Trie
+		156485479_3_14
 
 
 4. Graph
@@ -259,6 +261,8 @@ Category
 		156485479_8_3
 	8.4. Random Generator
 		156485479_8_4
+	8.5. Barrett Reduction
+		156485479_8_5
 
 
 ***************************************************************************************************************/
@@ -329,7 +333,6 @@ ll euclid(ll a, ll b, ll &x, ll &y){
 }
 // solutions to ax + by = c where x in [xlow, xhigh] and y in [ylow, yhigh]
 // cnt, leftsol, rightsol, gcd of a and b
-// Requires euclid
 array<ll, 6> solve_linear_diophantine(ll a, ll b, ll c, ll xlow, ll xhigh, ll ylow, ll yhigh){
 	ll x, y, g = euclid(abs(a), abs(b), x, y);
 	array<ll, 6> no_sol{0, 0, 0, 0, 0, g};
@@ -773,9 +776,7 @@ namespace algebra{
 		polynomial inv(size_t n) const{ // get inverse series mod x^n
 			assert(!is_zero());
 			polynomial ans = 1 / a[0];
-			for(int i = 1; i < n; i <<= 1){
-				ans = (ans * 2 - ans * ans * mod_xk(i << 1)).mod_xk(i << 1);
-			}
+			for(int i = 1; i < n; i <<= 1) ans = (ans * 2 - ans * ans * mod_xk(i << 1)).mod_xk(i << 1);
 			return ans.mod_xk(n);
 		}
 		polynomial operator*=(const polynomial &t){ fft::mul(a, t.a); normalize(); return *this; }
@@ -1007,24 +1008,15 @@ using poly = polynomial<Zp>;
 
 // 156485479_1_10
 // Discrete Log
-// O(sqrt(mod) log mod)
-// a and mod must be relatively prime
-long long modexp(long long b, long long e, const long long &mod){
-	long long res = 1;
-	for(; e; b = b * b % mod, e >>= 1) if(e & 1) res = res * b % mod;
-	return res;
-}
-int discrete_log(int a, int b, int mod){
-	int n = (int)sqrt(mod + .0) + 1;
-	map<int, int> q;
-	for(int p = n; p >= 1; -- p) q[modexp(a, p * n, mod)] = p;
-	for(int p = 0; p <= n; ++ p){
-		int cur = (modexp(a, p, mod) * b) % mod;
-		if(q.count(cur)){
-			int ans = q[cur] * n - p;
-			return ans;
-		}
-	}
+// O(sqrt(mod) log(mod))
+// Return the minimum x > 0 with a^x = b mod m, -1 if no such x
+// Credit: KACTL
+long long discrete_log(long long a, long long b, long long m){
+	long long n = (long long) sqrt(m) + 1, e = 1, f = 1, j = 1;
+	map<long long, long long> A;
+	while(j <= n && (e = f = e * a % m) != b % m) A[e * b % m] = j ++;
+	if(e == b % m) return j;
+	if(__gcd(m, e) == __gcd(m, b)) for(int i = 2; i < n + 2; ++ i) if (A.count(e = e * f % m)) return n * i - A[e];
 	return -1;
 }
 
@@ -2281,7 +2273,8 @@ ModType &mod = VarMod::value;
 using Zp = Z_p<VarMod>;
 */
 
-constexpr int mod = 998244353;
+constexpr int mod = 1e9 + 7;
+//constexpr int mod = 998244353;
 using Zp = Z_p<integral_constant<decay<decltype(mod)>::type, mod>>;
 
 template<typename T> vector<typename Z_p<T>::Type> Z_p<T>::mod_inv;
@@ -2504,26 +2497,25 @@ struct segment_tree{
 	int n;
 	vector<int> roots;
 
-#define R array<int, 2> // Range Type
-#define Q int			// Query Type
-	Q bin_op(const Q &lval, const R &r0, const Q &rval, const R &r1){
+	using Q = array<Zp, 2>; // Query Type
+	Q merge(const Q &lval, const Q &rval, int l, int m, int r){
 		return lval + rval;
-	}
+	} // merge two nodes representing the intervals [l, m) and [m, r)
 	Q id{};
 	Q init(int p){
-		return {};
+		return id;
 	}
 
-	vector<R> range;
+	vector<array<int, 2>> range; // Node u represents the range range[u] = [l, r)
 	vector<Q> val;
 	void init_range(){
 		for(int i = n; i < n << 1; ++ i) range[i] = {i - n, i - n + 1};
-		for(int i = n - 1; i > 0; -- i) range[i] = {range[i << 1][0], range[i << 1 | 1][1]}, range[i][1] = max(range[i][0], range[i][1]);
+		for(int i = n - 1; i > 0; -- i) range[i] = {range[i << 1][0], range[i << 1 | 1][1]};
 	}
 	void build(int l, int r){
 		for(l += n, r += n - 1; l > 1; ){
 			l >>= 1, r >>= 1;
-			for(int i = r; i >= l; -- i) val[i] = bin_op(val[i << 1], range[i << 1], val[i << 1 | 1], range[i << 1 | 1]);
+			for(int i = r; i >= l; -- i) val[i] = merge(val[i << 1], val[i << 1 | 1], range[i << 1][0], range[i << 1][1], range[i << 1 | 1][1]);
 		}
 	}
 	Q operator[](int p) const{
@@ -2549,17 +2541,17 @@ struct segment_tree{
 		roots.insert(roots.end(), roots_r.rbegin(), roots_r.rend());
 	}
 	void update(int p, Q x){
-		for(val[p += n] = x; p >>= 1; ) val[p] = bin_op(val[p << 1], range[p << 1], val[p << 1 | 1], range[p << 1 | 1]);
+		for(val[p += n] = x; p >>= 1; ) val[p] = merge(val[p << 1], val[p << 1 | 1], range[p << 1][0], range[p << 1][1], range[p << 1 | 1][1]);
 	}
-	Q query(int l, int r){
-		if(l >= r) return id;
-		R range_l{l, l}, range_r{r, r};
+	Q query(int ql, int qr){
+		if(ql >= qr) return id;
+		int mid;
 		Q res_l = id, res_r = id;
-		for(l += n, r += n; l < r; l >>= 1, r >>= 1){
-			if(l & 1) res_l = bin_op(res_l, range_l, val[l], range[l]), range_l[1] = range[l][1], ++ l;
-			if(r & 1) -- r, res_r = bin_op(val[r], range[r], res_r, range_r), range_r[0] = range[r][0];
+		for(int l = ql + n, r = qr + n; l < r; l >>= 1, r >>= 1){
+			if(l & 1) res_l = merge(res_l, val[l], ql, range[l][0], range[l][1]), mid = range[l][1], ++ l;
+			if(r & 1) -- r, res_r = merge(val[r], res_r, range[r][0], range[r][1], qr), mid = range[r][0];
 		}
-		return bin_op(res_l, range_l, res_r, range_r);
+		return merge(res_l, res_r, ql, mid, qr);
 	}
 };
 
@@ -2656,51 +2648,69 @@ struct segment_tree_2d{
 // 156485479_3_2_4
 // Simple Recursive Segment Tree
 // O(n) preprocessing, O(log n) per query
-template<typename T, typename BO>
 struct recursive_segment_tree{
 	int n;
-	BO bin_op;
-	T id;
-	vector<T> val;
+
+	using Q = long long; // Query Type
+	Q merge(const Q &lval, const Q &rval, int l, int m, int r){
+		return lval + rval;
+	}
+	Q id{};
+	Q init(int p){
+		return id;
+	}
+
+	vector<int> pos;
+	vector<Q> val;
+	Q operator[](int p) const{
+		return val[pos[p]];
+	}
 	template<typename IT>
-	recursive_segment_tree(IT begin, IT end, BO bin_op, T id): n(distance(begin, end)), bin_op(bin_op), id(id), val(n << 2, id){
+	recursive_segment_tree(IT begin, IT end): n(distance(begin, end)), val(n << 2, id), pos(n){
 		build(begin, end, 1, 0, n);
 	}
-	recursive_segment_tree(int n, BO bin_op, T id): n(n), bin_op(bin_op), id(id), val(n << 2, id){ }
+	recursive_segment_tree(int n): n(n), val(n << 2, id), pos(n){
+		build(1, 0, n);
+	}
 	template<typename IT>
 	void build(IT begin, IT end, int u, int left, int right){
-		if(left + 1 == right) val[u] = *begin;
+		if(left + 1 == right) val[u] = *begin, pos[left] = u;
 		else{
 			int mid = left + (right - left >> 1);
-			IT inter = begin + mid;
+			IT inter = begin + (end - begin >> 1);
 			build(begin, inter, u << 1, left, mid);
 			build(inter, end, u << 1 | 1, mid, right);
-			val[u] = bin_op(val[u << 1], val[u << 1 | 1]);
+			val[u] = merge(val[u << 1], val[u << 1 | 1], left, mid, right);
 		}
 	}
-	T pq(int u, int left, int right, int ql, int qr){
-		if(qr <= left || right <= ql) return id;
-		if(ql == left && qr == right) return val[u];
-		int mid = left + (right - left >> 1);
-		return bin_op(pq(u << 1, left, mid, ql, qr), pq(u << 1 | 1, mid, right, ql, qr));
-	}
-	T query(int ql, int qr){
-		return pq(1, 0, n, ql, qr);
-	}
-	template<bool increment>
-	void pu(int u, int left, int right, int ind, T x){
-		if(left + 1 == right) val[u] = increment ? bin_op(val[u], x) : x;
+	void build(int u, int left, int right){
+		if(left + 1 == right) val[u] = init(left), pos[left] = u;
 		else{
 			int mid = left + (right - left >> 1);
-			if(ind < mid) pu<increment>(u << 1, left, mid, ind, x);
-			else pu<increment>(u << 1 | 1, mid, right, ind, x);
-			val[u] = bin_op(val[u << 1], val[u << 1 | 1]);
+			build(u << 1, left, mid);
+			build(u << 1 | 1, mid, right);
+			val[u] = merge(val[u << 1], val[u << 1 | 1], left, mid, right);
 		}
 	}
-	template<bool increment = true>
-	void update(int ind, T x){
-		pu<increment>(1, 0, n, ind, x);
-	}
+	template<bool First = true>
+	Q query(int ql, int qr, int u = 1, int left = 0, int right = numeric_limits<int>::max()){
+		if(First) right = n;
+		if(qr <= left || right <= ql) return id;
+		if(ql <= left && right <= qr) return val[u];
+		int mid = left + (right - left >> 1);
+		return merge(query<false>(ql, qr, u << 1, left, mid), query<false>(ql, qr, u << 1 | 1, mid, right), left, mid, right);
+	} // Get the query result for [ql, qr)
+	template<bool First = true>
+	void update(int p, Q x, int u = 1, int left = 0, int right = numeric_limits<int>::max()){
+		if(First) right = n;
+		if(left + 1 == right) val[u] = x;
+		else{
+			int mid = left + (right - left >> 1);
+			if(p < mid) update<false>(p, x, u << 1, left, mid);
+			else update<false>(p, x, u << 1 | 1, mid, right);
+			val[u] = merge(val[u << 1], val[u << 1 | 1], left, mid, right);
+		}
+	} // Change the value at index p to x
 };
 
 
@@ -2712,24 +2722,23 @@ struct lazy_segment_tree{
 	int n, h;
 	vector<int> roots;
 
-#define R array<int, 2>		// Range type
-#define L int 				// Lazy type
-#define Q int				// Query type
-	L lop(const L &lazy, const R &r0, const L &x, const R &r1){ // r1 always contain r0
+	using L = long long; // Lazy type
+	using Q = long long; // Query type
+	L apply_lazy(const L &lazy, const L &x, array<int, 2> r, array<int, 2> rr){ // r is a subset of rr
 		return lazy + x;
-	}
-	Q qop(const Q &lval, const R &r0, const Q &rval, const R &r1){ // always r0[1] == r1[0]
+	} // update lazy node representing r with rr
+	Q merge(const Q &lval, const Q &rval, int l, int m, int r){
 		return lval + rval;
-	}
-	Q aop(const Q &val, const R &r0, const L &x, const R &r1){ // r1 always contain r0
-		return val + x * (r0[1] - r0[0]);
-	}
-	pair<L, Q> id{ };
+	} // merge two nodes representing the intervals [l, m) and [m, r)
+	Q apply(const Q &val, const L &x, array<int, 2> r, array<int, 2> rr){ // r is a subset of r
+		return val + x * (r[1] - r[0]);
+	} // apply to node representing r lazy node representing rr
+	pair<L, Q> id{0, 0};
 	Q init(int p){
-		return { };
+		return id.second;
 	}
 
-	vector<R> range;
+	vector<array<int, 2>> range;
 	vector<L> lazy;
 	vector<Q> val;
 	void init_range(){
@@ -2737,8 +2746,8 @@ struct lazy_segment_tree{
 		for(int i = n - 1; i > 0; -- i) range[i] = {range[i << 1][0], range[i << 1 | 1][1]};
 	}
 	void refresh(int p){
-		if(p < n) val[p] = qop(val[p << 1], range[p << 1], val[p << 1 | 1], range[p << 1 | 1]);
-		if(lazy[p] != id.first) val[p] = aop(val[p], range[p], lazy[p], range[p]);
+		if(p < n) val[p] = merge(val[p << 1], val[p << 1 | 1], range[p << 1][0], range[p << 1][1], range[p << 1 | 1][1]);
+		if(lazy[p] != id.first) val[p] = apply(val[p], lazy[p], range[p], range[p]);
 	}
 	void build(int l, int r){
 		for(l += n, r += n - 1; l > 1; ){
@@ -2746,12 +2755,12 @@ struct lazy_segment_tree{
 			for(int i = r; i >= l; -- i) refresh(i);
 		}
 	}
-	void push(int p){ // push internal node p
+	void push(int p){ // push the internal node p
 		if(lazy[p] != id.first){
-			val[p << 1] = aop(val[p << 1], range[p << 1], lazy[p], range[p]);
-			lazy[p << 1] = lop(lazy[p << 1], range[p << 1], lazy[p], range[p]);
-			val[p << 1 | 1] = aop(val[p << 1 | 1], range[p << 1 | 1], lazy[p], range[p]);
-			lazy[p << 1 | 1] = lop(lazy[p << 1 | 1], range[p << 1 | 1], lazy[p], range[p]);
+			val[p << 1] = apply(val[p << 1], lazy[p], range[p << 1], range[p]);
+			lazy[p << 1] = apply_lazy(lazy[p << 1], lazy[p], range[p << 1], range[p]);
+			val[p << 1 | 1] = apply(val[p << 1 | 1], lazy[p], range[p << 1 | 1], range[p]);
+			lazy[p << 1 | 1] = apply_lazy(lazy[p << 1 | 1], lazy[p], range[p << 1 | 1], range[p]);
 			lazy[p] = id.first;
 		}
 	}
@@ -2760,42 +2769,42 @@ struct lazy_segment_tree{
 		for(l += n, r += n - 1; s > 0; -- s) for(int i = l >> s; i <= r >> s; ++ i) push(i);
 	}
 	template<typename IT>
-	lazy_segment_tree(IT begin, IT end): n(distance(begin, end)), h(__lg(n) + 1), range(n << 1), lazy(n << 1, id.first), val(n, id.second){
+	lazy_segment_tree(IT begin, IT end): n(distance(begin, end)), h(__lg(n) + 1), range(n << 1), lazy(n << 1, id.first), val(n << 1, id.second){
 		init_range();
-		val.insert(val.end(), begin, end);
+		copy(begin, end, val.begin() + n);
 		build(0, n);
 	}
-	lazy_segment_tree(int n): n(n), h(__lg(n) + 1), range(n << 1), lazy(n << 1, id.first), val(n << 1){
+	lazy_segment_tree(int n): n(n), h(__lg(n) + 1), range(n << 1), lazy(n << 1, id.first), val(n << 1, id.second){
 		init_range();
 		for(int i = n; i < n << 1; ++ i) val[i] = init(i - n);
 		build(0, n);
 	}
 	void init_roots(){
 		vector<int> roots_r;
-		for(auto l = n, r = n << 1; l < r; l >>= 1, r >>= 1){
+		for(int l = n, r = n << 1; l < r; l >>= 1, r >>= 1){
 			if(l & 1) roots.push_back(l ++);
 			if(r & 1) roots_r.push_back(-- r);
 		}
 		roots.insert(roots.end(), roots_r.rbegin(), roots_r.rend());
 	}
-	void update(int l, int r, L x){
-		if(l >= r || x == id.first) return;
-		const R update_range{l, r};
-		push(l, l + 1), push(r - 1, r);
+	void update(int ql, int qr, L x){
+		if(ql >= qr || x == id.first) return;
+		push(ql, ql + 1), push(qr - 1, qr);
 		bool cl = false, cr = false;
-		for(l += n, r += n; l < r; l >>= 1, r >>= 1){
+		int l = ql + n, r = qr + n;
+		for(; l < r; l >>= 1, r >>= 1){
 			if(cl) refresh(l - 1);
 			if(cr) refresh(r);
 			if(l & 1){
-				val[l] = aop(val[l], range[l], x, update_range);
-				if(l < n) lazy[l] = lop(lazy[l], range[l], x, update_range);
+				val[l] = apply(val[l], x, range[l], {ql, qr});
+				if(l < n) lazy[l] = apply_lazy(lazy[l], x, range[l], {ql, qr});
 				++ l;
 				cl = true;
 			}
 			if(r & 1){
 				-- r;
-				val[r] = aop(val[r], range[r], x, update_range);
-				if(r < n) lazy[r] = lop(lazy[r], range[r], x, update_range);
+				val[r] = apply(val[r], x, range[r], {ql, qr});
+				if(r < n) lazy[r] = apply_lazy(lazy[r], x, range[r], {ql, qr});
 				cr = true;
 			}
 		}
@@ -2804,24 +2813,24 @@ struct lazy_segment_tree{
 			if(cr && (!cl || l != r)) refresh(r);
 		}
 	}
-	Q query(int l, int r){
-		push(l, l + 1), push(r - 1, r);
-		R range_l{l, l}, range_r{r, r};
+	Q query(int ql, int qr){
+		if(ql >= qr) return id.second;
+		push(ql, ql + 1), push(qr - 1, qr);
+		int mid;
 		Q res_l = id.second, res_r = id.second;
-		for(l += n, r += n; l < r; l >>= 1, r >>= 1){
-			if(l & 1) res_l = qop(res_l, range_l, val[l], range[l]), range_l[1] = range[l][1], ++ l;
-			if(r & 1) -- r, res_r = qop(val[r], range[r], res_r, range_r), range_r[0] = range[r][0];
+		for(int l = ql + n, r = qr + n; l < r; l >>= 1, r >>= 1){
+			if(l & 1) res_l = merge(res_l, val[l], ql, range[l][0], range[l][1]), mid = range[l][1], ++ l;
+			if(r & 1) -- r, res_r = merge(val[r], res_r, range[r][0], range[r][1], qr), mid = range[r][0];
 		}
-		return qop(res_l, range_l, res_r, range_r);
+		return merge(res_l, res_r, ql, mid, qr);
 	}
 	void print(){
+		//auto format_val = [&](auto x)->string{ return x; };
+		//auto format_lazy = [&](auto x)->string{ return x; };
 		for(int u = 0; u < 2 * n; ++ u){
-			// cout << u << "-th node represent [" << range[u][0] << ", " << range[u][1] << "), val = " << format(val[u]) << ", lazy = " << lazy[u] << "\n";
+			//cout << "Node " << u << " represent [" << range[u][0] << ", " << range[u][1] << "), val = " << format_val(val[u]) << ", lazy = " << format_lazy(lazy[u]) << "\n";
 		}
 	}
-#undef R
-#undef L
-#undef Q
 };
 
 // 156485479_3_2_5_2
@@ -2829,22 +2838,21 @@ struct lazy_segment_tree{
 // O(1) or O(n) processing, O(log L) or O(log n) per query
 struct dynamic_lazy_segment_tree{
 
-#define B int           // Base coordinate type
-#define R array<B, 2>   // Range type
-#define L int           // Lazy type
-#define Q int 			// Query type
-	L lop(const L &lazy, const R &r0, const L &x, const R &r1){ // r1 always contain r0
+	using B = int; // Base coordinate type
+	using L = long long; // Lazy type
+	using Q = long long; // Query type
+	L apply_lazy(const L &lazy, const L &x, array<B, 2> r, array<B, 2> rr){ // r is a subset of rr
 		return lazy + x;
-	}
-	Q qop(const Q &lval, const R &r0, const Q &rval, const R &r1){ // always r0[1] == r1[0]
+	} // update lazy node representing r with rr
+	Q merge(const Q &lval, const Q &rval, B l, B m, B r){
 		return lval + rval;
-	}
-	Q aop(const Q &val, const R &r0, const L &x, const R &r1){ // r1 always contain r0
-		return val + x * (r0[1] - r0[0]);
-	}
-	static pair<L, Q> id{ };
-	Q init(const B &l, const B &r){
-		return { };
+	} // merge two nodes representing the intervals [l, m) and [m, r)
+	Q apply(const Q &val, const L &x, array<B, 2> r, array<B, 2> rr){ // r is a subset of r
+		return val + x * (r[1] - r[0]);
+	} // apply to node representing r lazy node representing rr
+	pair<L, Q> id{0, 0};
+	Q init(B l, B r){
+		return id.second;
 	}
 
 	dynamic_lazy_segment_tree *l = 0, *r = 0;
@@ -2860,7 +2868,7 @@ struct dynamic_lazy_segment_tree{
 			B mid = low + (high - low >> 1);
 			l = new dynamic_lazy_segment_tree(begin, inter, low, mid);
 			r = new dynamic_lazy_segment_tree(inter, end, mid, high);
-			val = qop(l->val, R{low, mid}, r->val, R{mid, high});
+			val = merge(l->val, r->val, low, mid, high);
 		}
 		else val = *begin;
 	}
@@ -2879,15 +2887,15 @@ struct dynamic_lazy_segment_tree{
 	void update(B ql, B qr, L x){
 		if(qr <= low || high <= ql || x == id.first) return;
 		if(ql <= low && high <= qr){
-			lazy = lop(lazy, R{low, high}, x, R{ql, qr});
-			val = aop(val, R{low, high}, x, R{ql, qr});
+			lazy = apply_lazy(lazy, x, {low, high}, {ql, qr});
+			val = apply(val, x, {low, high}, {ql, qr});
 		}
 		else{
 			push();
 			l->update(ql, qr, x);
 			r->update(ql, qr, x);
 			B mid = low + (high - low >> 1);
-			val = qop(l->val, R{low, mid}, r->val, R{mid, high});
+			val = merge(l->val, r->val, low, mid, high);
 		}
 	}
 	Q query(B ql, B qr){
@@ -2895,12 +2903,8 @@ struct dynamic_lazy_segment_tree{
 		if(ql <= low && high <= qr) return val;
 		push();
 		B mid = clamp(low + (high - low >> 1), ql, qr);
-		return qop(l->query(ql, qr), R{max(low, ql), mid}, r->query(ql, qr), R{mid, min(high, qr)});
+		return merge(l->query(ql, qr), r->query(ql, qr), max(low, ql), mid, min(high, qr));
 	}
-#undef B
-#undef R
-#undef L
-#undef Q
 };
 
 // 156485479_3_2_6
@@ -3592,6 +3596,49 @@ struct unital_sorter{
 		cout << "Bound = ";
 		for(int i = 0; i < Y; ++ i) cout << "(" << bound[i].first << ", " << bound[i].second << ")";
 		cout << endl;
+	}
+};
+
+// 156485479_3_13
+// AAA Tree < INCOMPLETE >
+
+// 156485479_3_14
+// Bit Trie
+// O(n * bit) construction, O(bit) per query
+template<typename T = int, int mx = 30>
+struct trie{
+	vector<array<int, 3>> next{{-1, -1, 0}};
+	trie(){ }
+	template<typename IT>
+	trie(IT begin, IT end){
+		for(; begin != end; ++ begin) insert(*begin);
+	}
+	void insert(T x){
+		for(int bit = mx - 1, u = 0; bit >= 0; -- bit){
+			if(!~next[u][!!(x & T(1) << bit)]){
+				next[u][!!(x & T(1) << bit)] = int(next.size());
+				next.push_back({-1, -1, 0});
+			}
+			u = next[u][!!(x & T(1) << bit)];
+			++ next[u][2];
+		}
+	}
+	void erase(T x){
+		for(int bit = mx - 1, u = 0; bit >= 0; -- bit){
+			u = next[u][!!(x & T(1) << bit)];
+			-- next[u][2];
+		}
+	}
+	T max_xor(T x){
+		T res = 0;
+		for(int bit = mx - 1, u = 0; bit >= 0; -- bit){
+			if(!~next[u][!(x & T(1) << bit)] || !next[next[u][!(x & T(1) << bit)]][2]) u = next[u][!!(x & T(1) << bit)];
+			else{
+				res += T(1) << bit;
+				u = next[u][!(x & T(1) << bit)];
+			}
+		}
+		return res;
 	}
 };
 
@@ -6567,3 +6614,16 @@ namespace graph_generator{
 	}
 }
 using namespace graph_generator;
+
+// 156485479_8_5
+// Barrett Reduction
+// Calculate a mod b in range [0, 2b)
+// Credit: KACTL
+typedef unsigned long long ull;
+struct barrett_reduction{
+	ull b, m;
+	barrett_reduction(ull b): b(b), m(-1ULL / b) {}
+	ull reduce(ull a) { // a % b + (0 or b)
+		return a - (ull)((__uint128_t(m) * a) >> 64) * b;
+	}
+};
