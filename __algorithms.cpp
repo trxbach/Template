@@ -2580,6 +2580,7 @@ struct reverse_segment_tree{
 		roots.insert(roots.end(), roots_r.rbegin(), roots_r.rend());
 	}
 	void update(int l, int r, T x){
+		if(l >= r) return;
 		for(l += n, r += n; l < r; l >>= 1, r >>= 1){
 			if(l & 1) val[l ++] = bin_op(val[l], x);
 			if(r & 1) val[r] = bin_op(val[-- r], x);
@@ -6627,3 +6628,7 @@ struct barrett_reduction{
 		return a - (ull)((__uint128_t(m) * a) >> 64) * b;
 	}
 };
+
+// Sherman–Morrison formula
+// A + u v^T is invertible if and only if 1 + v^T A u != 0
+// (A + u v^T)^-1 = A^-1 - (A^-1 u v^T A^-1) / (1 + v^T A u)
