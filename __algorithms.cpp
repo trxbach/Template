@@ -2647,71 +2647,91 @@ struct segment_tree_2d{
 };
 
 // 156485479_3_2_4
-// Simple Recursive Segment Tree
+// Recursive Lazy Segment Tree
+// Credit: https://codeforces.com/blog/entry/65278
 // O(n) preprocessing, O(log n) per query
 struct recursive_segment_tree{
 	int n;
 
-	using Q = long long; // Query Type
+	using L = long long; // Lazy type
+	using Q = long long; // Query type
+	L apply_lazy(const L &lazy, const L &x, const array<int, 2> &r, const array<int, 2> &rr){ // r is a subset of rr
+		return lazy + x;
+	} // update lazy node representing r with rr
 	Q merge(const Q &lval, const Q &rval, int l, int m, int r){
 		return lval + rval;
-	}
-	Q id{};
+	} // merge two nodes representing the intervals [l, m) and [m, r)
+	Q apply(const Q &val, const L &x, const array<int, 2> &r, const array<int, 2> &rr){ // r is a subset of r
+		return val + x * (r[1] - r[0]);
+	} // apply to node representing r lazy node representing rr
+	pair<L, Q> id{0, 0};
 	Q init(int p){
-		return id;
+		return id.second;
 	}
 
-	vector<int> pos;
+	vector<L> lazy;
 	vector<Q> val;
-	Q operator[](int p) const{
-		return val[pos[p]];
+	void push(int u, int l, int r){ // push the internal node u
+		if(lazy[u] != id.first){
+			int m = l + (r - l >> 1), v = u + 1, w = u + (m - l << 1);
+			val[v] = apply(val[v], lazy[u], {l, m}, {l, r});
+			lazy[v] = apply_lazy(lazy[v], lazy[u], {l, m}, {l, r});
+			val[w] = apply(val[w], lazy[u], {m, r}, {l, r});
+			lazy[w] = apply_lazy(lazy[w], lazy[u], {m, r}, {l, r});
+			lazy[u] = id.first;
+		}
+	}
+	void refresh(int u, int l, int r){
+		int m = l + (r - l >> 1), v = u + 1, w = u + (m - l << 1);
+		val[u] = merge(val[v], val[w], l, m, r);
+		if(lazy[u] != id.first) val[u] = apply(val[u], lazy[u], {l, r}, {l, r});
 	}
 	template<typename IT>
-	recursive_segment_tree(IT begin, IT end): n(distance(begin, end)), val(n << 2, id), pos(n){
-		build(begin, end, 1, 0, n);
+	recursive_segment_tree(IT begin, IT end): n(distance(begin, end)), lazy(n << 1, id.first), val(n << 1, id.second){
+		build(begin, end, 0, 0, n);
 	}
-	recursive_segment_tree(int n): n(n), val(n << 2, id), pos(n){
-		build(1, 0, n);
+	recursive_segment_tree(int n): n(n), lazy(n << 1, id.first), val(n << 1, id.second){
+		build(0, 0, n);
 	}
 	template<typename IT>
-	void build(IT begin, IT end, int u, int left, int right){
-		if(left + 1 == right) val[u] = *begin, pos[left] = u;
+	void build(IT begin, IT end, int u, int l, int r){
+		if(l + 1 == r) val[u] = *begin;
 		else{
-			int mid = left + (right - left >> 1);
+			int m = l + (r - l >> 1), v = u + 1, w = u + (m - l << 1);
 			IT inter = begin + (end - begin >> 1);
-			build(begin, inter, u << 1, left, mid);
-			build(inter, end, u << 1 | 1, mid, right);
-			val[u] = merge(val[u << 1], val[u << 1 | 1], left, mid, right);
+			build(begin, inter, v, l, m), build(inter, end, w, m, r);
+			val[u] = merge(val[v], val[w], l, m, r);
 		}
 	}
-	void build(int u, int left, int right){
-		if(left + 1 == right) val[u] = init(left), pos[left] = u;
+	void build(int u, int l, int r){
+		if(l + 1 == r) val[u] = init(l);
 		else{
-			int mid = left + (right - left >> 1);
-			build(u << 1, left, mid);
-			build(u << 1 | 1, mid, right);
-			val[u] = merge(val[u << 1], val[u << 1 | 1], left, mid, right);
+			int m = l + (r - l >> 1), v = u + 1, w = u + (m - l << 1);
+			build(v, l, m), build(w, m, r);
+			val[u] = merge(val[v], val[w], l, m, r);
 		}
 	}
 	template<bool First = true>
-	Q query(int ql, int qr, int u = 1, int left = 0, int right = numeric_limits<int>::max()){
-		if(First) right = n;
-		if(qr <= left || right <= ql) return id;
-		if(ql <= left && right <= qr) return val[u];
-		int mid = left + (right - left >> 1);
-		return merge(query<false>(ql, qr, u << 1, left, mid), query<false>(ql, qr, u << 1 | 1, mid, right), left, mid, right);
-	} // Get the query result for [ql, qr)
-	template<bool First = true>
-	void update(int p, Q x, int u = 1, int left = 0, int right = numeric_limits<int>::max()){
-		if(First) right = n;
-		if(left + 1 == right) val[u] = x;
+	void update(int ql, int qr, L x, int u = 0, int l = 0, int r = numeric_limits<int>::max()){
+		if(First) r = n;
+		if(qr <= l || r <= ql) return;
+		if(ql <= l && r <= qr) val[u] = apply(val[u], x, {l, r}, {ql, qr}), lazy[u] = apply_lazy(lazy[u], x, {l, r}, {ql, qr});
 		else{
-			int mid = left + (right - left >> 1);
-			if(p < mid) update<false>(p, x, u << 1, left, mid);
-			else update<false>(p, x, u << 1 | 1, mid, right);
-			val[u] = merge(val[u << 1], val[u << 1 | 1], left, mid, right);
+			push(u, l, r);
+			int m = l + (r - l >> 1), v = u + 1, w = u + (m - l << 1);
+			update<false>(ql, qr, x, v, l, m), update<false>(ql, qr, x, w, m, r);
+			refresh(u, l, r);
 		}
 	} // Change the value at index p to x
+	template<bool First = true>
+	Q query(int ql, int qr, int u = 0, int l = 0, int r = numeric_limits<int>::max()){
+		if(First) r = n;
+		if(qr <= l || r <= ql) return id.second;
+		if(ql <= l && r <= qr) return val[u];
+		push(u, l, r);
+		int m = l + (r - l >> 1), v = u + 1, w = u + (m - l << 1);
+		return merge(query<false>(ql, qr, v, l, m), query<false>(ql, qr, w, m, r), l, m, r);
+	} // Get the query result for [ql, qr)
 };
 
 
@@ -2746,28 +2766,28 @@ struct lazy_segment_tree{
 		for(int i = n; i < n << 1; ++ i) range[i] = {i - n, i - n + 1};
 		for(int i = n - 1; i > 0; -- i) range[i] = {range[i << 1][0], range[i << 1 | 1][1]};
 	}
-	void refresh(int p){
-		if(p < n) val[p] = merge(val[p << 1], val[p << 1 | 1], range[p << 1][0], range[p << 1][1], range[p << 1 | 1][1]);
-		if(lazy[p] != id.first) val[p] = apply(val[p], lazy[p], range[p], range[p]);
+	void push(int u){ // push the internal node u
+		if(lazy[u] != id.first){
+			val[u << 1] = apply(val[u << 1], lazy[u], range[u << 1], range[u]);
+			lazy[u << 1] = apply_lazy(lazy[u << 1], lazy[u], range[u << 1], range[u]);
+			val[u << 1 | 1] = apply(val[u << 1 | 1], lazy[u], range[u << 1 | 1], range[u]);
+			lazy[u << 1 | 1] = apply_lazy(lazy[u << 1 | 1], lazy[u], range[u << 1 | 1], range[u]);
+			lazy[u] = id.first;
+		}
+	}
+	void push(int l, int r){ // push the range [l, r)
+		int s = h;
+		for(l += n, r += n - 1; s > 0; -- s) for(int i = l >> s; i <= r >> s; ++ i) push(i);
+	}
+	void refresh(int u){
+		if(u < n) val[u] = merge(val[u << 1], val[u << 1 | 1], range[u << 1][0], range[u << 1][1], range[u << 1 | 1][1]);
+		if(lazy[u] != id.first) val[u] = apply(val[u], lazy[u], range[u], range[u]);
 	}
 	void build(int l, int r){
 		for(l += n, r += n - 1; l > 1; ){
 			l >>= 1, r >>= 1;
 			for(int i = r; i >= l; -- i) refresh(i);
 		}
-	}
-	void push(int p){ // push the internal node p
-		if(lazy[p] != id.first){
-			val[p << 1] = apply(val[p << 1], lazy[p], range[p << 1], range[p]);
-			lazy[p << 1] = apply_lazy(lazy[p << 1], lazy[p], range[p << 1], range[p]);
-			val[p << 1 | 1] = apply(val[p << 1 | 1], lazy[p], range[p << 1 | 1], range[p]);
-			lazy[p << 1 | 1] = apply_lazy(lazy[p << 1 | 1], lazy[p], range[p << 1 | 1], range[p]);
-			lazy[p] = id.first;
-		}
-	}
-	void push(int l, int r){ // push the range [l, r)
-		int s = h;
-		for(l += n, r += n - 1; s > 0; -- s) for(int i = l >> s; i <= r >> s; ++ i) push(i);
 	}
 	template<typename IT>
 	lazy_segment_tree(IT begin, IT end): n(distance(begin, end)), h(__lg(n) + 1), range(n << 1), lazy(n << 1, id.first), val(n << 1, id.second){
@@ -2848,7 +2868,7 @@ struct dynamic_lazy_segment_tree{
 	Q merge(const Q &lval, const Q &rval, B l, B m, B r){
 		return lval + rval;
 	} // merge two nodes representing the intervals [l, m) and [m, r)
-	Q apply(const Q &val, const L &x, array<B, 2> r, array<B, 2> rr){ // r is a subset of r
+	Q apply(const Q &val, const L &x, array<B, 2> r, array<B, 2> rr){ // r is a subset of rr
 		return val + x * (r[1] - r[0]);
 	} // apply to node representing r lazy node representing rr
 	pair<L, Q> id{0, 0};
