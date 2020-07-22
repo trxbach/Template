@@ -106,7 +106,7 @@ Category
 			156485479_3_2_2
 		3.2.3. 2D Segment Tree
 			156485479_3_2_3
-		3.2.4. Recursive Segment Tree
+		3.2.4. Recursive Lazy Segment Tree
 			156485479_3_2_4
 		3.2.5. Lazy Segment Tree
 			3.2.5.1. Iterative
@@ -1772,18 +1772,17 @@ struct lichao{
 // Divide and Conquer DP Optimization
 // Recurrence relation of form dp_next[i] = min/max{j in [0, i)} (dp[j] + cost(j, i))
 // Must satisfy opt[j] <= opt[j + 1]
-// Special case: dp[j][i] must be a Monge array ( if one interval contains the other, it's better to resolve them )
-// O(N log N)
+// Special case: cost(j, i) must be a Monge array ( if one interval contains the other, it's better to resolve them )
 // Credit: cp-algorithms.com
-template<bool GET_MAX = true>
-void DCDP(vector<long long> &dp, vector<long long> &dp_next, auto cost, int low, int high, int opt_low, int opt_high){
+// O(N log N). Let (i0, j0), (i1, j1), ... be the access seq for cost. Then abs(i0-i1) + abs(j0-j1) is amortized constant.
+template<bool GET_MAX = true, typename T = long long>
+void DCDP(auto &dp, auto &dp_next, auto &cost, int low, int high, int opt_low, int opt_high){
 	if(low >= high) return;
-	int mid = low + high >> 1;
-	pair<long long, int> res{GET_MAX ? numeric_limits<long long>::min() : numeric_limits<long long>::max(), -1};
-	for(int i = opt_low; i < min(mid, opt_high); ++ i) res = GET_MAX ? max(res, {dp[i] + cost(i, mid), i}) : min(res, {dp[i] + cost(i, mid), i});
+	int mid = low + (high - low >> 1);
+	pair<T, int> res{GET_MAX ? numeric_limits<T>::min() : numeric_limits<T>::max(), -1};
+	for(int i = min(mid, opt_high) - 1; i >= opt_low; -- i) res = GET_MAX ? max(res, {dp[i] + cost(i, mid), i}) : min(res, {dp[i] + cost(i, mid), i});
 	dp_next[mid] = res.first;
-	DCDP(dp, dp_next, cost, low, mid, opt_low, res.second + 1);
-	DCDP(dp, dp_next, cost, mid + 1, high, res.second, opt_high);
+	DCDP<GET_MAX, T>(dp, dp_next, cost, low, mid, opt_low, res.second + 1), DCDP<GET_MAX, T>(dp, dp_next, cost, mid + 1, high, res.second, opt_high);
 }
 
 // 156485479_2_6_3
@@ -2661,7 +2660,7 @@ struct recursive_segment_tree{
 	Q merge(const Q &lval, const Q &rval, int l, int m, int r){
 		return lval + rval;
 	} // merge two nodes representing the intervals [l, m) and [m, r)
-	Q apply(const Q &val, const L &x, const array<int, 2> &r, const array<int, 2> &rr){ // r is a subset of r
+	Q apply(const Q &val, const L &x, const array<int, 2> &r, const array<int, 2> &rr){ // r is a subset of rr
 		return val + x * (r[1] - r[0]);
 	} // apply to node representing r lazy node representing rr
 	pair<L, Q> id{0, 0};
@@ -2672,7 +2671,7 @@ struct recursive_segment_tree{
 	vector<L> lazy;
 	vector<Q> val;
 	void push(int u, int l, int r){ // push the internal node u
-		if(lazy[u] != id.first){
+		if(lazy[u] != id.first && u + 1 < n << 1){
 			int m = l + (r - l >> 1), v = u + 1, w = u + (m - l << 1);
 			val[v] = apply(val[v], lazy[u], {l, m}, {l, r});
 			lazy[v] = apply_lazy(lazy[v], lazy[u], {l, m}, {l, r});
@@ -2682,8 +2681,10 @@ struct recursive_segment_tree{
 		}
 	}
 	void refresh(int u, int l, int r){
-		int m = l + (r - l >> 1), v = u + 1, w = u + (m - l << 1);
-		val[u] = merge(val[v], val[w], l, m, r);
+		if(u + 1 < n << 1){
+			int m = l + (r - l >> 1), v = u + 1, w = u + (m - l << 1);
+			val[u] = merge(val[v], val[w], l, m, r);
+		}
 		if(lazy[u] != id.first) val[u] = apply(val[u], lazy[u], {l, r}, {l, r});
 	}
 	template<typename IT>
@@ -2722,7 +2723,7 @@ struct recursive_segment_tree{
 			update<false>(ql, qr, x, v, l, m), update<false>(ql, qr, x, w, m, r);
 			refresh(u, l, r);
 		}
-	} // Change the value at index p to x
+	} // Apply x to values at [ql, qr)
 	template<bool First = true>
 	Q query(int ql, int qr, int u = 0, int l = 0, int r = numeric_limits<int>::max()){
 		if(First) r = n;
@@ -2730,7 +2731,7 @@ struct recursive_segment_tree{
 		if(ql <= l && r <= qr) return val[u];
 		push(u, l, r);
 		int m = l + (r - l >> 1), v = u + 1, w = u + (m - l << 1);
-		return merge(query<false>(ql, qr, v, l, m), query<false>(ql, qr, w, m, r), l, m, r);
+		return merge(query<false>(ql, qr, v, l, m), query<false>(ql, qr, w, m, r), max(ql, l), clamp(m, ql, qr), min(qr, r));
 	} // Get the query result for [ql, qr)
 };
 
@@ -3329,9 +3330,9 @@ vector<T> answer_query_offline(vector<Q> query, I ins, D del, A ans){
 // O(log N) per operation
 // Credit: KACTL
 struct treap{
-#define Q int 	// Query Type
-#define SS int 	// Subtree Sum Type
-#define L int 	// Lazy Type
+	using Q = int; // Query Type
+	using SS = int; // Subtree Sum Type
+	using L = int; // Lazy Type
 	struct node{
 		node *l = 0, *r = 0;
 		Q val;
@@ -3432,15 +3433,12 @@ struct treap{
 		}
 	}
 	node *insert(node *u, node *t){
-	// node *insert(node *u, node *t, pos){ // For the implicit treap
+	// node *insert(node *u, node *t, int pos){ // For the implicit treap
 		if(!u) return t;
 		auto [a, b] = split(u, t->val);
 		// auto [a, b] = split(u, pos); // For the implicit treap
 		return merge(merge(a, t), b);
 	}
-#undef Q
-#undef SS
-#undef L
 };
 template<typename Action>
 void for_each(treap::node *u, Action act){
