@@ -225,7 +225,7 @@ Category
 		156485479_5_8
 	5.9. Suffix Tree < UNTESTED >
 		156485479_5_9
-	5.10. Palindrome Automaton / Eertree < UNTESTED >
+	5.10. Palindrome Tree / Eertree
 		156485479_5_10
 	5.11. Levenshtein Automaton < INCOMPLETE >
 		156485479_5_11
@@ -247,6 +247,8 @@ Category
 			156485479_6_4_1
 		6.4.2. Find the Closest Pair of Points < UNTESTED >
 			156485479_6_4_2
+	6.5. Circle Class
+		156485479_6_5
 
 7. Heuristics Algorithms
 	7.1. Maximum Independent Set
@@ -1253,9 +1255,7 @@ int solve_linear_equations(const vector<vector<double>> &AA, vector<double> &x, 
 // Find a solution of the system of linear equations in Z2. Return -1 if no sol, rank otherwise.
 // O(n^2 m)
 typedef bitset<1000> bs;
-int solve_linear_equations(const vector<bs> &AA, bs &x, const vector<int> &bb, int m){
-	vector<bs> A(AA);
-	vector<int> b(bb);
+int solve_linear_equations(vector<bs> A, bs &x, vector<int> b, int m){
 	int n = int(A.size()), rank = 0, br;
 	vector<int> col(m);
 	iota(col.begin(), col.end(), 0);
@@ -1275,7 +1275,7 @@ int solve_linear_equations(const vector<bs> &AA, bs &x, const vector<int> &bb, i
 	}
 	x = bs();
 	for(int i = rank; i --; ){
-		if (!b[i]) continue;
+		if(!b[i]) continue;
 		x[col[i]] = 1;
 		for(int j = 0; j < i; ++ j) b[j] ^= A[j][i];
 	}
@@ -3358,8 +3358,8 @@ struct treap{
 		}
 	};
 	void refresh(node *u){
-		u->sz = (u->l ? u->l->sz : 0) + (u->r ? u->r->sz : 0) + 1;
-		u->subtr_val = (u->l ? u->l->subtr_val : 0) + (u->r ? u->r->subtr_val : 0) + u->val;
+		u->sz = (u->l ? u->l->sz : 0) + 1 + (u->r ? u->r->sz : 0);
+		u->subtr_val = (u->l ? u->l->subtr_val : 0) + u->val + (u->r ? u->r->subtr_val : 0);
 	};
 	template<typename IT>
 	treap(IT begin, IT end, L lazy_init = 0){
@@ -5873,21 +5873,22 @@ struct suffix_tree{
 };
 	
 // 156485479_5_10
-// Palindrome Automaton / Eertree
-// O(len)
+// Palindrome Tree / Eertree
+// O(len * lim)
 template<typename Str, int lim = 128>
-struct palindrome_automaton{
+struct palindrome_tree{
 	typedef typename Str::value_type Char;
 	struct node{
-		int len, link, cnt = 0;
+		int len, link, depth, cnt = 0; // length, suffix link, depth of the node via suffix link
 		vector<int> next;
-		node(int len, int link): len(len), link(link), next(lim){ };
+		node(int len, int link, int depth): len(len), link(link), depth(depth), next(lim){ };
 	};
 	vector<int> s = vector<int>{-1};
-	vector<node> state = vector<node>{{0, 1}, {-1, 0}};
-	int lps = 1; // node containing the longest palindromic suffix
-	palindrome_automaton(){ }
-	palindrome_automaton(const Str &s){
+	vector<node> state = vector<node>{{0, 1, 0}, {-1, 0, 0}};
+	int lps = 1; // Node containing the longest palindromic suffix
+	long long count = 0; // Number of non-empty palindromic substrings
+	palindrome_tree(){ }
+	palindrome_tree(const Str &s){
 		for(auto c: s) push_back(c);
 	}
 	int get_link(int u){
@@ -5895,36 +5896,33 @@ struct palindrome_automaton{
 		return u;
 	}
 	void push_back(Char c){
-		s.push_back(c);
-		lps = get_link(lps);
+		s.push_back(c), lps = get_link(lps);
 		if(!state[lps].next[c]){
-			state.push_back({state[lps].len + 2, state[get_link(state[lps].link)].next[c]});
-			state.back().cnt = 1 + state[state.back().link].cnt;
+			state.push_back({state[lps].len + 2, state[get_link(state[lps].link)].next[c], state[state[get_link(state[lps].link)].next[c]].depth + 1});
 			state[lps].next[c] = int(state.size()) - 1;
 		}
-		lps = state[lps].next[c];
+		lps = state[lps].next[c], count += state[lps].depth, ++ state[lps].cnt;
+	}
+	void init_cnt(){
+		function<void(int)> dfs = [&](int u){
+			for(int c = 0; c < lim; ++ c) if(state[u].next[c]){
+				dfs(state[u].next[c]);
+				state[u].cnt += state[state[u].next[c]].cnt;
+			}
+		};
+		dfs(0), dfs(1);
 	}
 	void print(){
 		vector<pair<int, string>> q{{1, ""}, {0, ""}};
 		while(!q.empty()){
 			int u;
 			string s;
-			tie(u, s) = q.back();
-			q.pop_back();
+			tie(u, s) = q.back(); q.pop_back();
 			auto m = state[u];
-			cout << "Node " << u << ", " << s << ": len = " << m.len << ", link = " << m.link << ", cnt = " << m.cnt << "\n";
-			cout << "next: ";
-			for(auto c = 0; c < lim; ++ c){
-				if(m.next[c]){
-					cout << "(" << char(c) << " -> " << m.next[c] << ") ";
-				}
-			}
-			cout << "\n\n";
-			for(auto c = lim - 1; c >= 0; -- c){
-				if(m.next[c]){
-					q.push_back({m.next[c], u == 1 ? string{char(c)} : char(c) + s + char(c)});
-				}
-			}
+			cerr << "Node " << u << " \"" << s << "\"\nlen = " << m.len << ", link = " << m.link << ", depth = " << m.depth << "\nnext: ";
+			for(int c = 0; c < lim; ++ c) if(m.next[c]) cerr << "(" << char(c) << " -> " << m.next[c] << ") ";
+			cerr << "\n\n";
+			for(int c = lim - 1; c >= 0; -- c) if(m.next[c]) q.push_back({m.next[c], u == 1 ? string{char(c)} : char(c) + s + char(c)});
 		}
 	}
 };
@@ -6451,6 +6449,33 @@ auto closest_pair(IT begin, IT end){
 	return res;
 }
 
+// 156485479_6_5
+// Circle Class
+template<typename T>
+struct circle{
+	T x, y, r;
+	template<typename U>
+	U sq(U x){
+		return x * x;
+	}
+	T dis(const circle &c) const{
+		return sqrt(sq(x - c.x) + sq(y - c.y));
+	}
+	bool share(const circle &c) const{
+		T d = dis(c);
+		return abs(r - c.r) <= d && d <= r + c.r;
+	}
+	vector<pair<double, double>> inter(const circle &c) const{ // Returns the list of intersection points
+		if(!share(c)) return {};
+		double R2 = sq(x - c.x) + sq(y - c.y);
+		double A = 0.5, B = (sq(r) - sq(c.r)) / (2 * R2), C = 0.5 * sqrt(2 * (sq(r) + sq(c.r)) / R2 - sq(sq(r) - sq(c.r)) / sq(R2) - 1);
+		return {
+			{A * (x + c.x) + B * (c.x - x) + C * (c.y - y), A * (y + c.y) + B * (c.y - y) + C * (x - c.x)}
+			, {A * (x + c.x) + B * (c.x - x) - C * (c.y - y), A * (y + c.y) + B * (c.y - y) - C * (x - c.x)}
+		};
+	}
+};
+
 // 156485479_7_1
 // Maximum Independent Set
 // http://ceur-ws.org/Vol-2098/paper12.pdf
@@ -6590,10 +6615,13 @@ void debug_out(Head H, Tail... T){ cerr << H << ", ", debug_out(T...); }
 
 // 156485479_8_4
 // Random Generators
+int rand_int(int low, int high){ // generate random integer in [low, high)
+	return int(rng() % (high - low)) + low;
+}
+double rand_float(double low, double high){
+	return rng() * 1.0 / numeric_limits<uint>::max() * (high - low) + low;
+}
 namespace graph_generator{
-	int rand_int(int low, int high){ // generate random integer in [low, high)
-		return rng() % (high - low) + low;
-	}
 	vector<array<int, 2>> generate_tree(int n){
 		vector<array<int, 2>> res;
 		for(int u = 1; u < n; ++ u) res.push_back({u, rand_int(0, u)});
