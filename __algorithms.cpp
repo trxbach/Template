@@ -34,6 +34,8 @@ Category
 		156485479_1_11
 	1.12. Meissel–Lehmer Algorithm / Fast Computaion of pi(N)
 		156485479_1_12
+	1.13. Xudyh's Sieve
+		156485479_1_13
 
 
 2. Numeric
@@ -245,7 +247,7 @@ Category
 	6.4. Line Sweep
 		6.4.1. Find a Pair of Intersecting Segments < INCOMPLETE >
 			156485479_6_4_1
-		6.4.2. Find the Closest Pair of Points < UNTESTED >
+		6.4.2. Find the Closest Pair of Points
 			156485479_6_4_2
 	6.5. Circle Class
 		156485479_6_5
@@ -1156,6 +1158,31 @@ long long pi(const long long N){
 	}
 	return larges[0] + 1;
 }
+
+// 156485479_1_13
+// Xudyh's Sieve
+// Calculate the prefix sum of a multiplicative function fast
+// Assuming there exists an arithemetic function g such that pref_g and pref_f*g is easy to evaluate
+// O(n^2/3)
+template<typename F1, typename F2, typename F3, typename T = Zp>
+struct prefix_sum{
+	long long th; // threshold, ideally about (2(single query) ~ 5(lots of queries)) * MAXN^2/3
+	F1 pf;
+	F2 pg;
+	F3 pfg;
+	unordered_map<long long, T> mp;
+	prefix_sum(long long th, F1 pf, F2 pg, F3 pfg): th(th), pf(pf), pg(pg), pfg(pfg){ }
+	T query(long long n){
+		if(n <= th) return pf(n);
+		if(mp.count(n)) return mp[n];
+		T res = pfg(n);
+		for(long long low = 2, high = 2; low <= n; low = high + 1){
+			high = n / (n / low);
+			res -= (pg(high) - pg(low - 1)) * query(n / low);
+		}
+		return mp[n] = res / pg(1);
+	}
+};
 
 // 156485479_2_1
 // Linear Recurrence Relation Solver / Berlekamp - Massey Algorithm
