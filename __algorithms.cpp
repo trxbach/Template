@@ -36,6 +36,8 @@ Category
 		156485479_1_12
 	1.13. Xudyh's Sieve
 		156485479_1_13
+	1.14. Formulae Regarding Mobius Inversion
+		156485479_1_14
 
 
 2. Numeric
@@ -1184,6 +1186,12 @@ struct prefix_sum{
 	}
 };
 
+// 156485479_1_14
+// Formulae Regarding Mobius Inversion
+// Let S_k(n) := Sum{1<=i<=n}( i^k ), id_k(n) := n^k
+// Sum{1<=x_i<=n_i for each 1<=i<=k}( Product{1<=i<=k}( x_i^e_i ) gcd{1<=i<=k}( x_i ) )
+// = Sum{1<=l<=inf}( Product{1<=i<=k}( l^e_i S_{e_i}( Floor( n_i / l ) ) ) (Mu * id_k)( l ) )
+
 // 156485479_2_1
 // Linear Recurrence Relation Solver / Berlekamp - Massey Algorithm
 // O(N^2 log N) / O(N^2)
@@ -1557,7 +1565,7 @@ void fft(IT begin, IT end, const bool invert = false){
 }
 template<typename Poly>
 Poly operator*(const Poly &a, const Poly &b){
-	vector<cd> f(a), g(b);
+	vector<cd> f(a.begin(), a.end()), g(b.begin(), b.end());
 	int n = max(int(a.size()) + int(b.size()) - 1, 1);
 	if(__builtin_popcount(n) != 1) n = 1 << __lg(n) + 1;
 	f.resize(n), g.resize(n);
@@ -2214,7 +2222,7 @@ struct Z_p{
 	Z_p operator--(int){ Z_p result(*this); *this -= 1; return result; }
 	Z_p operator-() const{ return Z_p(-value); }
 	template<typename U = T>
-	typename enable_if<is_same<typename Z_p<U>::Type, int>::value, Z_p>::type& operator*=(const Z_p& rhs){
+	typename enable_if<is_same<typename Z_p<U>::Type, int>::value, Z_p>::type &operator*=(const Z_p& rhs){
 		#ifdef _WIN32
 		uint64_t x = static_cast<int64_t>(value) * static_cast<int64_t>(rhs.value);
 		uint32_t xh = static_cast<uint32_t>(x >> 32), xl = static_cast<uint32_t>(x), d, m;
@@ -2230,13 +2238,13 @@ struct Z_p{
 		return *this;
 	}
 	template<typename U = T>
-	typename enable_if<is_same<typename Z_p<U>::Type, int64_t>::value, Z_p>::type& operator*=(const Z_p &rhs){
+	typename enable_if<is_same<typename Z_p<U>::Type, int64_t>::value, Z_p>::type &operator*=(const Z_p &rhs){
 		int64_t q = static_cast<int64_t>(static_cast<long double>(value) * rhs.value / mod());
 		value = normalize(value * rhs.value - q * mod());
 		return *this;
 	}
 	template<typename U = T>
-	typename enable_if<!is_integral<typename Z_p<U>::Type>::value, Z_p>::type& operator*=(const Z_p &rhs){
+	typename enable_if<!is_integral<typename Z_p<U>::Type>::value, Z_p>::type &operator*=(const Z_p &rhs){
 		value = normalize(value * rhs.value);
 		return *this;
 	}
@@ -2920,6 +2928,10 @@ struct dynamic_lazy_segment_tree{
 			val = merge(l->val, r->val, low, mid, high);
 		}
 		else val = *begin;
+	}
+	~dynamic_lazy_segment_tree(){
+		if(l) delete l;
+		if(r) delete r;
 	}
 	void push(){
 		if(!l){
@@ -6633,10 +6645,15 @@ template<size_t S> ostream &operator<<(ostream &out, bitset<S> b){
 void debug_out(){ cerr << "\b\b " << endl; }
 template<typename Head, typename... Tail>
 void debug_out(Head H, Tail... T){ cerr << H << ", ", debug_out(T...); }
+void debug2_out(){ cerr << "-----DEBUG END-----\n"; }
+template<typename Head, typename... Tail>
+void debug2_out(Head H, Tail... T){ cerr << "\n"; for(auto x: H) cerr << x << "\n"; debug2_out(T...); }
 #ifdef LOCAL
 #define debug(...) cerr << "[" << #__VA_ARGS__ << "]: ", debug_out(__VA_ARGS__)
+#define debug2(...) cerr << "----DEBUG BEGIN----\n[" << #__VA_ARGS__ << "]:", debug2_out(__VA_ARGS__)
 #else
 #define debug(...) 42
+#define debug2(...) 42
 #endif
 // DEBUG END
 
@@ -6705,3 +6722,20 @@ struct barrett_reduction{
 // Sherman–Morrison formula
 // A + u v^T is invertible if and only if 1 + v^T A u != 0
 // (A + u v^T)^-1 = A^-1 - (A^-1 u v^T A^-1) / (1 + v^T A u)
+/*
+Polynomial
+- FFT / NTT / chirp-z transform
+- Multipoint evaluation
+- Lagrange Interpolation
+Number Theory
+- Möbius inversion 
+- Dirichlet Convolution
+- Discrete logarithm / kth root
+Linear Algebra
+- Gaussian Elimination
+- XOR basis
+- Simplex algorithm
+etc
+- Burnside's Lemma
+- Kitamasa
+*/
