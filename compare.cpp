@@ -9,7 +9,7 @@ void check_status(int status, const string &where){
 	exit(0);
 }
 
-int main(int argc, char* argv[]){
+int main(int argc, char *argv[]){
 	cin.tie(0)->sync_with_stdio(0);
 	string bad_sol = argv[1], good_sol = argv[2];
 	cout << "Print the results? Type (y) or (n): ";

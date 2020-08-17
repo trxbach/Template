@@ -35,18 +35,14 @@ int main(int argc, char *argv[]){
 			if(!res) cout << "WRONG ANSWER\n";
 			else cout << "TIME LIMIT EXCEEDED\n";
 			cout << "Bad = ";
-			for(auto s: bad){
-				cout << s << " ";
-			}
+			for(auto s: bad) cout << s << " ";
 			cout << "\n";
 			break;
 		}
 		cout << "Ok\n";
 		if(X == 'y'){
 			cout << "Bad = ";
-			for(auto s: bad){
-				cout << s << " ";
-			}
+			for(auto s: bad) cout << s << " ";
 			cout << "\n";
 		}
 		cout << endl;
