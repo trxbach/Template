@@ -1,9 +1,13 @@
-#include "bits/stdc++.h"
+#include <bits/stdc++.h>
 using namespace std;
 using namespace chrono;
-mt19937 rng(high_resolution_clock::now().time_since_epoch().count());
 
-
+void check_status(int status, const string &where){
+	if(status < 0) cout << where << " -> error: " << strerror(errno) << "\n";
+	else if(status >> 8) cout << where << " -> program exited abnormally\n";
+	else return;
+	exit(0);
+}
 
 int main(int argc, char *argv[]){
 	cin.tie(0)->sync_with_stdio(0);
@@ -14,11 +18,11 @@ int main(int argc, char *argv[]){
 	char X;
 	cin >> X;
 	for(int i = 0; ; ++ i){
-		system("./stress/_gen>./in");
+		check_status(system("./stress/_gen>./in"), "Generator");
 		auto p1 = high_resolution_clock::now();
-		system(("./" + bad_sol + "<./in>./stress/out_bad").c_str());
+		check_status(system(("./" + bad_sol + "<./in>./stress/out_bad").c_str()), "Bad Sol");
 		auto p2 = high_resolution_clock::now();
-		system(("printf \"\\n\" | cat ./in - ./stress/out_bad | ./" + checker + ">./stress/_res").c_str());
+		check_status(system(("printf \"\\n\" | cat ./in - ./stress/out_bad | ./" + checker + ">./stress/_res").c_str()), "Checker");
 		ifstream _res("./stress/_res"), badin("./stress/out_bad");
 		int res;
 		_res >> res;

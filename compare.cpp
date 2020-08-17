@@ -1,9 +1,13 @@
-#include "bits/stdc++.h"
+#include <bits/stdc++.h>
 using namespace std;
 using namespace chrono;
-mt19937 rng(high_resolution_clock::now().time_since_epoch().count());
 
-
+void check_status(int status, const string &where){
+	if(status < 0) cout << where << " -> error: " << strerror(errno) << "\n";
+	else if(status >> 8) cout << where << " -> program exited abnormally\n";
+	else return;
+	exit(0);
+}
 
 int main(int argc, char* argv[]){
 	cin.tie(0)->sync_with_stdio(0);
@@ -13,11 +17,11 @@ int main(int argc, char* argv[]){
 	char X;
 	cin >> X;
 	for(int i = 0; ; ++ i){
-		system("./stress/_gen>./in");
+		check_status(system("./stress/_gen>./in"), "Generator");
 		auto p1 = high_resolution_clock::now();
-		system(("./" + good_sol + "<./in>./stress/out_good.txt").c_str());
+		check_status(system(("./" + good_sol + "<./in>./stress/out_good.txt").c_str()), "Good Sol");
 		auto p2 = high_resolution_clock::now();
-		system(("./" + bad_sol + "<./in>./stress/out_bad.txt").c_str());
+		check_status(system(("./" + bad_sol + "<./in>./stress/out_bad.txt").c_str()), "Bad Sol");
 		auto p3 = high_resolution_clock::now();
 		ifstream goodin("./stress/out_good.txt"), badin("./stress/out_bad.txt");
 		vector<string> good, bad;
@@ -30,28 +34,20 @@ int main(int argc, char* argv[]){
 		if(good != bad){
 			cout << "Failed\n";
 			cout << "good = ";
-			for(auto s: good){
-				cout << s << " ";
-			}
+			for(auto s: good) cout << s << " ";
 			cout << "\n";
 			cout << "bad = ";
-			for(auto s: bad){
-				cout << s << " ";
-			}
+			for(auto s: bad) cout << s << " ";
 			cout << "\n";
 			break;
 		}
 		cout << "Ok\n";
 		if(X == 'y'){
 			cout << "good = ";
-			for(auto s: good){
-				cout << s << " ";
-			}
+			for(auto s: good) cout << s << " ";
 			cout << "\n";
 			cout << "bad = ";
-			for(auto s: bad){
-				cout << s << " ";
-			}
+			for(auto s: bad) cout << s << " ";
 			cout << "\n";
 		}
 		cout << endl;
