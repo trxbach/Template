@@ -19,11 +19,11 @@ int main(int argc, char *argv[]){
 	for(int i = 0; ; ++ i){
 		check_status(system("./stress/_gen>./in"), "Generator");
 		auto p1 = high_resolution_clock::now();
-		check_status(system(("./" + good_sol + "<./in>./stress/out_good.txt").c_str()), "Good Sol");
+		check_status(system(("./" + good_sol + "<./in>./stress/out_good").c_str()), "Good Sol");
 		auto p2 = high_resolution_clock::now();
-		check_status(system(("./" + bad_sol + "<./in>./stress/out_bad.txt").c_str()), "Bad Sol");
+		check_status(system(("./" + bad_sol + "<./in>./stress/out_bad").c_str()), "Bad Sol");
 		auto p3 = high_resolution_clock::now();
-		ifstream goodin("./stress/out_good.txt"), badin("./stress/out_bad.txt");
+		ifstream goodin("./stress/out_good"), badin("./stress/out_bad");
 		vector<string> good, bad;
 		string t;
 		while(goodin >> t) good.push_back(t);
