@@ -2930,8 +2930,8 @@ struct dynamic_lazy_segment_tree{
 		else val = *begin;
 	}
 	~dynamic_lazy_segment_tree(){
-		if(l) delete l;
-		if(r) delete r;
+		delete l;
+		delete r;
 	}
 	void push(){
 		if(!l){
@@ -2980,6 +2980,10 @@ struct node{
 	node(node *l, node *r, BO bin_op, T id): l(l), r(r), val(id){
 		if(l) val = bin_op(l->val, val);
 		if(r) val = bin_op(val, r->val);
+	}
+	~node(){
+		delete l;
+		delete r;
 	}
 };
 template<typename T, typename BO>
@@ -5338,6 +5342,38 @@ pair<vector<int>, vector<int>> euler_walk(const vector<vector<pair<int, int>>> &
 	return {{res_v.rbegin(), res_v.rend()}, {res_e.rbegin() + 1, res_e.rend()}};
 }
 
+// UNTESTED
+template<typename Graph>
+auto euler_walk(const Graph &adj, int mx_e, int edge_cnt, const vector<int> &src = {0}){
+	int n = int(adj.size()), tot = 0;
+	vector<int> deg(n), its(n), used(mx_e), res_v, res_e;
+	vector<pair<int, int>> q;
+	vector<array<vector<int>, 2>> res;
+	for(auto u: src){
+		res_v.clear(), res_e.clear();
+		q.push_back({u, -1});
+		++ deg[u]; // to allow Euler paths, not just cycles
+		while(!q.empty()){
+			auto [u, e] = q.back();
+			int &it = its[u], end = int(adj[u].size());
+			if(it == end){
+				res_v.push_back(u), res_e.push_back(e), q.pop_back();
+				continue;
+			}
+			auto [v, f] = adj[u][it ++];
+			if(!used[f]){
+				-- deg[u], ++ deg[v];
+				used[f] = 1; q.emplace_back(v, f);
+			}
+		}
+		tot += int(res_v.size());
+		res_e.pop_back(), reverse(res_v.begin(), res_v.end()), reverse(res_e.begin(), res_e.end());
+		res.push_back({res_v, res_e}); // {{v0, v1, ..., vk}, {(v0->v1), (v1->v2), ...}}
+	}
+	if(tot != edge_cnt + int(src.size()) || any_of(deg.begin(), deg.end(), [&](int d){ return d < 0; })) return decltype(res){};
+	return res;
+}
+
 // 156485479_4_10
 // Dominator Tree
 // O(n log n)
@@ -6615,13 +6651,14 @@ void operator delete(void *){ }
 // Debugger
 
 // DEBUG BEGIN
-template<typename L, typename R> ostream &operator<<(ostream &out, pair<L, R> p){
+#ifdef LOCAL
+template<typename L, typename R> ostream &operator<<(ostream &out, const pair<L, R> &p){
 	return out << "(" << p.first << ", " << p.second << ")";
 }
-template<class Tuple, size_t N> struct TuplePrinter{
+template<typename Tuple, size_t N> struct TuplePrinter{
 	static ostream &print(ostream &out, const Tuple &t){ return TuplePrinter<Tuple, N-1>::print(out, t) << ", " << get<N-1>(t); }
 };
-template<class Tuple> struct TuplePrinter<Tuple, 1>{
+template<typename Tuple> struct TuplePrinter<Tuple, 1>{
 	static ostream &print(ostream &out, const Tuple& t){ return out << get<0>(t); }
 };
 template<typename... Args> ostream &print_tuple(ostream &out, const tuple<Args...> &t){
@@ -6630,15 +6667,11 @@ template<typename... Args> ostream &print_tuple(ostream &out, const tuple<Args..
 template<typename ...Args> ostream &operator<<(ostream &out, const tuple<Args...> &t){
 	return print_tuple(out, t);
 }
-template<typename ...Args, template<typename...> typename T> ostream &operator<<(enable_if_t<!is_same<T<Args...>, string>::value, ostream> &out, T<Args...> arr){
+template<typename T> ostream &operator<<(enable_if_t<!is_same<T, string>::value, ostream> &out, const T &arr){
 	out << "{"; for(auto &x: arr) out << x << ", ";
 	return out << (arr.size() ? "\b\b" : "") << "}";
 }
-template<typename T, size_t N> ostream &operator<<(ostream &out, array<T, N> arr){
-	out << "{"; for(auto &x: arr) out << x << ", ";
-	return out << (arr.size() ? "\b\b" : "") << "}";
-}
-template<size_t S> ostream &operator<<(ostream &out, bitset<S> b){
+template<size_t S> ostream &operator<<(ostream &out, const bitset<S> &b){
 	for(int i = 0; i < S; ++ i) out << b[i];
 	return out;
 }
@@ -6648,7 +6681,6 @@ void debug_out(Head H, Tail... T){ cerr << H << ", ", debug_out(T...); }
 void debug2_out(){ cerr << "-----DEBUG END-----\n"; }
 template<typename Head, typename... Tail>
 void debug2_out(Head H, Tail... T){ cerr << "\n"; for(auto x: H) cerr << x << "\n"; debug2_out(T...); }
-#ifdef LOCAL
 #define debug(...) cerr << "[" << #__VA_ARGS__ << "]: ", debug_out(__VA_ARGS__)
 #define debug2(...) cerr << "----DEBUG BEGIN----\n[" << #__VA_ARGS__ << "]:", debug2_out(__VA_ARGS__)
 #else
