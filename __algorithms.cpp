@@ -1577,6 +1577,14 @@ Poly operator*(const Poly &a, const Poly &b){
 	while(!res.empty() && !res.back()) res.pop_back();
 	return res;
 }
+template<typename Poly>
+Poly operator+(const Poly &a, const Poly &b){
+	Poly res(max(int(a.size()), int(b.size())));
+	for(int i = 0; i < min(int(a.size()), int(b.size())); ++ i) res[i] = a[i] + b[i];
+	for(int i = min(int(a.size()), int(b.size())); i < int(a.size()); ++ i) res[i] = a[i];
+	for(int i = min(int(a.size()), int(b.size())); i < int(b.size()); ++ i) res[i] = b[i];	
+	return res;
+}
 
 // 156485479_2_4_1_2
 // Number Theoric Transformation
@@ -1647,27 +1655,41 @@ void fwht(IT begin, IT end, const bool invert = false){
 }
 
 // 156485479_2_5
-// Binary Search
+// Binary Search / Ternary Search
 // O(log(high - low)) applications of p
-template<typename Pred>
-long long custom_binary_search(long long low, long long high, Pred p, const bool &is_left = true){
+template<typename T, typename Pred>
+T binary_search(T low, T high, Pred p, const bool &is_left = true){
 	assert(low < high);
-	while(high - low > 1){
+	while(high - low >= 2){
 		auto mid = low + (high - low >> 1);
 		(p(mid) == is_left ? low : high) = mid;
 	}
 	return is_left ? low : high;
 }
 // Binary search for numbers with the same remainder mod step
-template<typename Pred>
-long long custom_binary_search(long long low0, long long high0, const long long &step, Pred p, const bool &is_left = true){
+template<typename T, typename Pred>
+T binary_search_with_step(T low0, T high0, const T &step, Pred p, const bool &is_left = true){
+	assert(low0 < high0);
 	auto low = low0 / step - ((low0 ^ step) < 0 && low0 % step), high = high0 / step + ((high0 ^ step) > 0 && high0 % step);
 	const auto rem = low0 - low * step;
-	while(high - low > 1){
+	while(high - low >= 2){
 		auto mid = low + (high - low >> 1);
 		(p(mid * step + rem) == is_left ? low : high) = mid;
 	}
 	return (is_left ? low : high) * step + rem;
+}
+// Ternary Search
+template<typename T, typename Eval>
+T ternary_search(T low, T high, Eval e, const bool &is_max = true){
+	assert(low < high);
+	while(high - low >= 3){
+		T mid1 = low + (high - low) / 3, mid2 = low + (high - low) / 3 * 2;
+		(is_max ? Eval(mid1) > Eval(mid2) : Eval(mid1) < Eval(mid2)) ? high = mid2 : low = mid2;
+	}
+	auto optval = Eval(low);
+	auto res = low;
+	for(auto i = low + 1; i < high; ++ i) if(is_max ? opt < Eval(i) : opt > Eval(i)) res = i;
+	return res;
 }
 
 // 156485479_2_6_1_1
@@ -2593,18 +2615,30 @@ struct segment_tree{
 // Iterative Segment Tree with Reversed Operation ( Commutative Operation Only )
 // O(n) Preprocessing, O(1) per query
 // Credit: https://codeforces.com/blog/entry/18051
-template<typename T, typename BO>
 struct reverse_segment_tree{
 	int n;
-	BO bin_op;
-	T id;
-	vector<T> val;
 	vector<int> roots;
-	template<typename IT>
-	reverse_segment_tree(IT begin, IT end, BO bin_op, T id): n(distance(begin, end)), bin_op(bin_op), id(id), val(n << 1, id){
-		for(int i = 0; i < n; ++ i) val[i + n] = *(begin ++);
+
+	using T = array<long long, 2>;
+	T apply(T val, T x, const array<int, 2> &r, const array<int, 2> &rr){ // r is a subset of rr
+		return {val[0] + x[0] + (r[0] - rr[0]) * x[1], val[1] + x[1]};
 	}
-	reverse_segment_tree(int n, BO bin_op, T id): n(n), bin_op(bin_op), id(id), val(n << 1, id){ }
+	T id{};
+
+	vector<array<int, 2>> range;
+	vector<T> val;
+	void init_range(){
+		for(int i = n; i < n << 1; ++ i) range[i] = {i - n, i - n + 1};
+		for(int i = n - 1; i > 0; -- i) range[i] = {range[i << 1][0], range[i << 1 | 1][1]};
+	}
+	template<typename IT>
+	reverse_segment_tree(IT begin, IT end): n(distance(begin, end)), range(n << 1), val(n << 1, id){
+		init_range();
+		copy(begin, end, val.begin() + n);
+	}
+	reverse_segment_tree(int n): n(n), range(n << 1), val(n << 1, id){
+		init_range();
+	}
 	void init_roots(){
 		vector<int> roots_r;
 		for(auto l = n, r = n << 1; l < r; l >>= 1, r >>= 1){
@@ -2613,22 +2647,22 @@ struct reverse_segment_tree{
 		}
 		roots.insert(roots.end(), roots_r.rbegin(), roots_r.rend());
 	}
-	void update(int l, int r, T x){
-		if(l >= r) return;
-		for(l += n, r += n; l < r; l >>= 1, r >>= 1){
-			if(l & 1) val[l ++] = bin_op(val[l], x);
-			if(r & 1) val[r] = bin_op(val[-- r], x);
+	void update(int ql, int qr, T x){
+		if(ql >= qr) return;
+		for(int l = ql + n, r = qr + n; l < r; l >>= 1, r >>= 1){
+			if(l & 1) val[l] = apply(val[l], x, range[l], {ql, qr}), ++ l;
+			if(r & 1) -- r, val[r] = apply(val[r], x, range[r], {ql, qr});
 		}
 	}
-	T query(int p){
+	T query(int qp){
 		T res = id;
-		for(p += n; p > 0; p >>= 1) res = bin_op(res, val[p]);
+		for(int p = qp + n; p > 0; p >>= 1) res = apply(res, val[p], {qp, qp + 1}, range[p]);
 		return res;
 	}
 	void push(){
 		for(int i = 1; i < n; ++ i){
-			val[i << 1] = bin_op(val[i << 1], val[i]);
-			val[i << 1 | 1] = bin_op(val[i << 1 | 1], val[i]);
+			val[i << 1] = apply(val[i << 1], val[i], range[i << 1], range[i]);
+			val[i << 1 | 1] = apply(val[i << 1 | 1], val[i], range[i << 1], range[i]);
 			val[i] = id;
 		}
 	}
