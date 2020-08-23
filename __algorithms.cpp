@@ -148,6 +148,8 @@ Category
 		156485479_3_13
 	3.14. Bit Trie
 		156485479_3_14
+	3.15. Query Tree
+		156485479_3_15
 
 
 4. Graph
@@ -1785,19 +1787,18 @@ struct line_container: multiset<line, less<>>{
 // Credit: Benq
 struct line{
 	long long d, k;
-	line(long long d = 0, long long k = -(long long)9e18): d(d), k(k){ }
+	line(long long d = 0, long long k = numeric_limits<long long>::min() / 2): d(d), k(k){ }
 	long long eval(long long x){ return d * x + k; }
 	bool majorize(line X, long long L, long long R){ return eval(L) >= X.eval(L) && eval(R) >= X.eval(R); }
 };
 template<bool GET_MAX = true>
 struct lichao{
-	lichao *l = NULL, *r = NULL;
+	lichao *l = 0, *r = 0;
 	line S;
 	lichao(): S(line()){ }
-	void rm(){
-		if(l) l->rm();
-		if(r) r->rm();
-		delete this;
+	~lichao(){
+		delete l;
+		delete r;
 	}
 	void mc(int i){
 		if(i){ if(!r) r = new lichao(); }
@@ -1858,16 +1859,7 @@ void DCDP(auto &dp, auto &dp_next, auto &cost, int low, int high, int opt_low, i
 // f(const ll &lambda, vi &previous, vi &count) returns the reduced DP value
 // WARNING: the cost function for f() should be doubled
 // O(log(high - low)) applications of f()
-template<typename Pred>
-long long custom_binary_search(long long low, long long high, const long long &step, Pred p, const &bool is_left = true){
-	assert(low < high && (high - low) % step == 0);
-	const auto rem = (low % step + step) % step;
-	while(high - low > step){
-		long long mid = (low + (high - low >> 1)) / step * step + rem;
-		(p(mid) == is_left ? low : high) = mid;
-	}
-	return is_left ? low : high;
-}
+// Requires binary_search
 template<typename DP, bool GET_MAX = true>
 pair<long long, vector<int>> LagrangeDP(int n, DP f, long long k, long long low, long long high){
 	long long resp, resq;
@@ -1877,7 +1869,7 @@ pair<long long, vector<int>> LagrangeDP(int n, DP f, long long k, long long low,
 		resp = f(lambda, prevp, cntp);
 		return GET_MAX ? cntp.back() <= k : cntp.back() >= k;
 	};
-	long long lambda = custom_binary_search(2 * low - 1, 2 * high + 1, 2, pred);
+	long long lambda = binary_search(2 * low - 1, 2 * high + 1, 2, pred);
 	pred(lambda + 2), pred(lambda);
 	if(cntp.back() == k){
 		vector<int> path{n};
@@ -2553,7 +2545,7 @@ struct segment_tree{
 	int n;
 	vector<int> roots;
 
-	using Q = array<Zp, 2>; // Query Type
+	using Q = long long; // Query Type
 	Q merge(const Q &lval, const Q &rval, int l, int m, int r){
 		return lval + rval;
 	} // merge two nodes representing the intervals [l, m) and [m, r)
@@ -2620,7 +2612,7 @@ struct reverse_segment_tree{
 	vector<int> roots;
 
 	using T = array<long long, 2>;
-	T apply(T val, T x, const array<int, 2> &r, const array<int, 2> &rr){ // r is a subset of rr
+	T apply(T val, T x, array<int, 2> r, array<int, 2> rr){ // r is a subset of rr
 		return {val[0] + x[0] + (r[0] - rr[0]) * x[1], val[1] + x[1]};
 	}
 	T id{};
@@ -2723,13 +2715,13 @@ struct recursive_segment_tree{
 
 	using L = long long; // Lazy type
 	using Q = long long; // Query type
-	L apply_lazy(const L &lazy, const L &x, const array<int, 2> &r, const array<int, 2> &rr){ // r is a subset of rr
+	L apply_lazy(const L &lazy, const L &x, array<int, 2> r, array<int, 2> rr){ // r is a subset of rr
 		return lazy + x;
 	} // update lazy node representing r with rr
 	Q merge(const Q &lval, const Q &rval, int l, int m, int r){
 		return lval + rval;
 	} // merge two nodes representing the intervals [l, m) and [m, r)
-	Q apply(const Q &val, const L &x, const array<int, 2> &r, const array<int, 2> &rr){ // r is a subset of rr
+	Q apply(const Q &val, const L &x, array<int, 2> r, array<int, 2> rr){ // r is a subset of rr
 		return val + x * (r[1] - r[0]);
 	} // apply to node representing r lazy node representing rr
 	pair<L, Q> id{0, 0};
@@ -3735,6 +3727,128 @@ struct trie{
 			}
 		}
 		return res;
+	}
+};
+
+// 156485479_3_15
+// Query Tree
+// If we have a data structure supporting insertion in true O(T(N)), we can delete
+// from it in true O(T(N) log N) offline.
+// The data structure must support .time() and .reverse_to(t)
+template<typename rollback_DS, typename Element>
+struct querytree{
+	int n; // query count
+	vector<vector<Element>> val;
+	rollback_DS DS;
+	querytree(int n, auto &CL): n(n), val(n << 1), DS(CL){ }
+	void insert(int ql, int qr, Element e, int u, int l, int r){
+		if(qr <= l || r <= ql) return;
+		if(ql <= l && r <= qr){
+			val[u].push_back(e);
+			return;
+		}
+		else{
+			int m = l + (r - l >> 1), v = u + 1, w = u + (m - l << 1);
+			insert(ql, qr, e, v, l, m), insert(ql, qr, e, w, m, r);
+		}
+	}
+
+	void insert(Element e){
+		DS.push(e, 0, mx);
+	} // Clearify how to modify the DS
+	template<typename T>
+	auto query(T x){
+		return DS.query(x, 0, mx);
+	} // Clearify how to get the answer
+
+	template<typename B, typename T>
+	vector<T> solve(const vector<B> &query_at, T init = 0){
+		vector<T> res(n, init);
+		function<void(int, int, int)> dfs = [&](int u, int l, int r){
+			int timer = DS.time();
+			for(auto e: val[u]) insert(e);
+			if(r - l == 1) res[l] = query(query_at[l]);
+			else{
+				int m = l + (r - l >> 1), v = u + 1, w = u + (m - l << 1);
+				dfs(v, l, m), dfs(w, m, r);
+			}
+			DS.reverse_to(timer);
+		};
+		dfs(0, 0, n);
+		return res;
+	}
+};
+
+// Example of DS: rollback lichao tree
+// Used on Petrozavodsk Programming Camp 2020 Summer H3
+const long long inf = numeric_limits<long long>::max() / 4 * 3;
+struct line{
+	long long a, b;
+	line(long long a = 0, long long b = 0): a(a), b(b){ }
+	long long eval(long long x){
+		if(x == inf || b == inf || a == inf) return inf;
+		x -= a, x *= x, x *= x;
+		return x + b;
+	}
+	bool majorize(line X, long long L, long long R){
+		return eval(L) <= X.eval(L) && eval(R) <= X.eval(R);
+	}
+};
+const long long mx = 50010;
+struct rollback_lichao{
+	rollback_lichao *l = 0, *r = 0;
+	line S;
+	vector<tuple<int, rollback_lichao *, line>> &CL;
+	rollback_lichao(auto &CL): CL(CL), S(line(0, inf)){ }
+	~rollback_lichao(){
+		delete l;
+		delete r;
+	}
+	void mc(int i){
+		if(i){
+			if(!r){
+				r = new rollback_lichao(CL);
+				CL.emplace_back(2, this, S);
+			}
+		}
+		else{
+			if(!l){
+				l = new rollback_lichao(CL);
+				CL.emplace_back(1, this, S);
+			}
+		}
+	}
+	long long query(int X, int L, int R){
+		long long ans = S.eval(X);
+		int M = L + (R - L >> 1);
+		if(X < M) return min(ans, l ? l->query(X, L, M) : inf);
+		else return min(ans, r ? r->query(X, M, R) : inf);
+	}
+	void push(line X, int L, int R){
+		if(X.majorize(S, L, R)) CL.emplace_back(0, this, S), swap(X, S);
+		if(S.majorize(X, L, R)) return;
+		if(S.eval(L) > X.eval(L)) CL.emplace_back(0, this, S), swap(X, S);
+		int M = L + (R - L >> 1);
+		if(X.eval(M) < S.eval(M)) CL.emplace_back(0, this, S), swap(X, S), mc(0), l->push(X, L, M);
+		else mc(1), r->push(X, M, R);
+	}
+	int time(){
+		return int(CL.size());
+	}
+	void reverse_to(int t){
+		for(int i = time(); i --> t; ){
+			auto [type, u, S] = CL.back(); CL.pop_back();
+			if(!type) u->S = S;
+			else if(type == 1){
+				delete u->l;
+				u->l = 0;
+			}
+			else{
+				delete u->r;
+				u->r = 0;
+			}
+		}
+		CL.resize(t);
 	}
 };
 
