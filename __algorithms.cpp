@@ -89,15 +89,17 @@ Category
 		156485479_2_8
 	2.9. Modular Arithmetics
 		156485479_2_9
-	2.10. K-Dimensional Prefix Sum
-		156485479_2_10
-	2.11. Matroid
-		2.11.1. Matroid Intersection
-			156485479_2_11_1
-		2.11.2. Matroid Union < INCOMPLETE >
-			156485479_2_11_2
-	2.12. LIS
+	2.10. Matroid
+		2.10.1. Matroid Intersection
+			156485479_2_10_1
+		2.10.2. Matroid Union < INCOMPLETE >
+			156485479_2_10_2
+	2.11. LIS
+		156485479_2_11
+	2.12 K Dimensional Array
 		156485479_2_12
+	2.13 K Dimensional Prefix Sum
+		156485479_2_13
 
 
 3. Data Structure
@@ -168,7 +170,7 @@ Category
 			156485479_4_4_3
 		4.4.4. Hopcroft Karp Algorithm / Fast Bipartite Matching
 			156485479_4_4_4
-		4.4.5. Hungarian Algorithm / Minimum Cost Maximum Matching ( WARNING: UNTESTED )
+		4.4.5. Hungarian Algorithm / Minimum Cost Maximum Bipartite Matching ( WARNING: UNTESTED )
 			156485479_4_4_5
 		4.4.6. Global Min Cut < UNTESTED >
 			156485479_4_4_6
@@ -2333,71 +2335,9 @@ void precalc_inverse(size_t SZ){
 	for(; inv.size() <= SZ; ) inv.push_back((mod - 1LL * mod / int(inv.size()) * inv[mod % int(inv.size())] % mod) % mod);
 }
 
-// 156485479_2_10
-// K-Dimensional Prefix Sum
-// O(K * Product(N_i)) Processing, O(2^K) Per Query
-template<int K = 2, typename T = long long, typename BO = plus<>, typename IO = minus<>>
-struct subinterval{
-	const array<int, K> n;
-	BO bin_op;
-	IO inv_op;
-	T id;
-	vector<T> val, p;
-	T &eval(const array<int, K> &x){
-		int pos = 0;
-		for(int i = 0; i < K; ++ i){
-			if(!x[i]) return id;
-			pos += p[i] * (x[i] - 1);
-		}
-		return val[pos];
-	}
-	template<typename INIT>
-	subinterval(const array<int, K> &n, INIT f, BO bin_op = plus<>{}, IO inv_op = minus<>{}, T id = 0LL): n(n), bin_op(bin_op), inv_op(inv_op), id(id), val(accumulate(n.begin(), n.end(), 1, multiplies<>()), id), p(K + 1, 1){
-		array<int, K> cur, from;
-		partial_sum(n.begin(), n.end(), p.begin() + 1, multiplies<>());
-		for(int t = 0; t < K; ++ t){
-			cur.fill(1), from.fill(1);
-			-- from[t];
-			while(1){
-				T &c = eval(cur);
-				if(!t){
-					for(int i = 0; i < K; ++ i) -- cur[i];
-					c = f(cur);
-					for(int i = 0; i < K; ++ i) ++ cur[i];
-				}
-				c = bin_op(c, eval(from));
-				for(int i = K - 1; i >= 0; -- i){
-					if(++ from[i], ++ cur[i] <= n[i]) break;
-					if(!i) goto label;
-					cur[i] = 1, from[i] = i != t;
-				}
-			}
-			label:;
-		}
-	}
-	T query(const array<int, K> &low, const array<int, K> &high){
-		T res = id;
-		array<int, K> cur;
-		for(int mask = 0; mask < 1 << K; ++ mask){
-			for(int bit = 0; bit < K; ++ bit){
-				if(mask & 1 << bit){
-					cur[bit] = low[bit];
-					break;
-				}
-				else cur[bit] = high[bit];
-			}
-			res = __builtin_popcount(mask) & 1 ? inv_op(res, eval(cur)) : bin_op(res, eval(cur));
-		}
-		return res;
-	}
-	T query(const array<int, K> &high){
-		return eval(high);
-	}
-};
-
-// 156485479_2_11_1
+// 156485479_2_10_1
 // Matroid Intersection
-// Credit: tfg/chilli/pajenegod ( https://github.com/tfg50/Competitive-Programming/blob/master/Biblioteca/Math/MatroidIntersection.cpp )
+// Credit: tfg / chilli / pajenegod ( https://github.com/tfg50/Competitive-Programming/blob/master/Biblioteca/Math/MatroidIntersection.cpp )
 // Examples of Matroids
 struct ColorMat{
 	vector<int> cnt, clr;
@@ -2459,10 +2399,10 @@ struct Matroid_Intersection{
 	}
 };
 
-// 156485479_2_11_2
+// 156485479_2_10_2
 // Matroid Union
 
-// 156485479_2_12
+// 156485479_2_11
 // LIS / Returns the indices of the longest increasing sequence
 // O(n log n)
 // Credit: KACTL
@@ -2475,7 +2415,7 @@ vector<int> LIS(const vector<T> &a){
 	vector<p> active;
 	for(int i = 0; i < n; ++ i){
 		// change 0 -> i for longest non-decreasing subsequence
-		auto it = lower_bound(all(active), p{a[i], 0});
+		auto it = lower_bound(active.begin(), active.end(), p{a[i], 0});
 		if(it == active.end()) active.emplace_back(), it = prev(active.end());
 		*it = {a[i], i};
 		prev[i] = it == active.begin() ? 0 : prev(it)->second;
@@ -2485,6 +2425,88 @@ vector<int> LIS(const vector<T> &a){
 	while(L --) res[L] = cur, cur = prev[cur];
 	return res;
 }
+
+// 156485479_2_12
+// K Dimensional Array
+template<typename T>
+struct kdarray{
+	int K;
+	vector<int> n, p;
+	vector<T> val;
+	T &operator[](const vector<int> &x){
+		int pos = 0;
+		for(int i = 0; i < int(x.size()); ++ i) pos += p[i] * x[i];
+		return val[pos];
+	}
+	kdarray(const vector<int> &n, T id = 0): K(int(n.size())), n(n), val(accumulate(n.begin(), n.end(), 1, multiplies<>()), id), p(K + 1, 1){
+		partial_sum(n.begin(), n.end(), p.begin() + 1, multiplies<>());
+	}
+	template<typename U>
+	kdarray(const kdarray<U> &arr): K(arr.K), n(arr.n), p(arr.p), val(arr.val.begin(), arr.val.end()){ }
+};
+template<typename T>
+istream &operator>>(istream &in, kdarray<T> &arr){
+	for(vector<int> i(arr.K); in >> arr[i]; ){
+		for(int d = arr.K - 1; d >= 0; -- d){
+			if(++ i[d] < arr.n[d]) break;
+			if(!d) goto ESCAPE;
+			i[d] = 0;
+		}
+	}
+	ESCAPE:;
+	return in;
+}
+
+// 156485479_2_13
+// K Dimensional Prefix Sum
+// O(K * Product(n)) processing, O(2^K) per query
+template<typename T, typename BO = plus<>, typename IO = minus<>>
+struct kdsum{
+	BO bin_op;
+	IO inv_op;
+	T id;
+	kdarray<T> val;
+	template<typename U>
+	kdsum(const kdarray<U> &arr, BO bin_op = plus<>{}, IO inv_op = minus<>{}, T id = 0LL): val(arr), bin_op(bin_op), inv_op(inv_op), id(id){
+		vector<int> cur, from;
+		for(int t = 0, ncnt; t < val.K; ++ t){
+			cur.assign(val.K, 0), from.assign(val.K, 0), -- from[t], ncnt = 1;
+			while(1){
+				T &c = val[cur];
+				c = bin_op(c, ncnt ? id : val[from]);
+				for(int i = val.K - 1; i >= 0; -- i){
+					if(from[i] < 0) -- ncnt;
+					if(++ from[i], ++ cur[i] < val.n[i]) break;
+					if(!i) goto ESCAPE;
+					cur[i] = 0, ncnt += (i == t) - (from[i] < 0), from[i] = (i != t) - 1;
+				}
+			}
+			ESCAPE:;
+		}
+	}
+	T query(const vector<int> &low, const vector<int> &high){
+		T res = id;
+		static vector<int> cur; cur.assign(val.K, 0);
+		for(int mask = 0, ncnt = 0; mask < 1 << val.K; ++ mask){
+			for(int bit = 0; bit < val.K; ++ bit){
+				if(mask & 1 << bit){
+					ncnt += !low[bit] - !~cur[bit], cur[bit] = low[bit] - 1;
+					break;
+				}
+				else ncnt += !high[bit] - !~cur[bit], cur[bit] = high[bit] - 1;
+			}
+			res = __builtin_popcount(mask) & 1 ? inv_op(res, ncnt ? id : val[cur]) : bin_op(res, ncnt ? id : val[cur]);
+		}
+		return res;
+	}
+	T query(vector<int> high){
+		for(int d = 0; d < val.K; ++ d){
+			if(high[d]) -- high[d];
+			else return id;
+		}
+		return val[high];
+	}
+};
 
 // 156485479_3_1
 // Sparse Table
@@ -3734,6 +3756,7 @@ struct trie{
 // Query Tree
 // If we have a data structure supporting insertion in true O(T(N)), we can delete
 // from it in true O(T(N) log N) offline.
+// Credit: https://cp-algorithms.com/data_structures/deleting_in_log_n.html
 // The data structure must support .time() and .reverse_to(t)
 template<typename rollback_DS, typename Element>
 struct querytree{
@@ -3761,7 +3784,7 @@ struct querytree{
 		return DS.query(x, 0, mx);
 	} // Clearify how to get the answer
 
-	template<typename B, typename T>
+	template<typename B, typename T = int>
 	vector<T> solve(const vector<B> &query_at, T init = 0){
 		vector<T> res(n, init);
 		function<void(int, int, int)> dfs = [&](int u, int l, int r){
@@ -4321,8 +4344,8 @@ struct hopcroft_karp{
 };
 
 // 156485479_4_4_5
-// Hungarian Algorithm / Minimum Weight Maximum Matching ( WARNING: UNTESTED )
-// O(n^2 m)
+// Hungarian Algorithm / Minimum Weight Maximum Bipartite Matching ( WARNING: UNTESTED )
+// O(V^2 E)
 // Reads the adjacency matrix of the graph
 template<typename Graph>
 pair<long long, vector<int>> hungarian(const Graph &adj){
@@ -4399,6 +4422,49 @@ pair<int, vector<int>> global_min_cut(Graph adj){
 
 // 156485479_4_4_8
 // General Matching
+// Fails with probability N/mod
+template<typename E>
+vector<array<int, 2>> generalMatching(int n, const E &edges, const int &mod){
+	vector<vector<long long>> mat(n, vector<long long>(n)), A;
+	for(auto pa: edges){
+		int a = pa.first, b = pa.second, r = rng() % mod;
+		mat[a][b] = r, mat[b][a] = (mod - r) % mod;
+	}
+	int r = matInv(A = mat), m = 2 * n - r, fi, fj;
+	assert(r % 2 == 0);
+	if(m != n) do{
+		mat.resize(m, vector<long long>(m));
+		for(int i = 0; i < n; ++ i){
+			mat[i].resize(m);
+			for(int j = n; j < m; ++ j){
+				int r = rng() % mod;
+				mat[i][j] = r, mat[j][i] = (mod - r) % mod;
+			}
+		}
+	}while(matInv(A = mat) != m);
+	vector<int> has(m, 1);
+	vector<array<int, 2>> res;
+	for(int it = 0; it < m >> 1; ++ it){
+		for(int i = 0; i < m; ++ i) if(has[i])
+			for(int j = i + 1; j < m; ++ j) if(A[i][j] && mat[i][j]){
+				fi = i; fj = j;
+				goto done;
+			}
+		assert(0);
+		done:
+		if(fj < n) res.push_back({fi, fj});
+		has[fi] = has[fj] = 0;
+		for(int sw = 0; sw < 2; ++ sw){
+			long long a = modpow(A[fi][fj], mod - 2);
+			for(int i = 0; i < m; ++ i) if(has[i] && A[i][fj]){
+				long long b = A[i][fj] * a % mod;
+				for(j,0,m) A[i][j] = (A[i][j] - A[fi][j] * b) % mod;
+			}
+			swap(fi,fj);
+		}
+	}
+	return ret;
+}
 
 // 156485479_4_5_1
 // LCA
@@ -4617,16 +4683,21 @@ struct vertex_update_path_query{
 // O(N + M) processing, O(log^2 N) per query
 // Credit: Benq
 // Requires lazy_segment_tree or dynamic_lazy_segment_tree
-template<typename DS, typename BO, typename T, int VALS_IN_EDGES = 0>
+template<typename DS, int VALS_IN_EDGES = 0>
 struct heavy_light_decomposition{
 	int n, root;
 	vector<vector<int>> adj;
 	vector<int> par, sz, depth, next, pos, rpos;
-	DS &tr;
-	BO bin_op;
-	const T id;
+	DS *ds;
+
+	using T = int;
+	T bin_op(T x, T y){
+		return min(x, y);
+	}
+	T id{numeric_limits<int>::max()};
+
 	template<typename Graph>
-	heavy_light_decomposition(const Graph &adj, DS &tr, BO bin_op, T id, int root = 0): n(int(adj.size())), adj(adj), root(root), par(n, -1), sz(n, 1), depth(n), next(n, root), pos(n), tr(tr), bin_op(bin_op), id(id){
+	heavy_light_decomposition(const Graph &adj, DS *ds, int root = 0): n(int(adj.size())), adj(adj), root(root), par(n, -1), sz(n, 1), depth(n), next(n, root), pos(n), ds(ds){
 		dfs_sz(root), dfs_hld(root);
 	}
 	void dfs_sz(int u){
@@ -4638,9 +4709,9 @@ struct heavy_light_decomposition{
 			if(sz[v] > sz[adj[u][0]]) swap(v, adj[u][0]);
 		}
 	}
+	int timer = 0;
 	void dfs_hld(int u){
-		static int t = 0;
-		pos[u] = t ++;
+		pos[u] = timer ++;
 		rpos.push_back(u);
 		for(auto &v: adj[u]){
 			next[v] = (v == adj[u][0] ? next[u] : v);
@@ -4663,19 +4734,25 @@ struct heavy_light_decomposition{
 		if(depth[u] > depth[v]) swap(u, v);
 		act(pos[u] + VALS_IN_EDGES, pos[v] + 1);
 	}
-	void updatepath(int u, int v, T val){
-		processpath(u, v, [this, &val](int l, int r){ tr.update(l, r, val); });
-	}
-	void updatesubtree(int u, T val){
-		tr.update(pos[u] + VALS_IN_EDGES, pos[u] + sz[u], val);
-	}
+	template<typename U>
+	void updatepoint(int u, U val){
+		ds->update(pos[u], val);
+	} // For point update segtree
+	template<typename U>
+	void updatepath(int u, int v, U val){
+		processpath(u, v, [this, &val](int l, int r){ ds->update(l, r, val); });
+	} // For range update segtree
+	template<typename U>
+	void updatesubtree(int u, U val){
+		ds->update(pos[u] + VALS_IN_EDGES, pos[u] + sz[u], val);
+	} // For range update segtree
 	T querypath(int u, int v){
 		T res = id;
-		processpath(u, v, [this, &res](int l, int r){res = bin_op(res, tr.query(l, r));});
+		processpath(u, v, [this, &res](int l, int r){ res = bin_op(res, ds->query(l, r)); });
 		return res;
 	}
 	T querysubtree(int u){
-		return tr.query(pos[u] + VALS_IN_EDGES, pos[u] + sz[u]);
+		return ds->query(pos[u] + VALS_IN_EDGES, pos[u] + sz[u]);
 	}
 };
 
