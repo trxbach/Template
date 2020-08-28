@@ -419,7 +419,7 @@ struct number_theory{
 	}
 	template<typename IT> // O(n log n log k)
 	auto conv_exp(IT begin, IT end, long long e){
-		int n = distance(begin, end);
+		int n = end - begin;
 		vector<typename iterator_traits<IT>::value_type> res(n), p(begin, end);
 		res[1] = 1;
 		for(; e; e >>= 1, p = convolute(p.begin(), p.end(), p.begin(), p.end())) if(e & 1) res = convolute(res.begin(), res.end(), p.begin(), p.end());
@@ -427,14 +427,14 @@ struct number_theory{
 	}
 	template<typename IT> // O(n log n)
 	void mobius_transform(IT begin, IT end){
-		int n = distance(begin, end);
+		int n = end - begin;
 		vector<typename iterator_traits<IT>::value_type> res(n);
 		for(int x = 1; x < n; ++ x) for(int mx = x; mx < n; mx += x) res[mx] += *(begin + x);
 		move(res.begin(), res.end(), begin);
 	}
 	template<typename IT> // O(n log n)
 	void inverse_transform(IT begin, IT end){
-		int n = distance(begin, end);
+		int n = end - begin;
 		vector<typename iterator_traits<IT>::value_type> res(n);
 		for(int x = 1; x < n; ++ x) for(int y = 1; x * y < n; ++ y) res[x * y] += *(begin + x) * mu[y];
 		move(res.begin(), res.end(), begin);
@@ -948,7 +948,7 @@ namespace algebra{
 		}
 		template<typename iter>
 		vector<T> eval(iter begin, iter end){ // evaluate polynomialnomial in (x1, ..., xn)
-			int n = distance(begin, end);
+			int n = end - begin;
 			if(is_zero()) return vector<T>(n, T(0));
 			vector<polynomial> tree(n << 2);
 			build(tree, 1, begin, end);
@@ -1547,7 +1547,7 @@ typedef complex<double> cd;
 const double PI = acos(-1);
 template<typename IT>
 void fft(IT begin, IT end, const bool invert = false){
-	int n = distance(begin, end);
+	int n = end - begin;
 	for(int i = 1, j = 0; i < n; ++ i){
 		int bit = n >> 1;
 		for(; j & bit; bit >>= 1) j ^= bit;
@@ -1597,7 +1597,7 @@ Poly operator+(const Poly &a, const Poly &b){
 // O(n log n)
 template<int root = 15311432, int root_pw = 1 << 23, int inv_root = 469870224, typename IT = vector<Zp>::iterator>
 void ntt(IT begin, IT end, const bool invert = false){
-	int n = distance(begin, end);
+	int n = end - begin;
 	for(int i = 1, j = 0; i < n; ++ i){
 		int bit = n >> 1;
 		for(; j & bit; bit >>= 1) j ^= bit;
@@ -1641,7 +1641,7 @@ Poly operator*(Poly a, Poly b){
 // Credit: TFG
 template<char Conv = '^', typename IT = vector<Zp>::iterator>
 void fwht(IT begin, IT end, const bool invert = false){
-	int n = distance(begin, end);
+	int n = end - begin;
 	for(int len = 1; len < n; len <<= 1){
 		for(int i = 0; i < n; i += len << 1){
 			for(int j = 0; j < len; ++ j){
@@ -1688,11 +1688,11 @@ T ternary_search(T low, T high, Eval e, const bool &is_max = true){
 	assert(low < high);
 	while(high - low >= 3){
 		T mid1 = low + (high - low) / 3, mid2 = low + (high - low) / 3 * 2;
-		(is_max ? Eval(mid1) > Eval(mid2) : Eval(mid1) < Eval(mid2)) ? high = mid2 : low = mid2;
+		(is_max ? e(mid1) > e(mid2) : e(mid1) < e(mid2)) ? high = mid2 : low = mid1;
 	}
-	auto optval = Eval(low);
+	auto optval = e(low);
 	auto res = low;
-	for(auto i = low + 1; i < high; ++ i) if(is_max ? opt < Eval(i) : opt > Eval(i)) res = i;
+	for(auto i = low + 1; i < high; ++ i) if(is_max ? optval < e(i) : optval > e(i)) optval = e(res = i);
 	return res;
 }
 
@@ -2438,7 +2438,8 @@ struct kdarray{
 		for(int i = 0; i < int(x.size()); ++ i) pos += p[i] * x[i];
 		return val[pos];
 	}
-	kdarray(const vector<int> &n, T id = 0): K(int(n.size())), n(n), val(accumulate(n.begin(), n.end(), 1, multiplies<>()), id), p(K + 1, 1){
+	kdarray(){}
+	kdarray(const vector<int> &n, T id = T()): K(int(n.size())), n(n), val(accumulate(n.begin(), n.end(), 1, multiplies<>()), id), p(K + 1, 1){
 		partial_sum(n.begin(), n.end(), p.begin() + 1, multiplies<>());
 	}
 	template<typename U>
@@ -2455,6 +2456,25 @@ istream &operator>>(istream &in, kdarray<T> &arr){
 	}
 	ESCAPE:;
 	return in;
+}
+template<typename T>
+ostream &operator<<(ostream &out, kdarray<T> &arr){
+	for(vector<int> i(arr.K); true; ){
+		out << "\n[{";
+		for(int d = 0; d < arr.K; ++ d){
+			out << i[d] << ", ";
+		}
+		if(arr.K) out << "\b\b";
+		out << "}] -> ";
+		// out << arr[i]; // format this part
+		for(int d = arr.K - 1; d >= 0; -- d){
+			if(++ i[d] < arr.n[d]) break;
+			if(!d) goto ESCAPE;
+			i[d] = 0;
+		}
+	}
+	ESCAPE:;
+	return out;
 }
 
 // 156485479_2_13
@@ -2520,7 +2540,7 @@ struct sparse_table{
 	T id;
 	vector<vector<T>> val;
 	template<typename IT>
-	sparse_table(IT begin, IT end, BO bin_op, T id): n(distance(begin, end)), bin_op(bin_op), id(id), val(1, {begin, end}){
+	sparse_table(IT begin, IT end, BO bin_op, T id): n(end - begin), bin_op(bin_op), id(id), val(1, {begin, end}){
 		for(int p = 1, i = 1; p << 1 <= n; p <<= 1, ++ i){
 			val.emplace_back(n - (p << 1) + 1);
 			for(int j = 0; j < int(val[i].size()); ++ j) val[i][j] = bin_op(val[i - 1][j], val[i - 1][j + p]);
@@ -2564,9 +2584,6 @@ struct sparse_table_2d{
 // O(n) processing, O(log n) per query
 // Credit: https://codeforces.com/blog/entry/18051
 struct segment_tree{
-	int n;
-	vector<int> roots;
-
 	using Q = long long; // Query Type
 	Q merge(const Q &lval, const Q &rval, int l, int m, int r){
 		return lval + rval;
@@ -2576,6 +2593,8 @@ struct segment_tree{
 		return id;
 	}
 
+	int n;
+	vector<int> roots;
 	vector<array<int, 2>> range; // Node u represents the range range[u] = [l, r)
 	vector<Q> val;
 	void init_range(){
@@ -2592,7 +2611,7 @@ struct segment_tree{
 		return val[p + n];
 	}
 	template<typename IT>
-	segment_tree(IT begin, IT end): n(distance(begin, end)), range(n << 1), val(n << 1, id){
+	segment_tree(IT begin, IT end): n(end - begin), range(n << 1), val(n << 1, id){
 		init_range();
 		for(int i = 0; i < n; ++ i) val[i + n] = *(begin ++);
 		build(0, n);
@@ -2630,23 +2649,22 @@ struct segment_tree{
 // O(n) Preprocessing, O(1) per query
 // Credit: https://codeforces.com/blog/entry/18051
 struct reverse_segment_tree{
-	int n;
-	vector<int> roots;
-
-	using T = array<long long, 2>;
-	T apply(T val, T x, array<int, 2> r, array<int, 2> rr){ // r is a subset of rr
+	using L = array<long long, 2>;
+	L apply(L val, L x, array<int, 2> r, array<int, 2> rr){ // r is a subset of rr
 		return {val[0] + x[0] + (r[0] - rr[0]) * x[1], val[1] + x[1]};
 	}
-	T id{};
+	L id{};
 
+	int n;
+	vector<int> roots;
 	vector<array<int, 2>> range;
-	vector<T> val;
+	vector<L> val;
 	void init_range(){
 		for(int i = n; i < n << 1; ++ i) range[i] = {i - n, i - n + 1};
 		for(int i = n - 1; i > 0; -- i) range[i] = {range[i << 1][0], range[i << 1 | 1][1]};
 	}
 	template<typename IT>
-	reverse_segment_tree(IT begin, IT end): n(distance(begin, end)), range(n << 1), val(n << 1, id){
+	reverse_segment_tree(IT begin, IT end): n(end - begin), range(n << 1), val(n << 1, id){
 		init_range();
 		copy(begin, end, val.begin() + n);
 	}
@@ -2661,15 +2679,15 @@ struct reverse_segment_tree{
 		}
 		roots.insert(roots.end(), roots_r.rbegin(), roots_r.rend());
 	}
-	void update(int ql, int qr, T x){
+	void update(int ql, int qr, L x){
 		if(ql >= qr) return;
 		for(int l = ql + n, r = qr + n; l < r; l >>= 1, r >>= 1){
 			if(l & 1) val[l] = apply(val[l], x, range[l], {ql, qr}), ++ l;
 			if(r & 1) -- r, val[r] = apply(val[r], x, range[r], {ql, qr});
 		}
 	}
-	T query(int qp){
-		T res = id;
+	L query(int qp){
+		L res = id;
 		for(int p = qp + n; p > 0; p >>= 1) res = apply(res, val[p], {qp, qp + 1}, range[p]);
 		return res;
 	}
@@ -2733,8 +2751,6 @@ struct segment_tree_2d{
 // Credit: https://codeforces.com/blog/entry/65278
 // O(n) preprocessing, O(log n) per query
 struct recursive_segment_tree{
-	int n;
-
 	using L = long long; // Lazy type
 	using Q = long long; // Query type
 	L apply_lazy(const L &lazy, const L &x, array<int, 2> r, array<int, 2> rr){ // r is a subset of rr
@@ -2751,6 +2767,7 @@ struct recursive_segment_tree{
 		return id.second;
 	}
 
+	int n;
 	vector<L> lazy;
 	vector<Q> val;
 	void push(int u, int l, int r){ // push the internal node u
@@ -2771,7 +2788,7 @@ struct recursive_segment_tree{
 		if(lazy[u] != id.first) val[u] = apply(val[u], lazy[u], {l, r}, {l, r});
 	}
 	template<typename IT>
-	recursive_segment_tree(IT begin, IT end): n(distance(begin, end)), lazy(n << 1, id.first), val(n << 1, id.second){
+	recursive_segment_tree(IT begin, IT end): n(end - begin), lazy(n << 1, id.first), val(n << 1, id.second){
 		build(begin, end, 0, 0, n);
 	}
 	recursive_segment_tree(int n): n(n), lazy(n << 1, id.first), val(n << 1, id.second){
@@ -2824,9 +2841,6 @@ struct recursive_segment_tree{
 // O(n) processing, O(log n) per query
 // Credit: https://codeforces.com/blog/entry/18051
 struct lazy_segment_tree{
-	int n, h;
-	vector<int> roots;
-
 	using L = long long; // Lazy type
 	using Q = long long; // Query type
 	L apply_lazy(const L &lazy, const L &x, array<int, 2> r, array<int, 2> rr){ // r is a subset of rr
@@ -2843,6 +2857,8 @@ struct lazy_segment_tree{
 		return id.second;
 	}
 
+	int n, h;
+	vector<int> roots;
 	vector<array<int, 2>> range;
 	vector<L> lazy;
 	vector<Q> val;
@@ -2874,7 +2890,7 @@ struct lazy_segment_tree{
 		}
 	}
 	template<typename IT>
-	lazy_segment_tree(IT begin, IT end): n(distance(begin, end)), h(__lg(n) + 1), range(n << 1), lazy(n << 1, id.first), val(n << 1, id.second){
+	lazy_segment_tree(IT begin, IT end): n(end - begin), h(__lg(n) + 1), range(n << 1), lazy(n << 1, id.first), val(n << 1, id.second){
 		init_range();
 		copy(begin, end, val.begin() + n);
 		build(0, n);
@@ -2942,7 +2958,6 @@ struct lazy_segment_tree{
 // Dynamic Lazy Segment Tree
 // O(1) or O(n) processing, O(log L) or O(log n) per query
 struct dynamic_lazy_segment_tree{
-
 	using B = int; // Base coordinate type
 	using L = long long; // Lazy type
 	using Q = long long; // Query type
@@ -3012,63 +3027,101 @@ struct dynamic_lazy_segment_tree{
 		if(ql <= low && high <= qr) return val;
 		push();
 		B mid = clamp(low + (high - low >> 1), ql, qr);
-		return merge(l->query(ql, qr), r->query(ql, qr), max(low, ql), mid, min(high, qr));
+		return merge(l->query(ql, qr), r->query(ql, qr), max(low, ql), clamp(mid, ql, qr), min(high, qr));
 	}
 };
 
 // 156485479_3_2_6
 // Persistent Segment Tree
 // O(n) preprocessing, O(log n) per query
-template<typename T>
-struct node{
-	node *l = 0, *r = 0;
-	T val;
-	node(T val): val(val){}
-	template<typename BO>
-	node(node *l, node *r, BO bin_op, T id): l(l), r(r), val(id){
-		if(l) val = bin_op(l->val, val);
-		if(r) val = bin_op(val, r->val);
+struct persistent_segment_tree{
+	using B = int; // Base Coordinate Type
+	using Q = int; // Query Type
+	Q merge(Q lval, Q rval, B l, B m, B r){
+		return lval + rval;
 	}
-	~node(){
-		delete l;
-		delete r;
+	Q id = {};
+	Q init(B l, B r){
+		return id;
 	}
-};
-template<typename T, typename BO>
-struct persistent_segment_tree: vector<node<T> *>{
-	int n;
-	BO bin_op;
-	T id;
+
+	B n;
+	struct node{
+		node *l, *r;
+		Q val;
+		~node(){
+			delete l;
+			delete r;
+		}
+	};
+	vector<node *> state;
 	template<typename IT>
-	persistent_segment_tree(IT begin, IT end, BO bin_op, T id): n(distance(begin, end)), bin_op(bin_op), id(id){
-		this->push_back(build(begin, end, 0, n));
+	persistent_segment_tree(IT begin, IT end): n(end - begin){
+		function<node *(IT, IT, B, B)> bulid = [&](IT begin, IT end, B low, B high){
+			if(high - low == 1) return new node{0, 0, *begin};
+			IT inter = begin + (end - begin >> 1);
+			B mid = low + (high - low >> 1);
+			node *l = build(begin, inter, low, mid), *r = build(inter, end, mid, high);
+			return new node{l, r, merge(l->val, r->val, low, mid, high)};
+		};
+		state.push_back(build(begin, end, 0, n));
 	}
-	persistent_segment_tree(int n, BO bin_op, T id): n(n), bin_op(bin_op), id(id){
-		vector<int> temp(n, id);
-		this->push_back(build(temp.begin(), temp.end(), 0, n));
+	persistent_segment_tree(B n): n(n), state({new node{0, 0, init(0, n)}}){ }
+	void extend(node *u, B l, B r){
+		if(!u->l){
+			B m = l + (r - l >> 1);
+			u->l = new node{0, 0, init(l, m)}, u->r = new node{0, 0, init(m, r)};
+		}
 	}
-	template<typename IT>
-	node<T> *build(IT begin, IT end, int left, int right){
-		if(left + 1 == right) return new node<T>(*begin);
-		int mid = left + (right - left >> 1);
-		IT inter = begin + (end - begin >> 1);
-		return new node<T>(build(begin, inter, left, mid), build(inter, end, mid, right), bin_op, id);
+	template<bool First = true>
+	node *update(B p, Q x, node *u, B l = 0, B r = numeric_limits<B>::max()){
+		if(First) r = n;
+		if(r - l == 1) u = new node{0, 0, x};
+		else{
+			extend(u, l, r);
+			u = new node{u->l, u->r, u->val};
+			B m = l + (r - l >> 1);
+			if(p < m) u->l = update<false>(p, x, u->l, l, m);
+			else u->r = update<false>(p, x, u->r, m, r);
+			u->val = merge(u->l->val, u->r->val, l, m, r);
+		}
+		if(First) state.push_back(u);
+		return u;
 	}
-	T query(node<T> *u, int ql, int qr, int left, int right){
-		if(qr <= left || right <= ql) return id;
-		if(ql <= left && right <= qr) return u->val;
-		int mid = left + (right - left >> 1);
-		return bin_op(query(u->l, ql, qr, left, mid), query(u->r, ql, qr, mid, right));
+	template<bool First = true>
+	Q query(B ql, B qr, node *u, B l = 0, B r = numeric_limits<B>::max()){
+		if(First) r = n;
+		if(qr <= l || r <= ql) return id;
+		if(ql <= l && r <= qr) return u->val;
+		extend(u, l, r);
+		B m = l + (r - l >> 1);
+		return merge(query<false>(ql, qr, u->l, l, m), query<false>(ql, qr, u->r, m, r), max(ql, l), clamp(m, ql, qr), min(qr, r));
 	}
-	T query(node<T> *u, int ql, int qr){ return query(u, ql, qr, 0, n); }
-	node<T> *set(node<T> *u, int p, int x, int left, int right){
-		if(left + 1 == right) return new node<T>(x);
-		int mid = left + (right - left >> 1);
-		if(mid > p) return new node<T>(set(u->l, p, x, left, mid), u->r, bin_op, id);
-		else return new node<T>(u->l, set(u->r, p, x, mid, right), bin_op, id);
-	}
-	void set(node<T> *u, int p, int x){ this->push_back(set(u, p, x, 0, n)); }
-	// Below assumes T is an ordered field and node stores positive values
+	// Two functions below assume the indices are partitioned ..., true, false, ...
+	template<typename Pred, bool First = true>
+	B partition_point_pref(Pred p, node *u, Q pval = {}, B l = 0, B r = numeric_limits<B>::max()){
+		if(First){
+			if(p(n, u->val)) return n;
+			r = n, pval = id;
+		}
+		if(r - l == 1) return l;
+		extend(u, l, r);
+		B m = l + (r - l >> 1);
+		if(p(m, merge(pval, u->l->val, 0, l, m))) return partition_point_pref<Pred, false>(p, u->r, merge(pval, u->l->val, 0, l, m), m, r);
+		else return partition_point_pref<Pred, false>(p, u->l, pval, l, m);
+	} // Returns the largest i with p(i, prefsum[0, i)) = true), 0 < i <= n, or 0 if all of them evalutes to false
+	template<typename Pred, bool First = true>
+	B partition_point_suff(Pred p, node *u, Q sval = {}, B l = 0, B r = numeric_limits<B>::max()){
+		if(First){
+			if(!p(0, u->val)) return 0;
+			r = n, sval = id;
+		}
+		if(r - l == 1) return r;
+		extend(u, l, r);
+		B m = l + (r - l >> 1);
+		if(p(m, merge(u->r->val, sval, m, r, n))) return partition_point_suff<Pred, false>(p, u->r, sval, m, r);
+		else partition_point_suff<Pred, false>(p, u->l, merge(u->r->val, sval, m, r, n), l, m);
+	} // Returns the smallest i with p(i, suffsum[i, n)) = false), 0 <= i < n, or n if all of them evalutes to true
 };
 
 // 156485479_3_3_1
@@ -3083,7 +3136,7 @@ struct fenwick_tree{
 	T id;
 	vector<T> val;
 	template<typename IT>
-	fenwick_tree(IT begin, IT end, BO bin_op, IO inv_op, T id): n(distance(begin, end)), bin_op(bin_op), inv_op(inv_op), id(id), val(n + 1, id){
+	fenwick_tree(IT begin, IT end, BO bin_op, IO inv_op, T id): n(end - begin), bin_op(bin_op), inv_op(inv_op), id(id), val(n + 1, id){
 		for(int i = 0; i < n; ++ i) update(i, *(begin ++));
 	}
 	fenwick_tree(int n, BO bin_op, IO inv_op, T id): n(n), bin_op(bin_op), inv_op(inv_op), id(id), val(n + 1, id){ }
@@ -3173,7 +3226,7 @@ struct node{
 	node *l = 0, *r = 0;
 	vector<int> freq;
 	template<typename IT, typename Compare>
-	node(IT begin, IT end, T low, T high, Compare cmp): n(distance(begin, end)), low(low), high(high){
+	node(IT begin, IT end, T low, T high, Compare cmp): n(end - begin), low(low), high(high){
 		if(!n) return;
 		if(low + 1 == high) return;
 		T mid = low + (high - low >> 1);
@@ -3192,7 +3245,7 @@ struct wavelet_tree{
 	node<T> *root;
 	Compare cmp;
 	template<typename IT>
-	wavelet_tree(IT begin, IT end, Compare cmp = less<>()): n(distance(begin, end)), cmp(cmp){
+	wavelet_tree(IT begin, IT end, Compare cmp = less<>()): n(end - begin), cmp(cmp){
 		root = new node<T>(begin, end, *min_element(begin, end, cmp), *max_element(begin, end, cmp) + 1, cmp);
 	}
 	// Return the # of elements less than x in the range [ql, qr)
@@ -3295,7 +3348,7 @@ struct offline_less_than_k_query{
 	vector<tuple<T, int, int, int>> queries;
 	vector<T> comp;
 	template<typename IT>
-	offline_less_than_k_query(IT begin, IT end): n(distance(begin, end)), event(n){
+	offline_less_than_k_query(IT begin, IT end): n(end - begin), event(n){
 		if(TYPE == 0){
 			map<T, int> q;
 			for(int i = 0; begin != end; ++ begin, ++ i){
@@ -3341,7 +3394,7 @@ struct less_than_k_query{
 	persistent_segment_tree<int, plus<>> tr;
 	vector<T> comp;
 	template<typename IT>
-	less_than_k_query(IT begin, IT end): n(distance(begin, end)), p(n + 1), tr(n, plus<>(), 0){
+	less_than_k_query(IT begin, IT end): n(end - begin), p(n + 1), tr(n, plus<>(), 0){
 		vector<pair<T, int>> event(n);
 		if(TYPE == 0){
 			map<T, int> q;
@@ -3360,7 +3413,7 @@ struct less_than_k_query{
 		tr.reserve(n);
 		for(int i = 0; i <= n; ++ i){
 			while(!event.empty() && event.back().first < i){
-				tr.set(tr.back(), event.back().second, 1);
+				tr.update(tr.back(), event.back().second, 1);
 				event.pop_back();
 			}
 			p[i] = tr.back();
