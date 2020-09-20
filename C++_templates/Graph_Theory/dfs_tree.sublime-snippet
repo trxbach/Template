@@ -1,0 +1,96 @@
+<snippet>
+	<content><![CDATA[
+// Requires graph
+template<typename T>
+struct dfs_tree{
+	int n;
+	graph<T> *g;
+	vector<int> pv, pe, order, pos, end, sz, root, depth, min_depth, dist, was;
+	void init(graph<T> *h){
+		g = h;
+		n = g->n;
+		pv.assign(n, -1);
+		pe.assign(n, -1);
+		order.clear();
+		pos.assign(n, -1);
+		end.assign(n, -1);
+		sz.assign(n, 0);
+		root.assign(n, -1);
+		depth.assign(n, -1);
+		min_depth.assign(n, -1);
+		dist.assign(n, id);
+		was.assign(n, -1);
+		attempt = 0;
+	}
+	void clear(){
+		pv.clear();
+		pe.clear();
+		order.clear();
+		pos.clear();
+		end.clear();
+		sz.clear();
+		root.clear();
+		depth.clear();
+		min_depth.clear();
+		dist.clear();
+		was.clear();
+	}
+	int attempt = 0;
+	void dfs(int u, bool clear_order = true){
+		++ attempt;
+		depth[u] = 0;
+		dist[u] = id;
+		root[u] = u;
+		pv[u] = pe[u] = -1;
+		if(clear_order){
+			order.clear();
+		}
+		function<void(int)> recurse = [&](int u){
+			was[u] = attempt;
+			pos[u] = (int)order.size();
+			order.push_back(u);
+			sz[u] = 1;
+			min_depth[u] = depth[u];
+			for(auto id: g->adj[u]){
+				if(id == pe[u] || g->ignore && g->ignore(id)){
+					continue;
+				}
+				auto &e = g->edges[id];
+				int v = e.from ^ e.to ^ u;
+				if(was[v] == attempt){
+					min_depth[u] = min(min_depth[u], depth[v]);
+					continue;
+				}
+				depth[v] = depth[u] + 1;
+				dist[v] = bin_op(dist[u], e.cost);
+				pv[v] = u;
+				pe[v] = id;
+				root[v] = ~root[u] ? root[u] : v;
+				recurse(v);
+				sz[u] += sz[v];
+				min_depth[u] = min(min_depth[u], min_depth[v]);
+			}
+			end[u] = (int)order.size();
+		};
+		recurse(u);
+	}
+	void dfs_all(){
+		order.clear();
+		for(auto u = 0; u < n; ++ u){
+			if(!~depth[u]){
+				dfs(u, false);
+			}
+		}
+		assert((int)order.size() == n);
+	}
+	inline T bin_op(T x, T y){
+		return x + y;
+	}
+	T id = {};
+};
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>dfs_tree</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

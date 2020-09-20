@@ -1,0 +1,51 @@
+<snippet>
+	<content><![CDATA[
+const double pi = acos(-1);
+template<typename IT>
+void fast_fourier_transform(IT begin, IT end, const bool invert = false){ // O(n log n)
+	int n = end - begin;
+	for(int i = 1, j = 0; i < n; ++ i){
+		int bit = n >> 1;
+		for(; j & bit; bit >>= 1) j ^= bit;
+		j ^= bit;
+		if(i < j) swap(*(begin + i), *(begin + j));
+	}
+	for(int len = 1; len < n; len <<= 1){
+		double theta = pi / len * (invert ? -1 : 1);
+		complex<double> w(cos(theta), sin(theta));
+		for(int i = 0; i < n; i += len << 1){
+			complex<double> wj(1);
+			for(int j = 0; j < len; ++ j, wj *= w){
+				complex<double> u = *(begin + i + j), v = wj * *(begin + i + j + len);
+				*(begin + i + j) = u + v, *(begin + i + j + len) = u - v;
+			}
+		}
+	}
+	if(invert) for(auto it = begin; it != end; ++ it) *it /= n;
+}
+const size_t magic_constant = 250;
+template<typename Poly>
+void multiply(Poly &a, const Poly &b){
+	if(min(a.size(), b.size()) < magic_constant){
+		Poly res((int)a.size() + (int)b.size() - 1);
+		for(size_t i = 0; i < a.size(); ++ i) for(size_t j = 0; j < b.size(); ++ j) res[i + j] += a[i] * b[j];
+		a = move(res);
+		return;
+	}
+	vector<complex<double>> f(a.begin(), a.end()), g(b.begin(), b.end());
+	int n = max(int(a.size()) + int(b.size()) - 1, 1);
+	if(__builtin_popcount(n) != 1) n = 1 << __lg(n) + 1;
+	f.resize(n), g.resize(n);
+	fast_fourier_transform(f.begin(), f.end()), fast_fourier_transform(g.begin(), g.end());
+	for(int i = 0; i < n; ++ i) f[i] *= g[i];
+	fast_fourier_transform(f.begin(), f.end(), true);
+	a.assign(n, 0);
+	for(int i = 0; i < n; ++ i) a[i] = round(f[i].real());
+	while(!a.empty() && !a.back()) a.pop_back();
+}
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>fast_fourier_transform</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

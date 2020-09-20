@@ -1,0 +1,37 @@
+<snippet>
+	<content><![CDATA[
+long long modexp(long long b, long long e, const long long &mod){
+	long long res = 1;
+	for(; e; b = b * b % mod, e >>= 1) if(e & 1) res = res * b % mod;
+	return res;
+}
+long long sqrtmod(long long a, long long p){ // Returns sol to x^2=a mod p, O(log^2 p)
+	a %= p;
+	if(a < 0) a += p;
+	if(a == 0) return 0;
+	assert(modexp(a, (p - 1) / 2, p) == 1);
+	if(p % 4 == 3) return modexp(a, (p+1)/4, p);
+	// a^(n+3)/8 or 2^(n+3)/8 * 2^(n-1)/4 works if p % 8 == 5
+	long long s = p - 1, n = 2;
+	int r = 0, m;
+	while(s % 2 == 0) ++ r, s /= 2;
+	/// find a non-square mod p
+	while(modexp(n, (p - 1) / 2, p) != p - 1) ++ n;
+	long long x = modexp(a, (s + 1) / 2, p);
+	long long b = modexp(a, s, p), g = modexp(n, s, p);
+	for(;; r = m){
+		long long t = b;
+		for(m = 0; m < r && t != 1; ++ m) t = t * t % p;
+		if(m == 0) return x;
+		long long gs = modexp(g, 1LL << (r - m - 1), p);
+		g = gs * gs % p;
+		x = x * gs % p;
+		b = b * g % p;
+	}
+}
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>sqrtmod</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

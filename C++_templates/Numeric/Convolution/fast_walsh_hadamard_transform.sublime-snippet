@@ -1,0 +1,26 @@
+<snippet>
+	<content><![CDATA[
+template<char Conv = '^', typename IT = vector<Zp>::iterator>
+void fast_walsh_hadamard_transform(IT begin, IT end, const bool invert = false){
+	int n = end - begin;
+	for(int len = 1; len < n; len <<= 1){
+		for(int i = 0; i < n; i += len << 1){
+			for(int j = 0; j < len; ++ j){
+				auto u = *(begin + i + j), v = *(begin + i + j + len);
+				if(Conv == '^') *(begin + i + j) = u + v, *(begin + i + j + len) = u - v;
+				if(Conv == '|') *(begin + i + j + len) += invert ? -u : u;
+				if(Conv == '&') *(begin + i + j) += invert ? -v : v;
+			}
+		}
+	}
+	if(Conv == '^' && invert){
+		auto inv_n = typename iterator_traits<IT>::value_type(1) / n;
+		for(auto it = begin; it != end; ++ it) *it *= inv_n;
+	}
+}
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>fwht</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

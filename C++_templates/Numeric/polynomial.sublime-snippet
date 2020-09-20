@@ -1,0 +1,276 @@
+<snippet>
+	<content><![CDATA[
+template<typename T>
+T bpow(T b, long long e){
+	T res = 1;
+	for(; e; b *= b, e >>= 1) if(e & 1) res *= b;
+	return res;
+}
+template<typename T>
+struct polynomial{
+	vector<T> a;
+	void normalize(){ // get rid of leading zeroes
+		while(!a.empty() && a.back() == T(0)) a.pop_back();
+	}
+	polynomial(){}
+	polynomial(T a0): a{a0}{ normalize(); }
+	polynomial(const vector<T> &t): a(t){ normalize(); }
+	polynomial &operator=(const polynomial &t){
+		a = t.a;
+		return *this;
+	}
+	polynomial &operator+=(const polynomial &t){
+		a.resize(max(a.size(), t.a.size()));
+		for(size_t i = 0; i < t.a.size(); ++ i) a[i] += t.a[i];
+		normalize();
+		return *this;
+	}
+	polynomial &operator-=(const polynomial &t){
+		a.resize(max(a.size(), t.a.size()));
+		for(size_t i = 0; i < t.a.size(); ++ i) a[i] -= t.a[i];
+		normalize();
+		return *this;
+	}
+	polynomial operator+(const polynomial &t) const{ return polynomial(*this) += t; }
+	polynomial operator-(const polynomial &t) const{ return polynomial(*this) -= t; }
+	polynomial mod_xk(size_t k) const{ // get same polynomialnomial mod x^k
+		return vector<T>(begin(a), begin(a) + min(k, a.size()));
+	}
+	polynomial mul_xk(size_t k) const{ // multiply by x^k
+		polynomial res(*this);
+		res.a.insert(begin(res.a), k, 0);
+		return res;
+	}
+	polynomial div_xk(size_t k) const{ // divide by x^k, dropping coefficients
+		return vector<T>(begin(a) + min(k, a.size()), end(a));
+	}
+	polynomial substr(size_t l, size_t r) const{ // return mod_xk(r).div_xk(l)
+		return vector<T>(begin(a) + min(l, a.size()), begin(a) + min(r, a.size()));
+	}
+	polynomial inv(size_t n) const{ // get inverse series mod x^n
+		assert(!is_zero());
+		polynomial ans = 1 / a[0];
+		for(size_t i = 1; i < n; i <<= 1) ans = (ans * 2 - ans * ans * mod_xk(i << 1)).mod_xk(i << 1);
+		return ans.mod_xk(n);
+	}
+	polynomial &operator*=(const polynomial &t){ multiply(a, t.a); normalize(); return *this; }
+	polynomial operator*(const polynomial &t) const{ return polynomial(*this) *= t; }
+	polynomial reverse(size_t n, bool rev = 0) const{ // reverses and leaves only n terms
+		polynomial res(*this);
+		if(rev) res.a.resize(max(n, res.a.size())); // If rev = 1 then tail goes to head
+		std::reverse(res.a.begin(), res.a.end());
+		return res.mod_xk(n);
+	}
+	pair<polynomial, polynomial> divmod_slow(const polynomial &b) const{ // when divisor or quotient is small
+		vector<T> A(a), res;
+		for(T invx = 1 / b.a.back(); A.size() >= b.a.size(); ){
+			res.push_back(A.back() * invx);
+			if(res.back() != T(0)) for(size_t i = 0; i < b.a.size(); ++ i) A[(int)A.size() - i - 1] -= res.back() * b.a[(int)b.a.size() - i - 1];
+			A.pop_back();
+		}
+		std::reverse(begin(res), end(res));
+		return {res, A};
+	}
+	pair<polynomial, polynomial> divmod(const polynomial &b) const{ // returns quotiend and remainder of a mod b
+		if(deg() < b.deg()) return {polynomial{0}, *this};
+		int d = deg() - b.deg();
+		if(min(d, b.deg()) < magic_constant) return divmod_slow(b);
+		polynomial D = (reverse(d + 1) * b.reverse(d + 1).inv(d + 1)).mod_xk(d + 1).reverse(d + 1, 1);
+		return {D, *this - D * b};
+	}
+	polynomial operator/(const polynomial &t) const{ return divmod(t).first; }
+	polynomial operator%(const polynomial &t) const{ return divmod(t).second; }
+	polynomial &operator/=(const polynomial &t){ return *this = divmod(t).first; }
+	polynomial &operator%=(const polynomial &t){ return *this = divmod(t).second; }
+	polynomial &operator*=(const T &x){
+		for(auto &it: a) it *= x;
+		normalize();
+		return *this;
+	}
+	polynomial &operator/=(const T &x){
+		T invx = 1 / x;
+		for(auto &it: a) it *= invx;
+		normalize();
+		return *this;
+	}
+	polynomial operator*(const T &x) const{ return polynomial(*this) *= x; }
+	polynomial operator/(const T &x) const{ return polynomial(*this) /= x; }
+	T evaluate(T x) const{ // evaluates in single point x
+		T res(0);
+		for(int i = (int)a.size() - 1; i >= 0; -- i) res = res * x + a[i];
+		return res;
+	}
+	T &lead(){ return a.back(); }
+	int deg() const{ return a.empty() ? numeric_limits<int>::min() / 2 : (int)a.size() - 1; }
+	bool is_zero() const{ return a.empty(); }
+	T coef(int idx) const{ return idx >= (int)a.size() || idx < 0 ? T(0) : a[idx]; }
+	T &operator[](int idx){ return a[idx]; }
+	bool operator==(const polynomial &t) const{ return a == t.a; }
+	bool operator!=(const polynomial &t) const{ return a != t.a; }
+	polynomial derivative() const{ // calculate derivative
+		static vector<T> res; res.clear();
+		for(int i = 1; i <= deg(); ++ i) res.push_back(i * a[i]);
+		return res;
+	}
+	polynomial antiderivative() const{ // calculate integral with C = 0
+		static vector<T> res; res.assign(1, 0);
+		for(int i = 0; i <= deg(); ++ i) res.push_back(a[i] / (i + 1));
+		return res;
+	}
+	size_t leading_xk() const{ // Let p(x) = x^k * t(x), return k
+		if(is_zero()) return numeric_limits<int>::max() / 2;
+		int res = 0;
+		while(a[res] == T(0)) ++ res;
+		return res;
+	}
+	polynomial log(size_t n){ // calculate log p(x) mod x^n
+		assert(a[0] == T(1));
+		return (derivative().mod_xk(n) * inv(n)).antiderivative().mod_xk(n);
+	}
+	polynomial exp(size_t n){ // calculate exp p(x) mod x^n
+		if(is_zero()) return T(1);
+		assert(a[0] == T(0));
+		polynomial ans{1};
+		for(size_t i = 1; i < n; i <<= 1){
+			polynomial C = ans.log(i << 1).div_xk(i) - substr(i, i << 1);
+			ans -= (ans * C).mod_xk(i).mul_xk(i);
+		}
+		return ans.mod_xk(n);
+	}
+	polynomial pow_slow(size_t k, size_t n){ // if k is small
+		return k ? k % 2 ? (*this * pow_slow(k - 1, n)).mod_xk(n) : (*this * *this).mod_xk(n).pow_slow(k / 2, n) : polynomial{1};
+	}
+	polynomial pow(long long k, size_t n){ // calculate p^k(n) mod x^n
+		if(is_zero()) return *this;
+		if(k < magic_constant) return pow_slow(k, n);
+		int i = leading_xk();
+		if(i && k >= n) return polynomial{0};
+		return bpow(a[i], k) * ((div_xk(i) / a[i]).log(n) * T(k)).exp(n).mul_xk(i * k).mod_xk(n);
+	}
+	polynomial mulx(T x){ // component-wise multiplication with x^k
+		T cur = 1;
+		polynomial res(*this);
+		for(int i = 0; i <= deg(); ++ i) res.coef(i) *= cur, cur *= x;
+		return res;
+	}
+	polynomial mulx_sq(T x){ // component-wise multiplication with x^{k^2}
+		T cur = x, total = 1, xx = x * x;
+		polynomial res(*this);
+		for(int i = 0; i <= deg(); ++ i) res.coef(i) *= total, total *= cur, cur *= xx;
+		return res;
+	}
+	vector<T> chirpz_even(T z, int n){ // P(1), P(z^2), P(z^4), ..., P(z^2(n-1))
+		int m = deg();
+		if(is_zero()) return vector<T>(n, 0);
+		vector<T> vv(m + n);
+		T zi = 1 / z, zz = zi * zi, cur = zi, total = 1;
+		for(int i = 0; i <= max(n - 1, m); ++ i){
+			if(i <= m){ vv[m - i] = total; }
+			if(i < n){ vv[m + i] = total; }
+			total *= cur, cur *= zz;
+		}
+		polynomial w = (mulx_sq(z) * vv).substr(m, m + n).mulx_sq(z);
+		vector<T> res(n);
+		for(int i = 0; i < n; ++ i) res[i] = w[i];
+		return res;
+	}
+	vector<T> chirpz(T z, int n){ // P(1), P(z), P(z^2), ..., P(z^(n-1))
+		auto even = chirpz_even(z, n + 1 >> 1);
+		auto odd = mulx(z).chirpz_even(z, n >> 1);
+		vector<T> ans(n);
+		for(int i = 0; i < n >> 1; ++ i) ans[i << 1] = even[i], ans[i << 1 | 1] = odd[i];
+		if(n & 1) ans[n - 1] = even.back();
+		return ans;
+	}
+	template<typename iter>
+	vector<T> evaluate(vector<polynomial> &tree, int u, iter l, iter r){ // auxiliary evaluation function
+		if(r - l == 1) return {evaluate(*l)};
+		else{
+			auto m = l + (r - l >> 1);
+			int v = u + 1, w = u + (m - l << 1);
+			auto A = (*this % tree[v]).evaluate(tree, v, l, m);
+			auto B = (*this % tree[w]).evaluate(tree, w, m, r);
+			A.insert(end(A), begin(B), end(B));
+			return A;
+		}
+	}
+	template<typename iter>
+	vector<T> evaluate(iter begin, iter end){ // evaluate polynomialnomial in (x1, ..., xn)
+		int n = end - begin;
+		if(is_zero()) return vector<T>(n, T(0));
+		vector<polynomial> tree(n << 1);
+		build(tree, 0, begin, end);
+		return evaluate(tree, 0, begin, end);
+	}
+	template<typename iter>
+	polynomial interpolate(const vector<polynomial> &tree, int u, iter l, iter r, iter ly, iter ry){ // auxiliary interpolation function
+		if(r - l == 1) return {*ly / a[0]};
+		else{
+			auto m = l + (r - l >> 1);
+			auto my = ly + (ry - ly >> 1);
+			int v = u + 1, w = u + (m - l << 1);
+			auto A = (*this % tree[v]).interpolate(tree, v, l, m, ly, my);
+			auto B = (*this % tree[w]).interpolate(tree, w, m, r, my, ry);
+			return A * tree[w] + B * tree[v];
+		}
+	}
+};
+template<typename T>
+ostream &operator<<(ostream &out, const polynomial<T> &p){
+	for(auto x: p.a) out << x << " ";
+	return out;
+}
+template<typename T>
+polynomial<T> operator*(const T& a, const polynomial<T> &b){
+	auto res(b);
+	for(auto &it: res.a) it = a * it;
+	res.normalize();
+	return res;
+}
+template<typename T>
+polynomial<T> xk(int k){ // return x^k
+	return polynomial<T>{1}.mul_xk(k);
+}
+template<typename T>
+T resultant(polynomial<T> a, polynomial<T> b){ // computes resultant of a and b
+	if(b.is_zero()) return 0;
+	else if(b.deg() == 0) return bpow(b.lead(), a.deg());
+	else{
+		int pw = a.deg();
+		a %= b;
+		pw -= a.deg();
+		T mul = bpow(b.lead(), pw) * T((b.deg() & a.deg() & 1) ? -1 : 1);
+		T ans = resultant(b, a);
+		return ans * mul;
+	}
+}
+template<typename iter>
+polynomial<typename iter::value_type> generate(iter L, iter R){ // computes (x-a1)(x-a2)...(x-an) without building tree
+	if(R - L == 1) return vector<typename iter::value_type>{-*L, 1};
+	else{
+		iter M = L + (R - L >> 1);
+		return generate(L, M) * generate(M, R);
+	}
+}
+template<typename T, typename iter>
+polynomial<T> &build(vector<polynomial<T>> &res, int u, iter L, iter R){ // builds evaluation tree for (x-a1)(x-a2)...(x-an)
+	if(R - L == 1) return res[u] = vector<T>{-*L, 1};
+	else{
+		iter M = L + (R - L >> 1);
+		return res[u] = build(res, u + 1, L, M) * build(res, u + (M - L << 1), M, R);
+	}
+}
+template<typename T>
+polynomial<T> interpolate(const vector<T> &x, const vector<T> &y){ // interpolates minimum polynomialnomial from (xi, yi) pairs
+	int n = x.size();
+	vector<polynomial<T>> tree(n << 1);
+	return build(tree, 0, begin(x), end(x)).derivative().interpolate(tree, 0, begin(x), end(x), begin(y), end(y));
+}
+ using poly = polynomial<Zp>;
+// using poly = polynomial<double>;
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>polynomial</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

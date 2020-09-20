@@ -1,0 +1,58 @@
+<snippet>
+	<content><![CDATA[
+// Requires graph
+template<typename T>
+struct bfs_tree{
+	int n;
+	graph<T> *g;
+	vector<int> pv, pe, depth;
+	void init(graph<T> *h){
+		g = h;
+		n = g->n;
+		pv.assign(n, -1);
+		pe.assign(n, -1);
+		depth.assign(n, -1);
+		attempt = 0;
+	}
+	void clear(){
+		pv.clear();
+		pe.clear();
+		depth.clear();
+	}
+	int attempt = 0;
+	void bfs(int u){
+		++ attempt;
+		depth[u] = 0;
+		pv[u] = pe[u] = -1;
+		deque<int> dq{u};
+		while(!dq.empty()){
+			int u = dq.front(); dq.pop_front();
+			for(auto id: g->adj[u]){
+				if(g->ignore && g->ignore(id)){
+					continue;
+				}
+				auto &e = g->edges[id];
+				int v = u ^ e.from ^ e.to;
+				if(!~depth[v]){
+					depth[v] = depth[u] + 1;
+					pv[v] = u;
+					pe[v] = id;
+					dq.push_back(v);
+				}
+			}
+		}
+	}
+	void bfs_all(){
+		for(int u = 0; u < n; ++ u){
+			if(!~depth[u]){
+				bfs(u);
+			}
+		}
+	}
+};
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>bfs_tree</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

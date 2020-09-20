@@ -1,0 +1,21 @@
+<snippet>
+	<content><![CDATA[
+// Requires graph and dfs_tree
+template<typename T> // Returns a centroid of the tree starting from r, O(V)
+int centroid(dfs_tree<T> &dt, int sz, int u = 0, int pe = -1){ // dfs_tree.dfs(r) must be called before this.
+	for(auto id: dt.g->adj[u]){
+		if(id == pe || dt.g->ignore && dt.g->ignore(id)){
+			continue;
+		}
+		auto &e = dt.g->edges[id];
+		int v = u ^ e.from ^ e.to;
+		if(dt.sz[v] > sz / 2) return centroid(dt, sz, v, id);
+	}
+	return u;
+}
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>centroid</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

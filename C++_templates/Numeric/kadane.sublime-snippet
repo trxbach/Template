@@ -1,0 +1,14 @@
+<snippet>
+	<content><![CDATA[
+template<typename IT, typename T = int> // O(n)
+auto kadane(IT begin, IT end, T init = 0){
+	typename iterator_traits<IT>::value_type lm = init, gm = init;
+	for(; begin != end; ++ begin) lm = max(*begin, *begin + lm), gm = max(gm, lm);
+	return gm;
+}
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>kadane</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

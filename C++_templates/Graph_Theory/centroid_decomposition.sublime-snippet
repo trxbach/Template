@@ -1,0 +1,58 @@
+<snippet>
+	<content><![CDATA[
+// Requires graph, dfs_tree, centroid
+template<typename T> // O(V log V)
+struct centroid_decomposition: graph<int>{ // stores the arborescence
+	int n, root; // the root of the arborescence
+	vector<int> cpe; // parent edge of each node in arborescence
+	vector<vector<T>> dist; // dist[u][i]: sum of weights from u to its i-th centroid parent
+	centroid_decomposition(graph<T> &g): n(g.n), graph<int>(g.n), dead(g.n), cpe(g.n, -1), dist(g.n){
+		assert((int)g.edges.size() == n - 1);
+		g.ignore = [&](int e){ return dead[g.edges[e].from] || dead[g.edges[e].to]; };
+		dfs_tree<T> dt;
+		dt.init(&g);
+		construct(dt, 0, -1);
+		for(auto u = 0; u < n; ++ u){
+			reverse(dist[u].begin(), dist[u].end());
+		}
+	}
+	using graph<int>::orient;
+	vector<int> dead;
+	void set_distance(graph<T> &g, int u, int pe){
+		int p = u ^ g.edges[pe].from ^ g.edges[pe].to;
+		dist[u].push_back(bin_op(dist[p].back(), g.edges[pe].cost));
+		for(auto id: g.adj[u]){
+			if(id == pe || g.ignore(id)){
+				continue;
+			}
+			set_distance(g, u ^ g.edges[id].from ^ g.edges[id].to, id);
+		}
+	}
+	void construct(dfs_tree<T> &dt, int u, int p){
+		dt.dfs(u);
+		dead[u = centroid(dt, dt.sz[u], u)] = true;
+		if(~p) cpe[u] = orient(p, u, 1);
+		else root = u;
+		dist[u].push_back(id);
+		for(auto id: dt.g->adj[u]){
+			auto &e = dt.g->edges[id];
+			int v = u ^ e.from ^ e.to;
+			if(!dead[v]) set_distance(*dt.g, v, id);
+		}
+		for(auto id: dt.g->adj[u]){
+			auto &e = dt.g->edges[id];
+			int v = u ^ e.from ^ e.to;
+			if(!dead[v]) construct(dt, v, u);
+		}
+	}
+	inline T bin_op(T x, T y){
+		return {p10[y.len] * x.down + y.down, x.up + p10[x.len] * y.up, x.len + y.len};
+	}
+	T id = {0, 0, 0};
+};
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>centroid_decomposition</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

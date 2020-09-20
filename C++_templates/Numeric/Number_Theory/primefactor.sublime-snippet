@@ -1,0 +1,24 @@
+<snippet>
+	<content><![CDATA[
+long long primefactor(long long x){ // O(x^1/3)
+	assert(x > 1);
+	if(x <= 21){
+		for(long long p = 2; p <= sqrt(x); ++ p) if(x % p == 0) return p;
+		return x;
+	}
+	for(long long p = 2; p <= cbrt(x); ++ p) if(x % p == 0) return p;
+	for(long long k = 1; k <= cbrt(x); ++ k){
+		double t = 2 * sqrt(k * x);
+		for(long long a = ceil(t); a <= floor(t + cbrt(sqrt(x)) / 4 / sqrt(k)); ++ a){
+			long long b = a * a - 4 * k * x, s = sqrt(b);
+			if(b == s * s) return gcd(a + s, x);
+		}
+	}
+	return x;
+}
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>primefactor</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

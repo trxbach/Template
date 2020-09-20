@@ -1,0 +1,53 @@
+<snippet>
+	<content><![CDATA[
+template<typename T>
+struct recurrence{
+	int N;
+	vector<T> init, coef; // linear recurrence relation of form Sum{t<=i<t+N}( coef[i] * A[i] ) = A[t+N] for all t
+	recurrence(const vector<T> &init, const vector<T> &coef): N((int)coef.size()), init(init), coef(coef){ }
+	recurrence(const vector<T> &s){ // Berlekamp Massey Algorithm / guess the minimal linear recurrence 
+		int n = (int)s.size();
+		N = 0;
+		vector<T> B(n), C;
+		coef.resize(n);
+		coef[0] = B[0] = 1;
+		T b = 1;
+		for(int i = 0, m = 0; i < n; ++ i){
+			++ m;
+			T d = s[i];
+			for(int j = 1; j <= N; ++ j) d += coef[j] * s[i - j];
+			if(d == T(0)) continue;
+			C = coef;
+			T c = d / b;
+			for(int j = m; j < n; ++ j) coef[j] -= c * B[j - m];
+			if(2 * N > i) continue;
+			N = i + 1 - N, B = C, b = d, m = 0;
+		}
+		coef.resize(N + 1), coef.erase(coef.begin());
+		for(auto &x: coef) x = -x;
+		reverse(coef.begin(), coef.end());
+		init.resize(N);
+		for(int i = 0; i < N; ++ i) init[i] = s[i];
+	}
+	T operator[](long long n) const{
+		auto combine = [&](const vector<T> &a, const vector<T> &b){
+			vector<T> res(2 * N + 1);
+			for(int i = 0; i <= N; ++ i) for(int j = 0; j <= N; ++ j) res[i + j] += a[i] * b[j];
+			for(int i = N << 1; i > N; -- i) for(int j = 0; j < N; ++ j) res[i - 1 - j] += res[i] * coef[N - 1 - j];
+			res.resize(N + 1);
+			return res;
+		};
+		vector<T> pol(N + 1), e(pol);
+		pol[0] = e[1] = 1;
+		for(++ n; n; n >>= 1, e = combine(e, e)) if(n & 1) pol = combine(pol, e);
+		T res = 0;
+		for(int i = 0; i < N; ++ i) res += pol[i + 1] * init[i];
+		return res;
+	} // N^2 log n (or N log N log n with FFT)
+};
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>recurrence</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

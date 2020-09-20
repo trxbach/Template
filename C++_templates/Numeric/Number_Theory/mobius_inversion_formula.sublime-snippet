@@ -1,0 +1,12 @@
+<snippet>
+	<content><![CDATA[
+// Application of Mobius Inversion
+// Let S_k(n) := Sum{1<=i<=n}( i^k ), id_k(n) := n^k
+// Sum{1<=x_i<=n_i for each 1<=i<=k}( Product{1<=i<=k}( x_i^e_i ) gcd{1<=i<=k}( x_i ) )
+// = Sum{1<=l<=inf}( Product{1<=i<=k}( l^e_i S_{e_i}( Floor( n_i / l ) ) ) (Mu * id_k)( l ) )
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>mobius_inversion_formula</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

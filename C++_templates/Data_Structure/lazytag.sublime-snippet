@@ -1,0 +1,28 @@
+<snippet>
+	<content><![CDATA[
+struct Q{ // Monoid (Query type) / Default constructor yields the identity
+	long long val = 0;
+	int len = 0;
+	Q operator+(const Q &x) const{
+		return {val + x.val, len + x.len};
+	} // Monoid operator, always merges adjacent intervals
+};
+struct L{ // Semigroup (Lazy type) / call L(l, r) for initial lazy type for interval [l, r)
+	long long val;
+	L(){
+	}
+	L(int l, int r): val(0){
+	}
+	L operator+(const L &x) const{
+		return {val + x.val};
+	} // Monoid operator, always applies superset to subset
+	Q operator+(const Q &x) const{
+		return {x.val + val * x.len, x.len};
+	} // Semigroup action of L on Q, always applies superset to subset
+};
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>lazytag</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

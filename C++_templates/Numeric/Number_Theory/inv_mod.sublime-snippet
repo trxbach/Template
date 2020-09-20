@@ -1,0 +1,14 @@
+<snippet>
+	<content><![CDATA[
+long long inv_mod(long long x, long long m){
+	assert(1 <= m);
+	auto z = inv_gcd(x, m);
+	assert(z.first == 1);
+	return z.second;
+}
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>inv_mod</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

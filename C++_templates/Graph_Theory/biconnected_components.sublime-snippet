@@ -1,0 +1,40 @@
+<snippet>
+	<content><![CDATA[
+// Requires graph
+template<typename T> // O(V + E)
+void biconnected_components(const graph<T> &g, function<void(const vector<int> &)> fbcc, function<void(int)> fbridge = [](int){ }){
+	int n = g.n, timer = 0;
+	vector<int> pos(n), st;
+	function<int(int, int)> dfs = [&](int u, int pe){
+		int top = pos[u] = ++ timer;
+		for(auto e: g.adj[u]){
+			if(g.ignore && g.ignore(e) || e == pe){
+				continue;
+			}
+			int v = u ^ g.edges[e].from ^ g.edges[e].to;
+			if(pos[v]){
+				top = min(top, pos[v]);
+				if(pos[v] < pos[u]) st.push_back(e);
+			}
+			else{
+				int sz = (int)st.size(), up = dfs(v, e);
+				top = min(top, up);
+				if(up == pos[u]){
+					st.push_back(e);
+					fbcc({st.begin() + sz, st.end()}); // Process edgelist
+					st.resize(sz);
+				}
+				else if(up < pos[u]) st.push_back(e);
+				else fbridge(e); // Process bridge
+			}
+		}
+		return top;
+	};
+	for(int u = 0; u < n; ++ u) if(!pos[u]) dfs(u, -1);
+}
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>biconnected_components</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

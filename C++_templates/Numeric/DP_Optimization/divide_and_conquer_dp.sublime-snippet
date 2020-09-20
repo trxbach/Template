@@ -1,0 +1,21 @@
+<snippet>
+	<content><![CDATA[
+// Solves the recurrence relation of form dp_next[i] = min/max{j in [0, i)} (dp[j] + cost(j, i))
+// Must satisfy opt[j] <= opt[j + 1]
+// Special case: cost(j, i) must be a Monge array ( if one interval contains the other, it's better to resolve them )
+// O(N log N). Let (i0, j0), (i1, j1), ... be the access seq for cost. Then abs(i0-i1) + abs(j0-j1) is amortized constant.
+template<bool GET_MAX = true, typename T = long long>
+void divide_and_conquer_dp(auto &dp, auto &dp_next, auto &cost, int low, int high, int opt_low, int opt_high){
+	if(low >= high) return;
+	int mid = low + (high - low >> 1);
+	pair<T, int> res{GET_MAX ? numeric_limits<T>::min() : numeric_limits<T>::max(), -1};
+	for(int i = min(mid, opt_high) - 1; i >= opt_low; -- i) res = GET_MAX ? max(res, {dp[i] + cost(i, mid), i}) : min(res, {dp[i] + cost(i, mid), i});
+	dp_next[mid] = res.first;
+	divide_and_conquer_dp<GET_MAX, T>(dp, dp_next, cost, low, mid, opt_low, res.second + 1), divide_and_conquer_dp<GET_MAX, T>(dp, dp_next, cost, mid + 1, high, res.second, opt_high);
+}
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>divide_and_conquer_dp</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

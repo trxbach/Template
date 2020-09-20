@@ -1,0 +1,113 @@
+<snippet>
+	<content><![CDATA[
+template<typename T, T (*zero)(), T (*one)()> // T must support +=, *=
+struct matrix: vector<vector<T>>{
+	using C = vector<vector<T>>; // container type
+	using C::assign;
+	matrix &transpose(){
+		matrix res(m, n);
+		for(int i = 0; i < n; ++ i) for(int j = 0; j < m; ++ j) res[j][i] = (*this)[i][j];
+		return *this = res;
+	}
+	matrix transposed() const{
+		matrix res = *this;
+		return res.transpose();
+	}
+	matrix &operator+=(const matrix &M){
+		assert(n == M.n && m == M.m);
+		for(int i = 0; i < n; ++ i) for(int j = 0; j < m; ++ j) (*this)[i][j] += M[i][j];
+		return *this;
+	}
+	matrix operator+(const matrix &M) const{
+		matrix res(*this); res += M;
+		return res;
+	}
+	matrix operator*(const matrix &M) const{
+		assert(m == M.n);
+		int l = M.m;
+		matrix res(n, l);
+		for(int i = 0; i < n; ++ i) for(int j = 0; j < m; ++ j) for(int k = 0; k < l; ++ k) res[i][k] += (*this)[i][j] * M[j][k];
+		return res;
+	}
+	matrix &operator*=(const matrix &M){
+		return *this = *this * M;
+	}
+	matrix &operator*=(T c){
+		for(int i = 0; i < n; ++ i) for(int j = 0; j < m; ++ j) (*this)[i][j] *= c;
+		return *this;
+	}
+	matrix operator*(T c) const{
+		matrix res(*this); res *= c;
+		return res;
+	}
+	matrix &operator^=(long long e){
+		matrix res(n, n, one());
+		for(; e; *this *= *this, e >>= 1) if(e & 1) res *= *this;
+		return *this = res;
+	}
+	matrix operator^(long long e) const{
+		assert(n == m);
+		matrix res(*this); res ^= e;
+		return res;
+	}
+	T int_det() const{ // For integers or Zp / O(n^3)
+		assert(n == m);
+		C temp(*this);
+		T res = 1;
+		for(int i = 0; i < n; ++ i){
+			for(int j = i + 1; j < n; ++ j){
+				while(temp[j][i]){ // GCD step
+					int t = (int)temp[i][i] / (int)temp[j][i];
+					if(t) for(int k = i; k < n; ++ k) temp[i][k] -= temp[j][k] * t;
+					swap(temp[i], temp[j]);
+					res *= -1;
+				}
+			}
+			res *= temp[i][i];
+			if(!res) return 0;
+		}
+		return res;
+	}
+	T real_det() const{ // For reals / O(n^3)
+		assert(n == m);
+		C temp(*this);
+		T res = 1;
+		for(int i = 0; i < n; ++ i){
+			int b = i;
+			for(int j = i + 1; j < n; ++ j) if(abs(temp[j][i]) > abs(temp[b][i])) b = j;
+			if(i != b) swap(temp[i], temp[b]), res *= -1;
+			if(res == 0) return 0;
+			for(int j = i + 1; j < n; ++ j){
+				T v = temp[j][i] / temp[i][i];
+				if(v) for(int k = i + 1; k < n; ++ k) temp[j][k] -= v * temp[i][k];
+			}
+		}
+		return res;
+	}
+	vector<T> maps_to(const vector<T> &v) const{
+		assert(m == (int)v.size());
+		vector<T> res(n, zero());
+		for(int i = 0; i < n; ++ i) for(int j = 0; j < m; ++ j) res[i] += (*this)[i][j] * v[j];
+		return res;
+	}
+	int n, m;
+	matrix(int n, int m, T init_diagonal = zero(), T init_off_diagonal = zero()): n(n), m(m){
+		assign(n, vector<T>(m, zero()));
+		for(int i = 0; i < n; ++ i) for(int j = 0; j < m; ++ j) (*this)[i][j] = i == j ? init_diagonal : init_off_diagonal;
+	}
+	matrix(const C &arr): n((int)arr.size()), m((int)arr[0].size()){
+		assign(n, vector<T>(m, zero()));
+		for(int i = 0; i < n; ++ i) for(int j = 0; j < m; ++ j) (*this)[i][j] = arr[i][j];
+	}
+};
+template<typename T, T (*zero)(), T (*one)()>
+matrix<T, zero, one> operator*(T c, matrix<T, zero, one> M){
+	for(int i = 0; i < M.n; ++ i) for(int j = 0; j < M.m; ++ j) M[i][j] = c * M[i][j];
+	return M;
+}
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>matrix</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

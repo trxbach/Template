@@ -1,0 +1,60 @@
+<snippet>
+	<content><![CDATA[
+// 156485479_1_1
+// Modular Exponentiation, Modular Inverse and Geometric Sum
+// O(log e)
+long long modexp(long long b, long long e, const long long &mod){
+	long long res = 1;
+	for(; e; b = b * b % mod, e >>= 1) if(e & 1) res = res * b % mod;
+	return res;
+}
+long long modinv(long long a, const long long &mod){
+	return modexp(a, mod - 2, mod);
+}
+long long modgeo(long long b, long long e, const long long &mod){
+	if(e < 2) return e;
+	long long res = 1;
+	for(long long bit = 1 << 30 - __builtin_clz(e), p = 1; bit; bit >>= 1){
+		res = res * (1 + p * b % mod) % mod, p = p * p % mod * b % mod;
+		if(bit & e) res = (res + (p = p * b % mod)) % mod;
+	}
+	return res;
+}
+template<typename T>
+T binexp(T b, long long e){
+	T res = 1;
+	for(; e; b *= b, e >>= 1) if(e & 1) res *= b;
+	return res;
+}
+template<typename T>
+T bingeo(const T &b, long long e){
+	if(e < 2) return e;
+	T res = 1, p = 1;
+	for(long long bit = 1 << 30 - __builtin_clz(e); bit; bit >>= 1){
+		res *= 1 + p * b, p *= p * b;
+		if(bit & e) res += (p *= b);
+	}
+	return res;
+}
+template<typename T, typename BO>
+T binexp(T b, long long e, BO bin_op, const T &id){
+	T res = id;
+	for(; e; b = bin_op(b, b), e >>= 1) if(e & 1) res = bin_op(res, b);
+	return res;
+}
+template<typename T, typename AO, typename MO>
+T bingeo(const T &b, long long e, AO add_op, const T &add_id, MO mul_op, const T &mul_id){
+	if(e < 2) return e ? mul_id : add_id;
+	T res = mul_id, p = mul_id;
+	for(long long bit = 1 << 30 - __builtin_clz(e); bit; bit >>= 1){
+		res = mul_op(res, add_op(mul_id, mul_op(p, b))), p = mul_op(mul_op(p, p), b);
+		if(bit & e) res = add_op(res, p = mul_op(p, b));
+	}
+	return res;
+}
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>modexp</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

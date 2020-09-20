@@ -1,0 +1,56 @@
+<snippet>
+	<content><![CDATA[
+// Requires lazy_tag
+template<typename L>
+struct reverse_segment_tree{
+	reverse_segment_tree(): reverse_segment_tree(0){}
+	reverse_segment_tree(int n): n(n){
+		vector<L> v(n);
+		for(int i = 0; i < n; ++ i) v[i] = {i, i + 1};
+		*this = reverse_segment_tree(v);
+	}
+	reverse_segment_tree(const vector<L> &v): n((int)v.size()){
+		log = __lg(n + 1) + 1;
+		size = 1 << log;
+		lazy = vector<L>(size << 1);
+		copy(v.begin(), v.end(), lazy.begin() + size);
+		for(int i = 1; i < size; ++ i){
+			int h = log - __lg(i);
+			lazy[i] = {(i << h) - size, (i + 1 << h) - size};
+		}
+	}
+	void update(int l, int r, L x){
+		if(l >= r) return;
+		l += size, r += size;
+		for(int i = log; i >= 1; -- i){ // for non-commutative operations
+			if(((l >> i) << i) != l) push(l >> i);
+			if (((r >> i) << i) != r) push(r - 1 >> i);
+		}
+		for(; l < r; l >>= 1, r >>= 1){
+			if(l & 1) lazy[l ++] = x + lazy[l];
+			if(r & 1) lazy[r] = x + lazy[-- r];
+		}
+	}
+	L query(int qp){
+		L res{qp, qp + 1};
+		for(int p = qp + size; p > 0; p >>= 1) res = lazy[p] + res;
+		return res;
+	}
+	void push(int i){
+		lazy[i << 1] = lazy[i] + lazy[i << 1];
+		lazy[i << 1 | 1] = lazy[i] + lazy[i << 1 | 1];
+		int h = log - __lg(i);
+		lazy[i] = {(i << h) - size, (i + 1 << h) - size};
+	}
+	void push(){
+		for(int i = 1; i < n; ++ i) push(i);
+	}
+	int n, size, log;
+	vector<L> lazy;
+};
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>reverse_segment_tree</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>
