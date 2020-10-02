@@ -1,7 +1,7 @@
 <snippet>
 	<content><![CDATA[
-template<typename T, typename Graph> // O(V^3) / reads adjacency matrix of the graph
-pair<T, vector<int>> global_min_cut(Graph adj){
+template<class T> // O(V^3) / reads adjacency matrix of the graph
+pair<T, vector<int>> global_min_cut(vector<vector<T>> adj){
 	int n = (int)adj.size();
 	vector<bool> used(n);
 	vector<int> cut, best_cut;

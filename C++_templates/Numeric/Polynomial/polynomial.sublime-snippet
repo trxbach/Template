@@ -1,0 +1,215 @@
+<snippet>
+	<content><![CDATA[
+template<class T> vector<T> normalized(vector<T> p){
+	while(!p.empty() && p.back() == 0) p.pop_back();
+	return p;
+}
+template<class T> vector<T> &operator+=(vector<T> &p, const vector<T> &q){
+	p.resize(max(p.size(), q.size()));
+	for(int i = 0; i < (int)q.size(); ++ i) p[i] += q[i];
+	return p;
+}
+template<class T> vector<T> operator+(vector<T> p, const vector<T> &q){ return p += q; }
+template<class T> vector<T> &operator-=(vector<T> &p, const vector<T> &q){
+	p.resize(max(p.size(), q.size()));
+	for(int i = 0; i < (int)q.size(); ++ i) p[i] -= q[i];
+	return p;
+}
+template<class T> vector<T> operator-(vector<T> p, const vector<T> &q){ return p -= q; }
+template<class T> vector<T> operator-(const vector<T> &p){
+	vector<T> res = p;
+	for(int i = 0; i < (int)res.size(); ++ i) res[i] = -res[i];
+	return res;
+}
+template<class T> vector<T> operator*(const vector<T> &p, const vector<T> &q){ return convolute(p, q); }
+template<class T> vector<T> &operator*=(vector<T> &p, const vector<T> &q){ return p = p * q; }
+template<class T, class U>
+vector<T> &operator*=(vector<T> &p, U c){
+	for(auto &x: p) x *= c;
+	return p;
+}
+template<class T, class U>
+vector<T> operator*(vector<T> p, U c){ return p *= c; }
+template<class T, class U>
+vector<T> operator*(U c, vector<T> p){
+	for(auto &x: p) x = c * x;
+	return p;
+}
+template<class T>
+vector<T> truncated(const vector<T> &p, int n){ return vector<T>(p.begin(), p.begin() + min(n, (int)p.size())); }
+template<class T> vector<T> shifted(vector<T> p, int n){ // shift the polynomial to the right by n
+	if(n >= 0) p.insert(p.begin(), n, 0);
+	else p.erase(p.begin(), p.begin() + min(-n, (int)p.size()));
+	return p;
+}
+template<class T> vector<T> substr(const vector<T> &p, int l, int r){
+	return vector<T>(p.begin() + min(l, (int)p.size()), p.begin() + min(r, (int)p.size()));
+}
+template<class T> vector<T> inverse_series(const vector<T> &p, int n){ // get first n terms of the inverse series of p
+	assert(p[0]);
+	vector<T> res{1 / p[0]};
+	for(int i = 1; i < n; i <<= 1) res = truncated(res * 2 - res * res * truncated(p, i << 1), i << 1);
+	return truncated(res, n);
+}
+template<class T> vector<T> reversed(vector<T> p, int n = numeric_limits<int>::max(), bool rev = false){ // reverses and leaves only n terms
+	if(rev) p.resize(max(n, (int)p.size())); // If rev = true then tail goes to head
+	reverse(p.begin(), p.end());
+	return truncated(p, n);
+}
+template<class T> pair<vector<T>, vector<T>> divmod_slow(const vector<T> &p, const vector<T> &q){ // when divisor or quotient is small
+	vector<T> Q, R(p);
+	for(T invx = 1 / q.back(); R.size() >= q.size(); ){
+		Q.push_back(R.back() * invx);
+		if(Q.back()) for(int i = 0; i < q.size(); ++ i) R[(int)R.size() - i - 1] -= Q.back() * q[(int)q.size() - i - 1];
+		R.pop_back();
+	}
+	return {reversed(Q), R};
+}
+template<class T> pair<vector<T>, vector<T>> divmod(const vector<T> &p, const vector<T> &q){ // returns quotiend and remainder of a mod b
+	if(p.size() < q.size()) return {{0}, p};
+	int d = (int)p.size() - (int)q.size();
+	if(min(d, (int)q.size() - 1) < 60) return divmod_slow(p, q);
+	vector<T> Q = reversed(truncated((reversed(p, d + 1) * inverse_series(reversed(q, d + 1), d + 1)), d + 1), d + 1, true), R = p - Q * q;
+	return {Q, p - Q * q};
+}
+template<class T> vector<T> operator/(const vector<T> &p, const vector<T> &q){ return normalized(divmod(p, q).first); }
+template<class T> vector<T> operator%(const vector<T> &p, const vector<T> &q){ return normalized(divmod(p, q).second); }
+template<class T> vector<T> &operator/=(vector<T> &p, const vector<T> &q){ return p = p / q; }
+template<class T> vector<T> &operator%=(vector<T> &p, const vector<T> &q){ return p = p % q; }
+template<class T> vector<T> &operator/=(vector<T> &p, T c){
+	T invc = 1 / c;
+	for(auto &x: p) x *= invc;
+	return p;
+}
+template<class T> vector<T> operator/(vector<T> p, T c){ return p /= c; }
+template<class T>
+bool is_zero(const vector<T> &p){ return p == vector<T>((int)p.size()); }
+template<class T> T evaluate(const vector<T> &p, T x){ // evaluates in single point x
+	T res = 0;
+	for(int i = (int)p.size() - 1; i >= 0; -- i) res = res * x + p[i];
+	return res;
+}
+template<class T> vector<T> derivative(vector<T> p){ // calculate derivative
+	if(p.empty()) return {};
+	for(int i = 0; i < (int)p.size() - 1; ++ i) p[i] = (i + 1) * p[i + 1];
+	p.pop_back();
+	return p;
+}
+template<class T> vector<T> antiderivative(vector<T> p){ // calculate antiderivative with C = 0
+	p.push_back(0);
+	for(int i = (int)p.size() - 2; i >= 0; -- i) p[i + 1] = p[i] / (i + 1);
+	p[0] = 0;
+	return p;
+}
+template<class T> vector<T> log_series(const vector<T> &p, int n){ // calculate first n terms of log p(x)
+	return assert(p[0] == 1), truncated(antiderivative(truncated(derivative(p), n) * inverse_series(p, n)), n);
+}
+template<class T> vector<T> exp_series(const vector<T> &p, int n){ // calculate exp p(x) mod x^n
+	if(is_zero(p)) return {1};
+	assert(p[0] == 0);
+	vector<T> res{1};
+	for(int i = 1; i < n; i <<= 1) res -= shifted(truncated(res * (shifted(log_series(res, i << 1), -i) - substr(p, i, i << 1)), i), i);
+	return truncated(res, n);
+}
+template<class T> vector<T> pow_series_slow(const vector<T> &p, int k, int n){ // if k is small
+	return k ? k & 1 ? truncated(p * pow_series_slow(p, k - 1, n), n) : pow_series_slow(truncated(p * p, n), k >> 1, n) : vector<T>{1};
+}
+template<class T, class U>
+T bpow(T x, U n){
+	T res = 1;
+	for(; n; x *= x, n >>= 1) if(n & 1) res *= x;
+	return res;
+}
+template<class T> vector<T> pow_series(const vector<T> &p, long long k, int n){ // calculate first n terms of p^k
+	if(is_zero(p)) return vector<T>(n);
+	if(k < 60) return pow_series_slow(p, k, n);
+	int i = 0;
+	while(i < (int)p.size() && p[i] == 0) ++ i;
+	return bpow(p[i], k) * truncated(shifted(exp_series(log_series(shifted(p, -i) / p[i], n) * k, n), min(i * k, 1LL * n)), n);
+}
+template<class T> vector<T> mulx(vector<T> p, T x){ // component-wise multiplication with x^k
+	T cur = 1;
+	for(int i = 0; i < (int)p.size(); ++ i) p[i] *= cur, cur *= x;
+	return p;
+}
+template<class T> vector<T> mulx_sq(vector<T> p, T x){ // component-wise multiplication with x^{k^2}
+	T cur = x, total = 1, xx = x * x;
+	for(int i = 0; i < (int)p.size(); ++ i) p[i] *= total, total *= cur, cur *= xx;
+	return p;
+}
+template<class T> vector<T> chirpz_even(const vector<T> &p, T z, int n){ // P(1), P(z^2), P(z^4), ..., P(z^2(n-1))
+	if(is_zero(p)) return vector<T>(n, 0);
+	int m = (int)p.size() - 1;
+	vector<T> vv(m + n);
+	T zi = 1 / z, zz = zi * zi, cur = zi, total = 1;
+	for(int i = 0; i <= max(n - 1, m); ++ i){
+		if(i <= m){ vv[m - i] = total; }
+		if(i < n){ vv[m + i] = total; }
+		total *= cur, cur *= zz;
+	}
+	return mulx_sq(substr(mulx_sq(p, z) * vv, m, m + n), z);
+}
+template<class T> vector<T> chirpz(const vector<T> &p, T z, int n){ // P(1), P(z), P(z^2), ..., P(z^(n-1))
+	auto even = chirpz_even(p, z, n + 1 >> 1);
+	auto odd = chirpz_even(mulx(p, z), z, n >> 1);
+	vector<T> res(n);
+	for(int i = 0; i < n >> 1; ++ i) res[i << 1] = even[i], res[i << 1 | 1] = odd[i];
+	if(n & 1) res[n - 1] = even.back();
+	return res;
+}
+template<typename T> vector<T> &build(const vector<T> &x, vector<vector<T>> &tree, int u, int l, int r){ // builds evaluation tree for (X-x_0)(X-x_1)...(X-x_(n-1))
+	if(r - l == 1) return tree[u] = vector<T>{-x[l], 1};
+	else{
+		int m = l + (r - l >> 1);
+		return tree[u] = build(x, tree, u + 1, l, m) * build(x, tree, u + (m - l << 1), m, r);
+	}
+}
+template<class T> vector<T> evaluate(const vector<T> &p, const vector<T> &x, const vector<vector<T>> &tree, int u, int l, int r){ // auxiliary evaluation function
+	if(r - l == 1) return {evaluate(p, x[l])};
+	else{
+		int m = l + (r - l >> 1), v = u + 1, w = u + (m - l << 1);
+		auto A = evaluate(p % tree[v], x, tree, v, l, m);
+		auto B = evaluate(p % tree[w], x, tree, w, m, r);
+		A.insert(A.end(), B.begin(), B.end());
+		return A;
+	}
+}
+template<class T> vector<T> evaluate(const vector<T> &p, const vector<T> &x){ // evaluate polynomialnomial in (x_0, ..., x_(n-1))
+	int n = (int)x.size();
+	if(is_zero(p)) return vector<T>(n);
+	vector<vector<T>> tree(n << 1);
+	build(x, tree, 0, 0, n);
+	return evaluate(p, x, tree, 0, 0, n);
+}
+template<class T> vector<T> interpolate(const vector<T> &xp, const vector<T> &y, const vector<vector<T>> &tree, int u, int l, int r){ // auxiliary interpolation function. xp = derivative((X-x_l)...(X-x_(r-1)))
+	if(r - l == 1) return {y[l] / xp[0]};
+	else{
+		int m = l + (r - l >> 1), v = u + 1, w = u + (m - l << 1);
+		auto A = interpolate(xp % tree[v], y, tree, v, l, m);
+		auto B = interpolate(xp % tree[w], y, tree, w, m, r);
+		return A * tree[w] + B * tree[v];
+	}
+}
+template<class T> ostream &operator<<(ostream &out, const vector<T> &p){
+	for(auto x: p.a) out << x << " ";
+	return out << "\n";
+}
+template<class T> vector<T> generate(const vector<T> &x, int l, int r){ // computes (x-a1)(x-a2)...(x-an) without building tree
+	if(r - l == 1) return vector<T>{-x[l], 1};
+	else{
+		int m = l + (r - l >> 1);
+		return generate(x, l, m) * generate(x, m, r);
+	}
+}
+template<class T> vector<T> interpolate(const vector<T> &x, const vector<T> &y){ // interpolates minimum polynomialnomial from (xi, yi) pairs
+	int n = (int)x.size();
+	vector<vector<T>> tree(n << 1);
+	build(x, tree, 0, 0, n);
+	return interpolate(derivative(tree[0]), y, tree, 0, 0, n);
+}
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>polynomial</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

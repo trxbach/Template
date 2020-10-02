@@ -1,6 +1,6 @@
 <snippet>
 	<content><![CDATA[
-template<typename F1, typename F2, typename F3, typename T = Zp>
+template<class F1, class F2, class F3, class T>
 struct xudyh_sieve{
 	long long th; // threshold, ideally about (2(single query) ~ 5(lots of queries)) * MAXN^2/3
 	F1 pf; // prefix sum of f / precalculate it up to th

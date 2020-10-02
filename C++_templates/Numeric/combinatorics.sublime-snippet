@@ -1,7 +1,7 @@
 <snippet>
 	<content><![CDATA[
 // Requires Z_p
-template<int SZ, typename T = Zp>
+template<int SZ, class T = Zp>
 struct combinatorics{
 	vector<T> inv, fact, invfact;
 	vector<vector<T>> stir1, stir2;
@@ -67,7 +67,7 @@ struct combinatorics{
 	}
 	T Stir2(long long n, int k){
 		if(n < k) return 0;
-		if(pre[1] && n < int(stir2.size())) return stir2[n][k];
+		if(pre[1] && n < (int)stir2.size()) return stir2[n][k];
 		T res = 0;
 		for(int i = 0, sign = 1; i <= k; ++ i, sign *= -1) res += sign * C(k, i) * (Zp(k - i) ^ n);
 		return res * invfact[k];

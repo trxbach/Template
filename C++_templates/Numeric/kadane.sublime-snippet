@@ -1,9 +1,9 @@
 <snippet>
 	<content><![CDATA[
-template<typename IT, typename T = int> // O(n)
-auto kadane(IT begin, IT end, T init = 0){
-	typename iterator_traits<IT>::value_type lm = init, gm = init;
-	for(; begin != end; ++ begin) lm = max(*begin, *begin + lm), gm = max(gm, lm);
+template<class T> // O(n)
+auto kadane(const vector<T> &a, T init = 0){
+	T lm = init, gm = init;
+	for(auto x: a) lm = max(x, x + lm), gm = max(gm, lm);
 	return gm;
 }
 ]]></content>

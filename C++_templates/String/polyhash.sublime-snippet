@@ -1,0 +1,87 @@
+<snippet>
+	<content><![CDATA[
+template<class Str> // O(n) processing, O(log n) for lcp, O(n) for search, O(1) for query
+struct polyhash: vector<vector<long long>>{
+	const int lim;
+	const long long base, mod;
+	vector<long long> p;
+	polyhash(int lim, long long mod): lim(lim), p(lim, 1), mod(mod), base(rngll() % (long long)(0.4 * mod) + 0.3 * mod){
+		for(int i = 1; i < lim; ++ i) p[i] = p[i - 1] * base % mod;
+	}
+	void insert(const Str &s){
+		this->emplace_back(s.size() + 1);
+		for(int i = 0; i < int(s.size()); ++ i) this->back()[i + 1] = (this->back()[i] * base + s[i]) % mod;
+	}
+	void extend(class Str::value_type c, int i = 0){
+		(*this)[i].push_back(((*this)[i].back() * base + c) % mod);
+	}
+	long long query(int ql, int qr, int i = 0){
+		return ((*this)[i][qr] - (*this)[i][ql] * p[qr - ql] % mod + mod) % mod;
+	}
+	int lcp(int i, int j, int posi = 0, int posj = 0){ // returns the length
+		int low = 0, high = min(int((*this)[i].size()) - posi, int((*this)[j].size()) - posj);
+		while(high - low > 1){
+			int mid = low + (high - low >> 1);
+			query(posi, posi + mid, i) == query(posj, posj + mid, j) ? low = mid : high = mid;
+		}
+		return low;
+	}
+	int lcs(int i, int j, int posi, int posj){
+		int low = 0, high = min(posi, posj) + 1;
+		while(high - low > 1){
+			int mid = low + (high - low >> 1);
+			query(posi - mid, posi, i) == query(posj - mid, posj, j) ? low = mid : high = mid;
+		}
+		return low;
+	}
+	vector<int> search(const Str &s, bool FIND_ALL = true, int i = 0){
+		int len = s.size();
+		long long v = 0;
+		for(auto c: s) v = (v * base + c) % mod;
+		vector<int> res;
+		for(int j = 0; j + len < (*this)[i].size(); ++ j) if(v == query(j, j + len, i)){
+			res.push_back(j);
+			if(!FIND_ALL) break;
+		}
+		return res;
+	}
+};
+template<class Str>
+struct double_polyhash{
+	pair<polyhash<Str>, polyhash<Str>> h;
+	double_polyhash(int N, long long mod): h{polyhash<Str>(N, mod), polyhash<Str>(N, mod)}{ }
+	void insert(const Str &s){
+		h.first.insert(s), h.second.insert(s);
+	}
+	void extend(class Str::value_type c, int i = 0){
+		h.first.extend(c, i), h.second.extend(c, i);
+	}
+	pair<long long, long long> query(int ql, int qr, int i = 0){
+		return {h.first.query(ql, qr, i), h.second.query(ql, qr, i)};
+	}
+	int lcp(int i, int j, int posi = 0, int posj = 0){ // returns the length
+		int low = 0, high = min(int(h.first[i].size()) - posi, int(h.first[j].size()) - posj);
+		while(high - low > 1){
+			int mid = low + high >> 1;
+			query(posi, posi + mid, i) == query(posj, posj + mid, j) ? low = mid : high = mid;
+		}
+		return low;
+	}
+	vector<int> search(const Str &s, bool FIND_ALL = true, int i = 0){
+		int len = s.size();
+		pair<long long, long long> v;
+		for(auto c: s) v = {(v.first * h.first.base + c) % h.first.mod, (v.second * h.second.base + c) % h.second.mod};
+		vector<int> res;
+		for(int j = 0; j + len < h.first[i].size(); ++ j) if(v == query(j, j + len, i)){
+			res.push_back(j);
+			if(!FIND_ALL) break;
+		}
+		return res;
+	}
+};
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>polyhash</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

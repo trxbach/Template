@@ -1,25 +1,28 @@
 <snippet>
 	<content><![CDATA[
-template<typename T, typename BO>
+template<class Q, Q (*merge)(Q, Q), Q (*identity)()>
 struct sparse_table{
 	int n;
-	BO bin_op;
-	T id;
-	vector<vector<T>> val;
-	template<typename IT> // O(n log n)
-	sparse_table(IT begin, IT end, BO bin_op, T id): n(end - begin), bin_op(bin_op), id(id), val(1, {begin, end}){
+	vector<vector<Q>> val;
+	sparse_table(vector<Q> &a): n((int)a.size()), val({a}){ // O(n log n)
 		for(int p = 1, i = 1; p << 1 <= n; p <<= 1, ++ i){
 			val.emplace_back(n - (p << 1) + 1);
-			for(int j = 0; j < int(val[i].size()); ++ j) val[i][j] = bin_op(val[i - 1][j], val[i - 1][j + p]);
+			for(int j = 0; j < (int)val[i].size(); ++ j) val[i][j] = merge(val[i - 1][j], val[i - 1][j + p]);
 		}
 	}
 	sparse_table(){ }
-	T query(int l, int r){ // O(1)
-		if(l >= r) return id;
+	Q query(int l, int r){ // O(1)
+		if(l >= r) return identity();
 		int d = __lg(r - l);
-		return bin_op(val[d][l], val[d][r - (1 << d)]);
+		return merge(val[d][l], val[d][r - (1 << d)]);
 	}
 };
+int merge(int x, int y){
+	return min(x, y);
+}
+int identity(){
+	return numeric_limits<int>::max() / 2;
+}
 ]]></content>
 	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
 	<tabTrigger>sparse_table</tabTrigger> -->

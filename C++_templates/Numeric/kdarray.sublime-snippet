@@ -1,6 +1,6 @@
 <snippet>
 	<content><![CDATA[
-template<typename T>
+template<class T>
 struct kdarray{
 	int K;
 	vector<int> n, p;
@@ -14,10 +14,10 @@ struct kdarray{
 	kdarray(const vector<int> &n, T id = T()): K(int(n.size())), n(n), val(accumulate(n.begin(), n.end(), 1, multiplies<>()), id), p(K + 1, 1){
 		partial_sum(n.begin(), n.end(), p.begin() + 1, multiplies<>());
 	}
-	template<typename U>
+	template<class U>
 	kdarray(const kdarray<U> &arr): K(arr.K), n(arr.n), p(arr.p), val(arr.val.begin(), arr.val.end()){ }
 };
-template<typename T>
+template<class T>
 istream &operator>>(istream &in, kdarray<T> &arr){
 	for(vector<int> i(arr.K); in >> arr[i]; ){
 		for(int d = arr.K - 1; d >= 0; -- d){
@@ -29,7 +29,7 @@ istream &operator>>(istream &in, kdarray<T> &arr){
 	ESCAPE:;
 	return in;
 }
-template<typename T>
+template<class T>
 ostream &operator<<(ostream &out, kdarray<T> &arr){
 	for(vector<int> i(arr.K); true; ){
 		out << "\n[{";

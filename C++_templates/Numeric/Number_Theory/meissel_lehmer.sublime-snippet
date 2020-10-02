@@ -1,7 +1,7 @@
 <snippet>
 	<content><![CDATA[
-template<typename NT, typename T = long long>
-struct meissel_lehmer{
+template<class NT, class T>
+struct meissel_lehmer{ // NT is the number_theory class
 	const int maxx = 1e2 + 5, maxy = 1e5 + 5, maxn = 1e7 + 5;
 	vector<int> cn;
 	vector<T> sum;

@@ -1,6 +1,6 @@
 <snippet>
 	<content><![CDATA[
-template<typename T>
+template<class T>
 struct flow_network{
 	static constexpr T eps = (T)1e-9;
 	int n;
@@ -30,7 +30,7 @@ struct flow_network{
 		edges[i ^ 1].flow -= f;
 	}
 };
-template<typename T>
+template<class T>
 struct dinic{
 	static constexpr T inf = numeric_limits<T>::max();
 	flow_network<T> &g;

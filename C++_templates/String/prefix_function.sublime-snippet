@@ -1,0 +1,31 @@
+<snippet>
+	<content><![CDATA[
+template<class Str>
+vector<int> prefix_function(const Str &s){
+	int n = int(s.size());
+	vector<int> p(n);
+	for(int i = 1; i < n; ++ i){
+		int j = p[i - 1];
+		while(j > 0 && s[i] != s[j]) j = p[j - 1];
+		if(s[i] == s[j]) ++ j;
+		p[i] = j;
+	}
+	return p;
+}
+template<class Str, int lim = 128>
+pair<vector<int>, vector<vector<int>>> prefix_automaton(const Str &s){
+	vector<int> p = prefix_function(s);
+	int n = int(s.size());
+	vector<vector<int>> aut(n, vector<int>(lim + 1));
+	for(int i = 0; i < n; ++ i) for(int c = 0; c <= lim; ++ c){
+		if(i > 0 && c != s[i]) aut[i][c] = aut[p[i - 1]][c];
+		else aut[i][c] = i + (c == s[i]);
+	}
+	return {p, aut};
+}
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>prefix_function</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

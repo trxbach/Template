@@ -1,7 +1,7 @@
 <snippet>
 	<content><![CDATA[
 // Requires graph and dinic
-template<typename T>
+template<class T>
 graph<T> gomory_hu(const graph<T> &g){ // calls max_flow V-1 times
 	int n = g.n;
 	flow_network<T> F(n, 0, 1);

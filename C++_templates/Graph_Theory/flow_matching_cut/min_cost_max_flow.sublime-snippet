@@ -1,6 +1,6 @@
 <snippet>
 	<content><![CDATA[
-template<typename T, typename C>
+template<class T, class C>
 struct min_cost_max_flow{
 	static constexpr T eps = (T) 1e-9;
 	struct Edge{

@@ -1,6 +1,6 @@
 <snippet>
 	<content><![CDATA[
-template<typename T>
+template<class T>
 vector<int> longest_increasing_subsequence(const vector<T> &a){ // O(n log n), returns the indices
 	int n = int(a.size());
 	if(!n) return {};

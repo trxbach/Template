@@ -1,0 +1,61 @@
+<snippet>
+	<content><![CDATA[
+template<class Str, int lim = 128, class Str::value_type PCH = '$'>
+struct aho_corasic{
+	typedef class Str::value_type Char;
+	struct node{
+		int par, link = -1, elink = -1;
+		Char cpar;
+		vector<int> next, go;
+		bool isleaf = false;
+		node(int par = -1, Char pch = PCH): par(par), cpar(pch), next(lim, -1), go(lim, -1){ }
+		long long val = 0;
+		bool mark = false;
+	};
+	vector<node> state = vector<node>(1);
+	int insert(const Str &s){
+		int u = 0;
+		for(auto &c: s){
+			if(state[u].next[c] == -1){
+				state[u].next[c] = int(state.size());
+				state.emplace_back(u, c);
+			}
+			u = state[u].next[c];
+		}
+		state[u].isleaf = true;
+		return u;
+	}
+	int get_link(int u){
+		if(state[u].link == -1){
+			if(!u || !state[u].par) state[u].link = 0;
+			else state[u].link = go(get_link(state[u].par), state[u].cpar);
+		}
+		return state[u].link;
+	}
+	int get_elink(int u){
+		if(state[u].elink == -1){
+			if(!u || !get_link(u)) state[u].elink = 0;
+			else if(state[get_link(u)].isleaf) state[u].elink = get_link(u);
+			else state[u].elink = get_elink(get_link(u));
+		}
+		return state[u].elink;
+	}
+	int go(int u, const Char &c){
+		if(state[u].go[c] == -1){
+			if(state[u].next[c] != -1) state[u].go[c] = state[u].next[c];
+			else state[u].go[c] = u ? go(get_link(u), c) : u;
+		}
+		return state[u].go[c];
+	}
+	int go(const Str &s){
+		int u = 0;
+		for(auto &c: s) u = go(u, c);
+		return u;
+	}
+};
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>aho_corasic</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<scope>source.c++</scope> -->
+</snippet>

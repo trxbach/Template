@@ -1,15 +1,15 @@
 <snippet>
 	<content><![CDATA[
-template<typename Graph> // reads adjacency matrix of the graph
-pair<long long, vector<int>> hungarian_min_cost_bipartite_matching(const Graph &adjm){
+template<class T> // reads adjacency matrix of the graph
+pair<T, vector<int>> hungarian_min_cost_bipartite_matching(const vector<vector<T>> &adjm){
 	if(adjm.empty()) return {0, {}};
 	int n = (int)adjm.size() + 1, m = (int)adjm[0].size() + 1;
-	vector<long long> u(n), v(m);
+	vector<T> u(n), v(m);
 	vector<int> p(m), res(n - 1, -1);
 	for(int i = 1; i < n; ++ i){
 		p[0] = i;
 		int j0 = 0; // add "dummy" worker 0
-		vector<long long> dist(m, numeric_limits<long long>::max());
+		vector<T> dist(m, numeric_limits<T>::max());
 		vector<int> pre(m, -1);
 		vector<bool> done(m + 1);
 		do{// dijkstra

@@ -1,7 +1,7 @@
 <snippet>
 	<content><![CDATA[
 // Requires graph
-template <typename T> // O(E sqrt(V))
+template<class T> // O(E sqrt(V))
 vector<int> blossom_maximum_unweighted_matching(graph<T> &g){
 	vector<int> mate(g.n, -1), label(g.n), parent(g.n), orig(g.n);
 	queue<int> q;

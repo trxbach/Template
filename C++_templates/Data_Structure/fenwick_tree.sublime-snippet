@@ -1,6 +1,6 @@
 <snippet>
 	<content><![CDATA[
-template<typename Q>
+template<class Q>
 struct fenwick_tree{
 	fenwick_tree(): n(0){}
 	fenwick_tree(int n): n(n), val(n){}
@@ -20,7 +20,7 @@ struct fenwick_tree{
 		assert(0 <= l && l <= r && r <= n);
 		return query(r) - query(l);
 	}
-	template<typename F> int partition_point_pref(F f){
+	template<class F> int partition_point_pref(F f){
 		int p = 0;
 		Q pref{};
 		for(int i = __lg(n + 1); i >= 0; -- i) if(p + (1 << i) <= n && f(pref + val[p + (1 << i) - 1])){

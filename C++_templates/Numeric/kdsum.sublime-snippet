@@ -2,13 +2,13 @@
 	<content><![CDATA[
 // Requires kdarray
 // O(K * Product(n)) processing, O(2^K) per query
-template<typename T, typename BO = plus<>, typename IO = minus<>>
+template<class T, class BO = plus<>, class IO = minus<>>
 struct kdsum{
 	BO bin_op;
 	IO inv_op;
 	T id;
 	kdarray<T> val;
-	template<typename U>
+	template<class U>
 	kdsum(const kdarray<U> &arr, BO bin_op = plus<>{}, IO inv_op = minus<>{}, T id = 0LL): val(arr), bin_op(bin_op), inv_op(inv_op), id(id){
 		vector<int> cur, from;
 		for(int t = 0, ncnt; t < val.K; ++ t){

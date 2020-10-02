@@ -1,6 +1,6 @@
 <snippet>
 	<content><![CDATA[
-template<typename Str>
+template<class Str>
 vector<int> z_function(const Str &s){
 	int n = int(s.size());
 	vector<int> z(n);
