@@ -36,7 +36,6 @@ struct hopcroft_karp{
 		return false;
 	}
 	int solve(){ // O( sqrt(V) * E )
-		int augment = 0;
 		while(true){
 			bfs();
 			int augment = 0;
@@ -48,12 +47,11 @@ struct hopcroft_karp{
 	}
 	pair<vector<int>, vector<int>> minimum_vertex_cover(){
 		solve();
-		vector<int> L, R, inR(m);
+		vector<int> L, R;
 		for(int u = 0; u < n; ++ u){
 			if(!~layer[u]) L.push_back(u);
-			else for(auto v: adj[u]) inR[v] = true;
+			else if(~pu[u]) R.push_back(pu[u]);
 		}
-		for(int v = 0; v < m; ++ v) if(inR[v]) R.push_back(v);
 		return {L, R};
 	}
 };
